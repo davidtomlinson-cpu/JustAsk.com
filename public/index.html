@@ -177,6 +177,21 @@
     border: 1.5px solid #0B2545;
   }
   .sync-dot.is-offline { background: var(--status-critical); }
+  .basket-badge {
+    position: absolute;
+    top: -6px; right: -6px;
+    min-width: 18px; height: 18px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--status-critical);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    border: 1.5px solid #0B2545;
+  }
+  .basket-modal-empty { margin: 0 0 4px; }
 
   main {
     flex: 1;
@@ -840,6 +855,10 @@
       </svg>
     </div>
     <div class="header-actions">
+      <button class="theme-toggle" id="basketNavBtn" aria-label="View basket" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 6h2l1.6 9.9a2 2 0 0 0 2 1.7h7.1a2 2 0 0 0 2-1.66L20 9H7.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="10" cy="20.2" r="1.4" fill="currentColor"/><circle cx="17" cy="20.2" r="1.4" fill="currentColor"/></svg>
+        <span class="basket-badge" id="basketBadge" style="display:none;">0</span>
+      </button>
       <button class="theme-toggle" id="refreshBtn" aria-label="Refresh requests" type="button">
         <span class="sync-dot" id="syncDot" title="Connected"></span>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0 1 13.66-5.66M20 12a8 8 0 0 1-13.66 5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M17 3v5h-5M7 21v-5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
@@ -981,12 +1000,26 @@
     <div class="sheet" id="detailSheet"></div>
   </div>
 
+  <div class="overlay" id="basketOverlay">
+    <div class="sheet" id="basketSheetEl">
+      <div class="sheet-handle"></div>
+      <h3>Your basket (<span id="basketModalCount">0</span>)</h3>
+      <p class="view-sub basket-modal-empty" id="basketModalEmpty" style="display:none;">Your basket is empty. Add items from New Request.</p>
+      <div class="basket-list" id="basketModalList"></div>
+      <button class="btn-primary" type="button" id="basketModalContinueBtn" style="margin-top:16px;">Continue to New Request</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 </div>
 
 <script>
 (function () {
   var THEME_KEY = 'elevate_purchase_requests_theme';
+  // Basket persists across page reloads and is shown from every view (header
+  // icon + modal), not just the New Request page — kept keyed separately so
+  // clearing auth/guest state on sign-out doesn't accidentally wipe it.
+  var BASKET_KEY = 'elevate_purchase_requests_basket';
 
   // API_BASE is empty by default, meaning "same origin as this page" —
   // that's correct when the backend serves this file itself (the normal
@@ -1354,45 +1387,89 @@
   });
 
   // ---------- basket ----------
-  var basket = [];
+  function loadBasket() {
+    try { return JSON.parse(localStorage.getItem(BASKET_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveBasket() {
+    try { localStorage.setItem(BASKET_KEY, JSON.stringify(basket)); } catch (e) { /* storage unavailable — basket still works for this page view */ }
+  }
+
+  var basket = loadBasket();
   var basketSectionEl = document.getElementById('basketSection');
   var basketListEl = document.getElementById('basketList');
   var basketCountEl = document.getElementById('basketCount');
+  var basketBadgeEl = document.getElementById('basketBadge');
+  var basketOverlayEl = document.getElementById('basketOverlay');
+  var basketModalListEl = document.getElementById('basketModalList');
+  var basketModalCountEl = document.getElementById('basketModalCount');
+  var basketModalEmptyEl = document.getElementById('basketModalEmpty');
   var itemErrorEl = document.getElementById('itemError');
   var submitErrorEl = document.getElementById('submitError');
   var submitBtnEl = document.getElementById('submitBtn');
 
   function budgetLabel(tier) { return tier ? tier : 'No preference'; }
 
-  function renderBasket() {
-    basketSectionEl.style.display = basket.length ? 'block' : 'none';
-    basketCountEl.textContent = basket.length;
-    submitBtnEl.disabled = basket.length === 0;
+  function basketItemHtml(it, idx) {
+    var metaBits = [
+      'To ' + escapeHtml(it.recipient),
+      (it.qty > 1 ? it.qty + 'x' : null),
+      budgetLabel(it.budgetTier),
+      it.priority
+    ].filter(Boolean).join(' · ');
+    return '<div class="basket-item" data-idx="' + idx + '">' +
+      '<div class="basket-item-main">' +
+        '<div class="basket-item-name">' + escapeHtml(it.item) + '</div>' +
+        '<div class="basket-item-meta">' + metaBits + '</div>' +
+        '<div class="basket-item-meta">' + escapeHtml(it.addressLine) + ', ' + escapeHtml(it.postcode) + '</div>' +
+      '</div>' +
+      '<button type="button" class="basket-item-remove" data-idx="' + idx + '" aria-label="Remove item" title="Remove">&times;</button>' +
+    '</div>';
+  }
 
-    basketListEl.innerHTML = basket.map(function (it, idx) {
-      var metaBits = [
-        'To ' + escapeHtml(it.recipient),
-        (it.qty > 1 ? it.qty + 'x' : null),
-        budgetLabel(it.budgetTier),
-        it.priority
-      ].filter(Boolean).join(' · ');
-      return '<div class="basket-item" data-idx="' + idx + '">' +
-        '<div class="basket-item-main">' +
-          '<div class="basket-item-name">' + escapeHtml(it.item) + '</div>' +
-          '<div class="basket-item-meta">' + metaBits + '</div>' +
-          '<div class="basket-item-meta">' + escapeHtml(it.addressLine) + ', ' + escapeHtml(it.postcode) + '</div>' +
-        '</div>' +
-        '<button type="button" class="basket-item-remove" data-idx="' + idx + '" aria-label="Remove item" title="Remove">&times;</button>' +
-      '</div>';
-    }).join('');
-
-    basketListEl.querySelectorAll('.basket-item-remove').forEach(function (btn) {
+  function attachRemoveHandlers(container) {
+    container.querySelectorAll('.basket-item-remove').forEach(function (btn) {
       btn.addEventListener('click', function () {
         basket.splice(parseInt(btn.getAttribute('data-idx'), 10), 1);
+        saveBasket();
         renderBasket();
       });
     });
   }
+
+  // Renders the basket everywhere it can appear at once — the New Request
+  // page's inline section, the header badge (visible on every view), and the
+  // basket modal (openable from every view) — so all three always agree.
+  function renderBasket() {
+    var html = basket.map(basketItemHtml).join('');
+
+    basketSectionEl.style.display = basket.length ? 'block' : 'none';
+    basketCountEl.textContent = basket.length;
+    submitBtnEl.disabled = basket.length === 0;
+    basketListEl.innerHTML = html;
+    attachRemoveHandlers(basketListEl);
+
+    basketBadgeEl.style.display = basket.length ? 'flex' : 'none';
+    basketBadgeEl.textContent = basket.length > 99 ? '99+' : basket.length;
+
+    basketModalCountEl.textContent = basket.length;
+    basketModalEmptyEl.style.display = basket.length ? 'none' : 'block';
+    basketModalListEl.style.display = basket.length ? 'block' : 'none';
+    basketModalListEl.innerHTML = html;
+    attachRemoveHandlers(basketModalListEl);
+  }
+
+  function openBasketModal() { basketOverlayEl.classList.add('active'); }
+  function closeBasketModal() { basketOverlayEl.classList.remove('active'); }
+  document.getElementById('basketNavBtn').addEventListener('click', openBasketModal);
+  basketOverlayEl.addEventListener('click', function (e) { if (e.target === basketOverlayEl) closeBasketModal(); });
+  document.getElementById('basketModalContinueBtn').addEventListener('click', function () {
+    closeBasketModal();
+    showView('view-form');
+  });
+
+  // Reflect whatever was already in the basket (from a previous visit) as
+  // soon as the page loads, rather than waiting for the first add/remove.
+  renderBasket();
 
   function resetItemForm() {
     document.getElementById('itemForm').reset();
@@ -1430,6 +1507,7 @@
       notes: document.getElementById('f-notes').value.trim()
     });
 
+    saveBasket();
     resetItemForm();
     renderBasket();
     showToast('Added to basket');
@@ -1464,6 +1542,7 @@
       })
       .then(function () {
         basket = [];
+        saveBasket();
         renderBasket();
         document.getElementById('f-requester').value = '';
         resetItemForm();
