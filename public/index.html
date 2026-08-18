@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>JustAsk.com</title>
+
+<!-- PWA: installability, home-screen icon, and standalone display -->
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#0B2545" />
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png" />
+
+<!-- iOS / Safari home-screen support (Android/desktop read the manifest above) -->
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
+<link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-167.png" />
+<link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="JustAsk" />
+<meta name="mobile-web-app-capable" content="yes" />
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:      #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --border:         rgba(11,11,11,0.10);
+    --series-blue:    #2a78d6;
+    --series-blue-tint: #eaf2fc;
+    --status-good:     #0ca30c;
+    --status-good-tint: #e8f7e6;
+    --status-warning:  #fab219;
+    --status-warning-tint: #fef3dc;
+    --status-serious:  #ec835a;
+    --status-serious-tint: #fdeae1;
+    --status-critical: #d03b3b;
+    --status-critical-tint: #fbe6e6;
+    --status-quoted:   #eb6834;
+    --status-quoted-tint: #fdeadf;
+    --series-teal:     #1f9e8b;
+    --series-teal-tint: #e3f5f1;
+    --series-purple:   #7c5cd6;
+    --series-purple-tint: #efe9fb;
+    --series-orange:   #e08a2e;
+    --series-orange-tint: #fcefdc;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page-plane:      #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --border:         rgba(255,255,255,0.10);
+    --series-blue:    #3987e5;
+    --series-blue-tint: #12233a;
+    --status-good:     #0ca30c;
+    --status-good-tint: #123317;
+    --status-warning:  #fab219;
+    --status-warning-tint: #3a2c0c;
+    --status-serious:  #ec835a;
+    --status-serious-tint: #3a2318;
+    --status-critical: #d03b3b;
+    --status-critical-tint: #3a1414;
+    --status-quoted:   #d95926;
+    --status-quoted-tint: #3a2311;
+    --series-teal:     #2bbfa8;
+    --series-teal-tint: #0f2e29;
+    --series-purple:   #9b7ce8;
+    --series-purple-tint: #241c3a;
+    --series-orange:   #e8a250;
+    --series-orange-tint: #3a2712;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page-plane:      #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --border:         rgba(255,255,255,0.10);
+      --series-blue:    #3987e5;
+      --series-blue-tint: #12233a;
+      --status-good:     #0ca30c;
+      --status-good-tint: #123317;
+      --status-warning:  #fab219;
+      --status-warning-tint: #3a2c0c;
+      --status-serious:  #ec835a;
+      --status-serious-tint: #3a2318;
+      --status-critical: #d03b3b;
+      --status-critical-tint: #3a1414;
+      --status-quoted:   #d95926;
+      --status-quoted-tint: #3a2311;
+      --series-teal:     #2bbfa8;
+      --series-teal-tint: #0f2e29;
+      --series-purple:   #9b7ce8;
+      --series-purple-tint: #241c3a;
+      --series-orange:   #e8a250;
+      --series-orange-tint: #3a2712;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .phone {
+    width: 100%;
+    max-width: 460px;
+    min-height: 100vh;
+    background: var(--page-plane);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  header.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    gap: 10px;
+    background: #0B2545;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+  .brand-logo {
+    height: 44px;
+    width: auto;
+    display: block;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .theme-toggle {
+    border: 1px solid rgba(255,255,255,0.28);
+    background: rgba(255,255,255,0.12);
+    color: #ffffff;
+    border-radius: 999px;
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .sync-dot {
+    position: absolute;
+    top: -2px; right: -2px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--status-good);
+    border: 1.5px solid #0B2545;
+  }
+  .sync-dot.is-offline { background: var(--status-critical); }
+
+  main {
+    flex: 1;
+    padding: 4px 20px 96px;
+    overflow-y: auto;
+  }
+  .view { display: none; }
+  .view.active { display: block; animation: fadein .18s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  h2.view-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 10px 0 4px;
+  }
+  p.view-sub {
+    margin: 0 0 18px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  /* form */
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text-primary);
+  }
+  .field .hint {
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .field input, .field textarea, .field select {
+    width: 100%;
+    padding: 12px 13px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-size: 15px;
+    font-family: inherit;
+    resize: vertical;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    outline: 2px solid var(--series-blue);
+    outline-offset: 1px;
+  }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .pill-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill-option {
+    flex: 1;
+    min-width: 84px;
+    padding: 10px 6px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: center;
+  }
+  .pill-option.is-selected {
+    background: var(--series-blue);
+    border-color: var(--series-blue);
+    color: #fff;
+  }
+
+  .lookup-status {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    min-height: 14px;
+  }
+  .lookup-status.is-error { color: var(--status-critical); }
+
+  .address-results {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+    margin-top: 8px;
+  }
+  .address-result-item {
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .address-result-item.is-selected {
+    outline: 2px solid var(--series-blue);
+    outline-offset: -1px;
+    background: var(--series-blue-tint);
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: var(--series-blue);
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .btn-primary:active { opacity: .85; }
+  .btn-secondary {
+    width: 100%;
+    padding: 13px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* stat tiles */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .stat-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .stat-tile.is-active { outline: 2px solid var(--series-blue); outline-offset: -1px; }
+  .stat-tile .stat-top {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  }
+  .stat-tile .stat-value {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: proportional-nums;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* filter chips + search */
+  .search-row { margin-bottom: 12px; }
+  .search-row input {
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-size: 14px;
+  }
+  .chip-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-bottom: 16px;
+  }
+  .chip {
+    flex-shrink: 0;
+    padding: 7px 13px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .chip.is-active {
+    background: var(--series-blue);
+    border-color: var(--series-blue);
+    color: white;
+  }
+
+  /* request cards */
+  .card-list { display: flex; flex-direction: column; gap: 10px; }
+  .req-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 13px 14px;
+    cursor: pointer;
+  }
+  .req-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .req-card-item { font-size: 15px; font-weight: 700; }
+  .req-card-meta { font-size: 12.5px; color: var(--text-secondary); margin: 1px 0; }
+  .req-card-meta strong { color: var(--text-primary); font-weight: 600; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 50px 16px;
+    color: var(--text-secondary);
+  }
+  .empty-state .emoji { font-size: 34px; margin-bottom: 10px; }
+
+  /* basket */
+  .basket-section { margin-bottom: 22px; }
+  .basket-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .basket-header h3 { font-size: 14px; font-weight: 700; }
+  .basket-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+  .basket-item {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 11px 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .basket-item-main { min-width: 0; }
+  .basket-item-name { font-size: 14px; font-weight: 700; }
+  .basket-item-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .basket-item-remove {
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-2, var(--surface-1));
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .basket-item-remove:hover { color: var(--status-critical); border-color: var(--status-critical); }
+  .item-form-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 4px 0 12px;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  .basket-hint { font-size: 12.5px; color: var(--text-secondary); margin: -4px 0 16px; }
+
+  /* bottom nav */
+  nav.bottomnav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    background: var(--page-plane);
+    border-top: 1px solid var(--border);
+    padding: 8px max(8px, env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-bottom));
+  }
+  nav.bottomnav .inner {
+    width: 100%; max-width: 460px;
+    display: flex;
+  }
+  nav.bottomnav button {
+    flex: 1;
+    background: none;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 4px;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  nav.bottomnav button.is-active { color: var(--series-blue); }
+
+  /* detail overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 20;
+  }
+  .overlay.active { display: flex; }
+  .sheet {
+    width: 100%;
+    max-width: 460px;
+    max-height: 86vh;
+    overflow-y: auto;
+    background: var(--page-plane);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
+    animation: slideup .2s ease;
+  }
+  @keyframes slideup { from { transform: translateY(24px); opacity: .4; } to { transform: none; opacity: 1; } }
+  .sheet-handle {
+    width: 40px; height: 4px; border-radius: 999px;
+    background: var(--border);
+    margin: 0 auto 16px;
+  }
+  .sheet h3 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--gridline);
+    font-size: 13.5px;
+  }
+  .detail-row:last-of-type { border-bottom: none; }
+  .detail-row .k { color: var(--text-secondary); flex-shrink: 0; }
+  .detail-row .v { text-align: right; font-weight: 600; }
+  .basket-detail-item { margin-bottom: 6px; }
+  .basket-detail-item:last-child { margin-bottom: 0; }
+  .basket-detail-item-name {
+    font-weight: 700;
+    font-size: 14px;
+    margin: 14px 0 2px;
+  }
+
+  /* order timeline */
+  .timeline { display: flex; flex-direction: column; padding: 2px 0 4px; }
+  .timeline-item {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    padding-bottom: 16px;
+    padding-left: 2px;
+  }
+  .timeline-item:last-child { padding-bottom: 0; }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 14px;
+    bottom: -2px;
+    width: 2px;
+    background: var(--gridline);
+  }
+  .timeline-item:last-child::before { display: none; }
+  .timeline-dot {
+    flex-shrink: 0;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    margin-top: 2px;
+  }
+  .timeline-body { min-width: 0; }
+  .timeline-status {
+    font-size: 13.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .timeline-item:not(.is-current) .timeline-status { color: var(--text-secondary); font-weight: 600; }
+  .timeline-date { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+  /* horizontal stage tracker ("pizza tracker" style progress bar) */
+  .stage-tracker { margin: 4px 0 20px; }
+  .stage-track {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 34px;
+  }
+  .stage-track::before {
+    content: '';
+    position: absolute;
+    left: 17px; right: 17px; top: 50%;
+    height: 3px;
+    background: var(--gridline);
+    transform: translateY(-50%);
+  }
+  .stage-track-fill {
+    position: absolute;
+    left: 17px; top: 50%;
+    height: 3px;
+    background: var(--status-good);
+    transform: translateY(-50%);
+    transition: width .3s ease;
+  }
+  .stage-dot {
+    position: relative;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .stage-dot.is-current { animation: stagepulse 1.4s ease-in-out infinite; }
+  @keyframes stagepulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+  }
+  .stage-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+  }
+  .stage-labels span {
+    flex: 1;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 0 2px;
+  }
+  .stage-labels span.is-current { color: var(--text-primary); font-weight: 700; }
+
+  .status-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 16px 0 10px;
+  }
+  .status-btn {
+    padding: 10px 6px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .status-btn.is-current { outline: 2px solid var(--series-blue); outline-offset: -1px; }
+  .sheet h4.section-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 18px 0 10px;
+  }
+  .quote-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .quote-row label { font-size: 13.5px; font-weight: 600; flex: 1; }
+  .quote-input-wrap { position: relative; width: 116px; flex-shrink: 0; }
+  .quote-input-wrap .prefix {
+    position: absolute;
+    left: 10px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .quote-input-wrap input {
+    width: 100%;
+    padding: 9px 10px 9px 22px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .margin-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .margin-tile .mt-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  }
+  .margin-tile .mt-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+  .margin-tile .mt-value {
+    font-size: 22px;
+    font-weight: 700;
+    font-variant-numeric: proportional-nums;
+    color: var(--status-good);
+  }
+
+  /* accounts / auth */
+  .auth-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .auth-tab {
+    flex: 1;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    font-size: 13.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .auth-tab.is-active { background: var(--series-blue); border-color: var(--series-blue); color: #fff; }
+  .auth-error {
+    font-size: 12px;
+    color: var(--status-critical);
+    margin: -6px 0 12px;
+    min-height: 14px;
+  }
+  .guest-link-row { text-align: center; margin-top: 8px; }
+  .guest-link-row button {
+    background: none; border: none; color: var(--text-secondary);
+    font-size: 12.5px; font-family: inherit; text-decoration: underline; cursor: pointer;
+  }
+  .account-banner {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .account-banner strong { color: var(--text-primary); }
+  .account-banner.is-note { border-color: var(--series-blue); background: var(--series-blue-tint); }
+  .btn-quote {
+    width: 100%;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: var(--series-blue);
+    color: white;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .choice-tile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 13px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-family: inherit;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+  .choice-tile:active { background: var(--series-blue-tint); }
+  .choice-tile .ct-name { font-weight: 700; font-size: 14px; }
+  .choice-tile .ct-price { font-weight: 700; font-size: 15px; color: var(--series-blue); }
+  .quote-summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 13.5px;
+    border-bottom: 1px solid var(--gridline);
+  }
+  .quote-summary-row:last-child { border-bottom: none; }
+  .quote-summary-row.is-chosen { font-weight: 700; color: var(--status-good); }
+  .link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--series-blue);
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .danger-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--status-critical);
+    background: var(--status-critical-tint);
+    color: var(--status-critical);
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+
+  /* toast */
+  .toast {
+    position: fixed;
+    bottom: 86px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: var(--text-primary);
+    color: var(--page-plane);
+    padding: 11px 18px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    z-index: 30;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  svg { display: block; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-logo" viewBox="0 0 760 220" role="img" aria-label="JustAsk.com – Your Personal Concierge">
+        <rect x="0" y="0" width="760" height="220" fill="#0B2545"/>
+        <g transform="translate(30,50)">
+          <g fill="none" stroke-linecap="round" stroke-width="16">
+            <path d="M 60,20 A 40,40 0 0 1 99.39,66.94" stroke="#FFFFFF"/>
+            <path d="M 94.64,80 A 40,40 0 0 1 34.29,90.64" stroke="#D4AF37"/>
+            <path d="M 25.36,80 A 40,40 0 0 1 46.32,22.41" stroke="#FFFFFF"/>
+          </g>
+        </g>
+        <text x="185" y="145" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="80" letter-spacing="1" fill="#FFFFFF">JustAsk<tspan fill="#D4AF37">.com</tspan></text>
+        <text x="188" y="182" font-family="Arial, Helvetica, sans-serif" font-weight="600" font-size="17" letter-spacing="3.5" fill="#D4AF37">YOUR PERSONAL CONCIERGE</text>
+      </svg>
+    </div>
+    <div class="header-actions">
+      <button class="theme-toggle" id="refreshBtn" aria-label="Refresh requests" type="button">
+        <span class="sync-dot" id="syncDot" title="Connected"></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0 1 13.66-5.66M20 12a8 8 0 0 1-13.66 5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M17 3v5h-5M7 21v-5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      </button>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" id="themeIcon"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- NEW REQUEST VIEW -->
+    <section class="view active" id="view-form">
+      <h2 class="view-title">New request</h2>
+      <p class="view-sub">Add one or more items to your basket, then submit them together — each item can go to a different person and address.</p>
+
+      <div class="field">
+        <label for="f-requester">Your name *</label>
+        <input id="f-requester" type="text" placeholder="Who is asking for this?" />
+      </div>
+
+      <div class="basket-section" id="basketSection" style="display:none;">
+        <div class="basket-header">
+          <h3>Your basket (<span id="basketCount">0</span>)</h3>
+        </div>
+        <div class="basket-list" id="basketList"></div>
+      </div>
+
+      <form id="itemForm">
+        <h3 class="item-form-title">Add an item</h3>
+        <div class="field">
+          <label for="f-item">What should be purchased? *</label>
+          <input id="f-item" type="text" placeholder="e.g. 6ft Christmas tree" required />
+        </div>
+        <div class="field">
+          <label for="f-link">Link or product details <span class="hint">(optional)</span></label>
+          <textarea id="f-link" rows="2" placeholder="Product link, size, colour, brand preference..."></textarea>
+        </div>
+        <div class="field">
+          <label for="f-qty">Quantity</label>
+          <input id="f-qty" type="number" min="1" value="1" />
+        </div>
+        <div class="field">
+          <label>Preferred budget <span class="hint">(optional)</span></label>
+          <div class="pill-group" id="budgetGroup">
+            <button type="button" class="pill-option" data-value="Basic">Basic</button>
+            <button type="button" class="pill-option" data-value="Standard">Standard</button>
+            <button type="button" class="pill-option" data-value="Premium">Premium</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-recipient">Deliver to (recipient name) *</label>
+          <input id="f-recipient" type="text" placeholder="e.g. Sarah Jones" required />
+        </div>
+        <div class="field">
+          <label for="f-postcode">Delivery postcode *</label>
+          <div style="display:flex; gap:8px;">
+            <input id="f-postcode" type="text" placeholder="e.g. NW1 6XE" style="flex:1;" required />
+            <button type="button" class="btn-secondary" id="findAddressBtn" style="width:auto; padding:0 16px; flex-shrink:0;">Find address</button>
+          </div>
+          <div class="lookup-status" id="lookupStatus"></div>
+          <div class="address-results" id="addressResults" style="display:none;"></div>
+        </div>
+        <div class="field">
+          <label for="f-address-line">Address *<span class="hint"> (tap a result above, or type it)</span></label>
+          <textarea id="f-address-line" rows="2" placeholder="House/flat number, street, town" required></textarea>
+        </div>
+        <div class="field">
+          <label for="f-needed">Needed by <span class="hint">(optional)</span></label>
+          <input id="f-needed" type="date" />
+        </div>
+        <div class="field">
+          <label>Priority</label>
+          <div class="pill-group" id="priorityGroup">
+            <button type="button" class="pill-option" data-value="Same Day">Same Day</button>
+            <button type="button" class="pill-option is-selected" data-value="Next Day">Next Day</button>
+            <button type="button" class="pill-option" data-value="ASAP">ASAP</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-notes">Notes <span class="hint">(optional)</span></label>
+          <textarea id="f-notes" rows="2" placeholder="Anything else the purchasing team should know"></textarea>
+        </div>
+        <div class="lookup-status is-error" id="itemError"></div>
+        <button class="btn-secondary" type="submit" id="addItemBtn">Add to basket</button>
+      </form>
+
+      <p class="basket-hint">Submitting sends the whole basket as one request — the team will quote it all together.</p>
+      <div class="lookup-status is-error" id="submitError"></div>
+      <button class="btn-primary" type="button" id="submitBtn" disabled>Submit basket</button>
+    </section>
+
+    <!-- MY REQUESTS VIEW (buyer / guest) -->
+    <section class="view" id="view-account">
+      <h2 class="view-title">My requests</h2>
+      <p class="view-sub">Sign in to track your requests across devices, or continue as a guest.</p>
+      <div id="accountContent"></div>
+    </section>
+
+    <!-- MANAGE VIEW (staff / purchasing team) -->
+    <section class="view" id="view-dashboard">
+      <h2 class="view-title">Manage requests</h2>
+      <p class="view-sub">Everything requested so far — staff only.</p>
+
+      <div id="dashboardGate"></div>
+
+      <div id="dashboardContent" style="display:none;">
+        <div id="marginTile"></div>
+
+        <div class="stat-grid" id="statGrid"></div>
+
+        <div class="search-row">
+          <input type="text" id="searchInput" placeholder="Search item, recipient, requester..." />
+        </div>
+        <div class="chip-row" id="chipRow"></div>
+        <div class="card-list" id="cardList"></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottomnav">
+    <div class="inner">
+      <button type="button" class="nav-btn is-active" data-view="view-form">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        New request
+      </button>
+      <button type="button" class="nav-btn" data-view="view-account">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c1-3.6 4-5.6 7.5-5.6s6.5 2 7.5 5.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        My requests
+      </button>
+      <button type="button" class="nav-btn" data-view="view-dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/></svg>
+        Manage
+      </button>
+    </div>
+  </nav>
+
+  <div class="overlay" id="detailOverlay">
+    <div class="sheet" id="detailSheet"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function () {
+  var THEME_KEY = 'elevate_purchase_requests_theme';
+
+  // API_BASE is empty by default, meaning "same origin as this page" —
+  // that's correct when the backend serves this file itself (the normal
+  // setup). Override with ?api=https://your-api-host if you ever host the
+  // frontend and backend separately.
+  var API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+  // ---- getAddress.io configuration ----
+  // Sign up for a key at https://getaddress.io (they have a free/trial tier),
+  // then paste it below. Until a key is added, "Find address" will tell the
+  // user to enter the address manually instead.
+  var GETADDRESS_API_KEY = ''; // <-- paste your getAddress.io API key here
+
+  // "Order On Route" and "Order Delivered" are the delivery pipeline a buyer
+  // actually wants to track once they've paid — each one gets its own
+  // timeline entry (see statusHistory / timelineHtml below) so a buyer can
+  // see exactly when their order moved from one stage to the next.
+  // "Cancelled" is a separate exception outcome, not part of the normal flow.
+  var DELIVERY_STATUSES = ['Order On Route', 'Order Delivered'];
+  var STATUSES = [
+    { key: 'Processing',       color: 'var(--status-warning)',  tint: 'var(--status-warning-tint)',  icon: 'clock' },
+    { key: 'Quoted',           color: 'var(--status-quoted)',    tint: 'var(--status-quoted-tint)',   icon: 'tag' },
+    { key: 'Awaiting Payment', color: 'var(--status-serious)',   tint: 'var(--status-serious-tint)',  icon: 'card' },
+    { key: 'Order On Route',   color: 'var(--series-orange)',    tint: 'var(--series-orange-tint)',   icon: 'pin' },
+    { key: 'Order Delivered',  color: 'var(--status-good)',      tint: 'var(--status-good-tint)',     icon: 'check' },
+    { key: 'Cancelled',        color: 'var(--status-critical)',  tint: 'var(--status-critical-tint)', icon: 'x' }
+  ];
+  var BUDGET_TIERS = ['Basic', 'Standard', 'Premium'];
+
+  function statusInfo(key) {
+    for (var i = 0; i < STATUSES.length; i++) if (STATUSES[i].key === key) return STATUSES[i];
+    return STATUSES[0];
+  }
+
+  function icon(name, size) {
+    size = size || 12;
+    var paths = {
+      clock: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      bag: '<path d="M6 8h12l-1 12H7L6 8z" stroke="currentColor" stroke-width="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="2"/>',
+      check: '<path d="M4 12.5l5 5L20 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+      x: '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+      tag: '<path d="M11 2H5a2 2 0 0 0-2 2v6l10 10 8-8-10-10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1.6" fill="currentColor"/>',
+      card: '<rect x="2.5" y="5.5" width="19" height="13" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M2.5 9.5h19" stroke="currentColor" stroke-width="2"/><path d="M5.5 14.5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      box: '<path d="M3 8l9-4 9 4-9 4-9-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/><path d="M3 8v8l9 4 9-4V8" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/><path d="M12 12v8" stroke="currentColor" stroke-width="2"/>',
+      truck: '<rect x="1" y="8" width="13" height="8" rx="1" stroke="currentColor" stroke-width="2" fill="none"/><path d="M14 11h4l3 3v2h-7v-5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/><circle cx="6" cy="18" r="1.6" fill="currentColor"/><circle cx="17" cy="18" r="1.6" fill="currentColor"/>',
+      pin: '<path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/><circle cx="12" cy="9.5" r="2.2" stroke="currentColor" stroke-width="2" fill="none"/>'
+    };
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none">' + (paths[name] || '') + '</svg>';
+  }
+
+  // ---------- accounts (buyer sign in/up, staff login) ----------
+  var AUTH_KEY = 'aaa_auth';        // { token, user } for whoever is currently signed in
+  var GUEST_IDS_KEY = 'aaa_guest_ids'; // ids of requests made on this device without an account
+  var GUEST_MODE_KEY = 'aaa_guest_mode';
+
+  function loadAuth() {
+    try { return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function saveAuth(auth) {
+    if (auth) localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+    else localStorage.removeItem(AUTH_KEY);
+  }
+  function loadGuestIds() {
+    try { return JSON.parse(localStorage.getItem(GUEST_IDS_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveGuestIds(ids) { localStorage.setItem(GUEST_IDS_KEY, JSON.stringify(ids.slice(-50))); }
+  function addGuestId(id) {
+    var ids = loadGuestIds();
+    if (ids.indexOf(id) === -1) { ids.push(id); saveGuestIds(ids); }
+  }
+
+  // ---------- backend API ----------
+  function apiUrl(p) { return API_BASE + p; }
+  function authHeaders() {
+    return state.authToken ? { 'Authorization': 'Bearer ' + state.authToken } : {};
+  }
+
+  async function apiList() {
+    var url = apiUrl('/api/requests');
+    if (!state.authUser && !state.authToken) {
+      var ids = loadGuestIds();
+      if (ids.length) url += '?ids=' + ids.map(encodeURIComponent).join(',');
+    }
+    var res = await fetch(url, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Could not load requests (' + res.status + ')');
+    return res.json();
+  }
+  async function apiCreate(payload) {
+    var res = await fetch(apiUrl('/api/requests'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      throw new Error(err.error || 'Could not create the request (' + res.status + ')');
+    }
+    return res.json();
+  }
+  async function apiPatch(id, patch) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id)), {
+      method: 'PATCH',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify(patch)
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      throw new Error(err.error || 'Could not save the change (' + res.status + ')');
+    }
+    return res.json();
+  }
+  async function apiDelete(id) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id)), { method: 'DELETE', headers: authHeaders() });
+    if (!res.ok && res.status !== 404) throw new Error('Could not delete the request (' + res.status + ')');
+  }
+  async function apiConfig() {
+    var res = await fetch(apiUrl('/api/config'));
+    if (!res.ok) throw new Error('Could not load config');
+    return res.json();
+  }
+  async function apiPay(id, tier) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id) + '/pay'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ tier: tier })
+    });
+    var body = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(body.error || 'Could not start payment (' + res.status + ')');
+    return body; // { url }
+  }
+  async function apiConfirmPayment(id, sessionId) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id) + '/confirm-payment'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ sessionId: sessionId })
+    });
+    var body = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(body.error || 'Could not confirm payment (' + res.status + ')');
+    return body;
+  }
+  async function apiSignup(name, email, password) {
+    var res = await fetch(apiUrl('/api/auth/signup'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, email: email, password: password })
+    });
+    var body = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(body.error || 'Could not create your account');
+    return body; // { token, user }
+  }
+  async function apiLogin(email, password) {
+    var res = await fetch(apiUrl('/api/auth/login'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: password })
+    });
+    var body = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(body.error || 'Could not sign you in');
+    return body; // { token, user }
+  }
+  async function apiLogout(token) {
+    try {
+      await fetch(apiUrl('/api/auth/logout'), { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    } catch (e) { /* sign out locally regardless */ }
+  }
+  async function apiMe(token) {
+    var res = await fetch(apiUrl('/api/auth/me'), { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) throw new Error('Session expired');
+    return res.json(); // { user }
+  }
+  async function apiClaim(ids) {
+    if (!ids.length) return { claimed: 0 };
+    var res = await fetch(apiUrl('/api/requests/claim'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ ids: ids })
+    });
+    return res.ok ? res.json() : { claimed: 0 };
+  }
+
+  var requests = [];
+  var storedAuth = loadAuth();
+  var state = {
+    filter: 'All', search: '', loading: true, connectionError: null, paymentsEnabled: false, markupRate: 0.2,
+    authToken: storedAuth ? storedAuth.token : null,
+    authUser: storedAuth ? storedAuth.user : null,
+    guestMode: localStorage.getItem(GUEST_MODE_KEY) === '1',
+    authTab: 'signin'
+  };
+  var POLL_INTERVAL_MS = 8000;
+
+  // Tracks each request's last-seen status so a buyer/guest gets a toast the
+  // moment a poll picks up a change — this is what makes "send updates to
+  // the buyer" feel live rather than something they have to remember to go
+  // check. Deliberately skipped for staff (they're the ones making the
+  // changes, so a toast for every request they just patched would be noise)
+  // and skipped on the very first load (nothing has "changed" yet).
+  var knownStatusById = {};
+  var knownStatusPrimed = false;
+
+  function notifyStatusChanges(freshRequests) {
+    var isBuyerOrGuest = !state.authUser || state.authUser.role !== 'staff';
+    if (isBuyerOrGuest && knownStatusPrimed) {
+      freshRequests.forEach(function (r) {
+        var prev = knownStatusById[r.id];
+        if (prev && prev !== r.status) {
+          showToast('Update: "' + r.item + '" is now ' + r.status);
+        }
+      });
+    }
+    freshRequests.forEach(function (r) { knownStatusById[r.id] = r.status; });
+    knownStatusPrimed = true;
+  }
+
+  async function refreshRequests(opts) {
+    var silent = !!(opts && opts.silent);
+    if (!silent) { state.loading = true; renderDashboard(); }
+    try {
+      requests = await apiList();
+      notifyStatusChanges(requests);
+      state.connectionError = null;
+      state.loading = false;
+      renderDashboard();
+      renderMyRequestsList(); // safe no-op unless the account view's list is on screen
+      updateSyncIndicator(true);
+    } catch (err) {
+      state.loading = false;
+      state.connectionError = err.message || 'Could not reach the server.';
+      renderDashboard();
+      updateSyncIndicator(false);
+    }
+  }
+
+  function updateSyncIndicator(ok) {
+    var dot = document.getElementById('syncDot');
+    if (!dot) return;
+    dot.classList.toggle('is-offline', !ok);
+    dot.title = ok ? 'Connected' : 'Can\'t reach the server';
+  }
+
+  // ---------- theme ----------
+  var themeIconEl = document.getElementById('themeIcon');
+  var ICONS_THEME = {
+    moon: '<path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" fill="currentColor"/>',
+    sun: '<circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></g>'
+  };
+  function applyTheme(mode) {
+    if (mode === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      themeIconEl.innerHTML = ICONS_THEME.sun;
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+      themeIconEl.innerHTML = ICONS_THEME.moon;
+    }
+  }
+  var savedTheme = localStorage.getItem(THEME_KEY);
+  applyTheme(savedTheme === 'dark' ? 'dark' : 'light');
+  document.getElementById('themeToggle').addEventListener('click', function () {
+    var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    var next = current === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    localStorage.setItem(THEME_KEY, next);
+  });
+  document.getElementById('refreshBtn').addEventListener('click', function () {
+    refreshRequests();
+  });
+
+  // ---------- nav ----------
+  var navBtns = document.querySelectorAll('.nav-btn');
+  navBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () { showView(btn.getAttribute('data-view')); });
+  });
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(function (v) { v.classList.toggle('active', v.id === id); });
+    navBtns.forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-view') === id); });
+    if (id === 'view-dashboard') renderDashboard();
+    if (id === 'view-account') renderAccountView();
+  }
+
+  // ---------- toast ----------
+  var toastEl = document.getElementById('toast');
+  var toastTimer;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2200);
+  }
+
+  // ---------- pill groups (Budget / Priority) ----------
+  function initPillGroup(id, allowDeselect) {
+    var group = document.getElementById(id);
+    group.querySelectorAll('.pill-option').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var wasSelected = btn.classList.contains('is-selected');
+        group.querySelectorAll('.pill-option').forEach(function (b) { b.classList.remove('is-selected'); });
+        if (!(wasSelected && allowDeselect)) btn.classList.add('is-selected');
+      });
+    });
+  }
+  function getPillValue(id) {
+    var sel = document.querySelector('#' + id + ' .pill-option.is-selected');
+    return sel ? sel.getAttribute('data-value') : null;
+  }
+  function setPillValue(id, value) {
+    document.querySelectorAll('#' + id + ' .pill-option').forEach(function (b) {
+      b.classList.toggle('is-selected', value !== null && b.getAttribute('data-value') === value);
+    });
+  }
+  initPillGroup('budgetGroup', true);
+  initPillGroup('priorityGroup', false);
+
+  // ---------- postcode / address lookup ----------
+  var lookupStatusEl = document.getElementById('lookupStatus');
+  var addressResultsEl = document.getElementById('addressResults');
+
+  function setLookupStatus(msg, isError) {
+    lookupStatusEl.textContent = msg;
+    lookupStatusEl.classList.toggle('is-error', !!isError);
+  }
+
+  document.getElementById('findAddressBtn').addEventListener('click', function () {
+    var pc = document.getElementById('f-postcode').value.trim();
+    addressResultsEl.style.display = 'none';
+    addressResultsEl.innerHTML = '';
+
+    if (!pc) { setLookupStatus('Enter a postcode first.', true); return; }
+
+    if (!GETADDRESS_API_KEY) {
+      setLookupStatus("Address lookup isn't set up yet — enter the address manually below.", true);
+      return;
+    }
+
+    setLookupStatus('Looking up addresses…', false);
+
+    fetch('https://api.getAddress.io/find/' + encodeURIComponent(pc) + '?api-key=' + encodeURIComponent(GETADDRESS_API_KEY))
+      .then(function (res) {
+        if (res.status === 401 || res.status === 403) throw new Error('auth');
+        if (res.status === 404) throw new Error('notfound');
+        if (!res.ok) throw new Error('other');
+        return res.json();
+      })
+      .then(function (data) {
+        var addrs = (data && data.addresses) || [];
+        if (!addrs.length) {
+          setLookupStatus('No addresses found for that postcode — enter it manually below.', true);
+          return;
+        }
+        setLookupStatus('Found ' + addrs.length + ' address' + (addrs.length === 1 ? '' : 'es') + ' — tap one, or edit manually below.', false);
+        addressResultsEl.style.display = 'flex';
+        addressResultsEl.innerHTML = addrs.map(function (a, i) {
+          return '<button type="button" class="address-result-item" data-idx="' + i + '">' + escapeHtml(a) + '</button>';
+        }).join('');
+        addressResultsEl.querySelectorAll('.address-result-item').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            document.getElementById('f-address-line').value = addrs[parseInt(btn.getAttribute('data-idx'), 10)];
+            addressResultsEl.querySelectorAll('.address-result-item').forEach(function (b) { b.classList.remove('is-selected'); });
+            btn.classList.add('is-selected');
+          });
+        });
+      })
+      .catch(function (err) {
+        if (err.message === 'auth') setLookupStatus('Address lookup key is missing or invalid — enter the address manually below.', true);
+        else if (err.message === 'notfound') setLookupStatus("That postcode wasn't recognised — check it or enter the address manually.", true);
+        else setLookupStatus("Couldn't look up that address right now — enter it manually below.", true);
+      });
+  });
+
+  // ---------- basket ----------
+  var basket = [];
+  var basketSectionEl = document.getElementById('basketSection');
+  var basketListEl = document.getElementById('basketList');
+  var basketCountEl = document.getElementById('basketCount');
+  var itemErrorEl = document.getElementById('itemError');
+  var submitErrorEl = document.getElementById('submitError');
+  var submitBtnEl = document.getElementById('submitBtn');
+
+  function budgetLabel(tier) { return tier ? tier : 'No preference'; }
+
+  function renderBasket() {
+    basketSectionEl.style.display = basket.length ? 'block' : 'none';
+    basketCountEl.textContent = basket.length;
+    submitBtnEl.disabled = basket.length === 0;
+
+    basketListEl.innerHTML = basket.map(function (it, idx) {
+      var metaBits = [
+        'To ' + escapeHtml(it.recipient),
+        (it.qty > 1 ? it.qty + 'x' : null),
+        budgetLabel(it.budgetTier),
+        it.priority
+      ].filter(Boolean).join(' · ');
+      return '<div class="basket-item" data-idx="' + idx + '">' +
+        '<div class="basket-item-main">' +
+          '<div class="basket-item-name">' + escapeHtml(it.item) + '</div>' +
+          '<div class="basket-item-meta">' + metaBits + '</div>' +
+          '<div class="basket-item-meta">' + escapeHtml(it.addressLine) + ', ' + escapeHtml(it.postcode) + '</div>' +
+        '</div>' +
+        '<button type="button" class="basket-item-remove" data-idx="' + idx + '" aria-label="Remove item" title="Remove">&times;</button>' +
+      '</div>';
+    }).join('');
+
+    basketListEl.querySelectorAll('.basket-item-remove').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        basket.splice(parseInt(btn.getAttribute('data-idx'), 10), 1);
+        renderBasket();
+      });
+    });
+  }
+
+  function resetItemForm() {
+    document.getElementById('itemForm').reset();
+    document.getElementById('f-qty').value = 1;
+    setPillValue('budgetGroup', null);
+    setPillValue('priorityGroup', 'Next Day');
+    addressResultsEl.style.display = 'none';
+    addressResultsEl.innerHTML = '';
+    setLookupStatus('', false);
+  }
+
+  document.getElementById('itemForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var item = document.getElementById('f-item').value.trim();
+    var recipient = document.getElementById('f-recipient').value.trim();
+    var postcode = document.getElementById('f-postcode').value.trim().toUpperCase();
+    var addressLine = document.getElementById('f-address-line').value.trim();
+
+    itemErrorEl.textContent = '';
+    if (!item || !recipient || !postcode || !addressLine) {
+      itemErrorEl.textContent = 'Fill in the required fields (marked *) before adding this item.';
+      return;
+    }
+
+    basket.push({
+      item: item,
+      link: document.getElementById('f-link').value.trim(),
+      qty: parseInt(document.getElementById('f-qty').value, 10) || 1,
+      budgetTier: getPillValue('budgetGroup'),
+      recipient: recipient,
+      postcode: postcode,
+      addressLine: addressLine,
+      neededBy: document.getElementById('f-needed').value || null,
+      priority: getPillValue('priorityGroup') || 'Next Day',
+      notes: document.getElementById('f-notes').value.trim()
+    });
+
+    resetItemForm();
+    renderBasket();
+    showToast('Added to basket');
+  });
+
+  submitBtnEl.addEventListener('click', function () {
+    var requester = document.getElementById('f-requester').value.trim();
+    submitErrorEl.textContent = '';
+
+    if (!requester) {
+      submitErrorEl.textContent = 'Enter your name before submitting the basket.';
+      return;
+    }
+    if (!basket.length) {
+      submitErrorEl.textContent = 'Add at least one item to your basket first.';
+      return;
+    }
+
+    submitBtnEl.disabled = true;
+    submitBtnEl.textContent = 'Submitting…';
+
+    apiCreate({ requester: requester, items: basket })
+      .then(function (created) {
+        if (!state.authUser) {
+          // No account — remember it on this device so it shows up under
+          // "My requests" without needing to sign in.
+          addGuestId(created.id);
+          state.guestMode = true;
+          localStorage.setItem(GUEST_MODE_KEY, '1');
+        }
+        return refreshRequests();
+      })
+      .then(function () {
+        basket = [];
+        renderBasket();
+        document.getElementById('f-requester').value = '';
+        resetItemForm();
+        showToast('Request submitted');
+        showView('view-account');
+      })
+      .catch(function (err) {
+        submitErrorEl.textContent = err.message || "Couldn't submit the basket — check your connection and try again.";
+      })
+      .finally(function () {
+        submitBtnEl.disabled = basket.length === 0;
+        submitBtnEl.textContent = 'Submit basket';
+      });
+  });
+
+  // ---------- dashboard ----------
+  var statGrid = document.getElementById('statGrid');
+  var chipRow = document.getElementById('chipRow');
+  var cardList = document.getElementById('cardList');
+  var searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', function () {
+    state.search = searchInput.value.trim().toLowerCase();
+    renderList();
+  });
+
+  function renderStatTiles() {
+    var counts = {};
+    STATUSES.forEach(function (s) { counts[s.key] = 0; });
+    requests.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
+    statGrid.innerHTML = STATUSES.map(function (s) {
+      var active = state.filter === s.key;
+      return '<div class="stat-tile' + (active ? ' is-active' : '') + '" data-status="' + s.key + '">' +
+        '<div class="stat-top"><span class="dot" style="background:' + s.color + '"></span>' + s.key + '</div>' +
+        '<div class="stat-value" style="color:' + s.color + '">' + counts[s.key] + '</div>' +
+        '</div>';
+    }).join('');
+    statGrid.querySelectorAll('.stat-tile').forEach(function (tile) {
+      tile.addEventListener('click', function () {
+        var st = tile.getAttribute('data-status');
+        state.filter = (state.filter === st) ? 'All' : st;
+        renderDashboard();
+      });
+    });
+  }
+
+  function renderChips() {
+    var opts = ['All'].concat(STATUSES.map(function (s) { return s.key; }));
+    chipRow.innerHTML = opts.map(function (o) {
+      return '<button type="button" class="chip' + (state.filter === o ? ' is-active' : '') + '" data-status="' + o + '">' + o + '</button>';
+    }).join('');
+    chipRow.querySelectorAll('.chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        state.filter = chip.getAttribute('data-status');
+        renderDashboard();
+      });
+    });
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function fmtDateTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) +
+      ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Short labels for the horizontal stage tracker below — matches
+  // DELIVERY_STATUSES above.
+  var STAGE_LABELS = {
+    'Order On Route':  'On Route',
+    'Order Delivered': 'Delivered'
+  };
+
+  // A Domino's-tracker-style horizontal progress bar across the delivery
+  // pipeline — lights up every stage up to and including the current one, so
+  // a buyer gets an at-a-glance "where's my order" view before scrolling
+  // down to the full timestamped timeline. Only shown once an order has
+  // actually entered the delivery pipeline (i.e. after payment); nothing to
+  // show yet while it's still Processing/Quoted/Awaiting Payment, and a
+  // Cancelled order doesn't get a "how far did it get" bar either.
+  function stageTrackerHtml(r) {
+    var stageIdx = DELIVERY_STATUSES.indexOf(r.status);
+    if (stageIdx === -1) return '';
+    var fraction = stageIdx / (DELIVERY_STATUSES.length - 1);
+
+    return '<div class="stage-tracker">' +
+      '<div class="stage-track">' +
+        '<div class="stage-track-fill" style="width: calc((100% - 34px) * ' + fraction.toFixed(4) + ')"></div>' +
+        DELIVERY_STATUSES.map(function (key, i) {
+          var s = statusInfo(key);
+          var state = i < stageIdx ? 'is-done' : (i === stageIdx ? 'is-current' : 'is-upcoming');
+          var litStyle = state !== 'is-upcoming' ? ('background:' + s.color + ';border-color:' + s.color + ';color:#fff;') : '';
+          return '<span class="stage-dot ' + state + '" style="' + litStyle + '">' + icon(s.icon, 15) + '</span>';
+        }).join('') +
+      '</div>' +
+      '<div class="stage-labels">' +
+        DELIVERY_STATUSES.map(function (key, i) {
+          return '<span class="' + (i === stageIdx ? 'is-current' : '') + '">' + STAGE_LABELS[key] + '</span>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+  }
+
+  // A visual timeline of every status this order has passed through — this
+  // is what actually lets a buyer see "when" their order moved from one
+  // delivery stage to the next, not just its current stage.
+  function timelineHtml(r) {
+    var hist = (r.statusHistory && r.statusHistory.length) ? r.statusHistory : [{ status: r.status, createdAt: r.updatedAt || r.createdAt }];
+    return '<h4 class="section-title">Order timeline</h4>' +
+      '<div class="timeline">' +
+      hist.map(function (h, idx) {
+        var s = statusInfo(h.status);
+        var isCurrent = idx === hist.length - 1;
+        return '<div class="timeline-item' + (isCurrent ? ' is-current' : '') + '">' +
+          '<span class="timeline-dot" style="background:' + s.color + '"></span>' +
+          '<div class="timeline-body">' +
+            '<div class="timeline-status" style="color:' + (isCurrent ? s.color : 'inherit') + '">' + icon(s.icon, 12) + ' ' + escapeHtml(h.status) + '</div>' +
+            '<div class="timeline-date">' + fmtDateTime(h.createdAt) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+      '</div>';
+  }
+
+  // Shared by the staff card list and the buyer/guest "My requests" list —
+  // same card markup either way, just a different source list and a
+  // different viewer role wired onto the click handler.
+  function buildCardListHtml(list) {
+    return list.map(function (r) {
+      var s = statusInfo(r.status);
+      return '<div class="req-card" data-id="' + r.id + '">' +
+        '<div class="req-card-top">' +
+          '<div class="req-card-item">' + escapeHtml(r.item) + '</div>' +
+          '<span class="badge" style="background:' + s.tint + ';color:' + s.color + '">' + icon(s.icon, 11) + s.key + '</span>' +
+        '</div>' +
+        '<div class="req-card-meta">To <strong>' + escapeHtml(r.recipient) + '</strong></div>' +
+        '<div class="req-card-meta">Requested by ' + escapeHtml(r.requester) + ' · ' + fmtDate(r.createdAt) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+  function wireCardClicks(containerEl, viewer) {
+    containerEl.querySelectorAll('.req-card').forEach(function (card) {
+      card.addEventListener('click', function () { openDetail(card.getAttribute('data-id'), { viewer: viewer }); });
+    });
+  }
+
+  function renderList() {
+    var filtered = requests.filter(function (r) {
+      if (state.filter !== 'All' && r.status !== state.filter) return false;
+      if (state.search) {
+        var hay = (r.item + ' ' + r.recipient + ' ' + r.requester + ' ' + (r.postcode || '') + ' ' + (r.addressLine || '')).toLowerCase();
+        if (hay.indexOf(state.search) === -1) return false;
+      }
+      return true;
+    });
+
+    if (state.loading && !requests.length) {
+      cardList.innerHTML = '<div class="empty-state"><div class="emoji">⏳</div>Loading requests…</div>';
+      return;
+    }
+
+    if (state.connectionError && !requests.length) {
+      cardList.innerHTML = '<div class="empty-state"><div class="emoji">⚠️</div>' +
+        escapeHtml(state.connectionError) +
+        '<div style="margin-top:12px"><button type="button" class="btn-secondary" id="retryLoadBtn" style="width:auto;padding:9px 18px;">Try again</button></div></div>';
+      var retryBtn = document.getElementById('retryLoadBtn');
+      if (retryBtn) retryBtn.addEventListener('click', function () { refreshRequests(); });
+      return;
+    }
+
+    if (!filtered.length) {
+      cardList.innerHTML = '<div class="empty-state"><div class="emoji">🎄</div>' +
+        (requests.length ? 'No requests match that filter.' : 'No requests yet — submit one from the New request tab.') +
+        '</div>';
+      return;
+    }
+
+    cardList.innerHTML = buildCardListHtml(filtered);
+    wireCardClicks(cardList, 'staff');
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // Margin is business-only information — direct cost is never sent to, or
+  // shown on, any customer-facing screen. This tile is the one place the
+  // markup the business earns is surfaced, as a running total rather than
+  // a per-item breakdown.
+  function renderMarginTile() {
+    var tileEl = document.getElementById('marginTile');
+    if (!tileEl) return;
+    var total = 0, count = 0;
+    requests.forEach(function (r) {
+      // Margin is earned the moment payment succeeds, regardless of which
+      // delivery stage the order is currently sitting at — checking
+      // paymentStatus directly (rather than enumerating every post-payment
+      // status) means this keeps working as the delivery pipeline evolves.
+      if (r.paymentStatus === 'paid' && r.quotes && r.directCosts && r.selectedTier) {
+        var q = r.quotes[r.selectedTier];
+        var c = r.directCosts[r.selectedTier];
+        if (typeof q === 'number' && typeof c === 'number') {
+          total += (q - c);
+          count++;
+        }
+      }
+    });
+    tileEl.innerHTML =
+      '<div class="margin-tile">' +
+        '<div><div class="mt-label">' + icon('tag', 12) + ' Margin earned</div>' +
+        '<div class="mt-sub">' + (count ? ('Across ' + count + ' completed order' + (count === 1 ? '' : 's')) : 'No completed orders yet') + '</div></div>' +
+        '<div class="mt-value">' + fmtMoney(total) + '</div>' +
+      '</div>';
+  }
+
+  // ---------- staff gate (Manage tab) ----------
+  var dashboardGateEl = document.getElementById('dashboardGate');
+  var dashboardContentEl = document.getElementById('dashboardContent');
+  var staffGateBuilt = false; // guards against the 8s poll wiping out a half-typed password
+
+  function renderDashboard() {
+    var isStaff = !!(state.authUser && state.authUser.role === 'staff');
+    dashboardContentEl.style.display = isStaff ? '' : 'none';
+    dashboardGateEl.style.display = isStaff ? 'none' : '';
+    if (!isStaff) {
+      renderStaffGate();
+      return;
+    }
+    staffGateBuilt = false; // rebuild fresh if they ever sign out
+    renderMarginTile();
+    renderStatTiles();
+    renderChips();
+    renderList();
+  }
+
+  function renderStaffGate() {
+    if (staffGateBuilt) return;
+    staffGateBuilt = true;
+    dashboardGateEl.innerHTML =
+      '<div class="account-banner">Managing requests — quoting, statuses, and the margin tile — needs the purchasing team\'s login.</div>' +
+      '<div class="field"><label for="staff-email">Email</label><input id="staff-email" type="email" autocomplete="username" /></div>' +
+      '<div class="field"><label for="staff-password">Password</label><input id="staff-password" type="password" autocomplete="current-password" /></div>' +
+      '<div class="auth-error" id="staffLoginError"></div>' +
+      '<button type="button" class="btn-primary" id="staffLoginBtn">Sign in</button>';
+
+    document.getElementById('staffLoginBtn').addEventListener('click', function () {
+      var btn = this;
+      var email = document.getElementById('staff-email').value.trim();
+      var password = document.getElementById('staff-password').value;
+      var errEl = document.getElementById('staffLoginError');
+      errEl.textContent = '';
+      if (!email || !password) { errEl.textContent = 'Enter an email and password.'; return; }
+      btn.disabled = true; btn.textContent = 'Signing in…';
+      apiLogin(email, password)
+        .then(function (result) {
+          if (result.user.role !== 'staff') {
+            throw new Error("That's a buyer account — sign in from the My requests tab instead.");
+          }
+          setAuth(result.token, result.user);
+          showToast('Signed in as staff');
+          return refreshRequests();
+        })
+        .catch(function (err) {
+          errEl.textContent = err.message || 'Could not sign in.';
+        })
+        .finally(function () {
+          btn.disabled = false; btn.textContent = 'Sign in';
+        });
+    });
+  }
+
+  // ---------- account (My requests) view: buyer sign in/up, or guest ----------
+  var accountContentEl = document.getElementById('accountContent');
+  var authGateBuilt = false;
+
+  function setAuth(token, user) {
+    state.authToken = token;
+    state.authUser = user;
+    saveAuth({ token: token, user: user });
+    authGateBuilt = false;
+    applyAuthToForm();
+  }
+  function clearAuth() {
+    var token = state.authToken;
+    state.authToken = null;
+    state.authUser = null;
+    saveAuth(null);
+    authGateBuilt = false;
+    staffGateBuilt = false;
+    if (token) apiLogout(token);
+  }
+  function applyAuthToForm() {
+    var f = document.getElementById('f-requester');
+    if (f && !f.value && state.authUser && state.authUser.role === 'buyer') f.value = state.authUser.name;
+  }
+
+  function renderAccountView() {
+    if (state.authUser && state.authUser.role === 'buyer') {
+      authGateBuilt = false;
+      renderBuyerAccount();
+    } else if (state.authUser && state.authUser.role === 'staff') {
+      accountContentEl.innerHTML =
+        '<div class="account-banner is-note">Signed in as staff (' + escapeHtml(state.authUser.email) + '). Staff logins don\'t have personal requests of their own — head to <strong>Manage</strong> to see everything.</div>' +
+        '<button type="button" class="btn-secondary" id="accSignOutBtn">Sign out</button>';
+      document.getElementById('accSignOutBtn').addEventListener('click', function () {
+        clearAuth();
+        renderAccountView();
+        renderDashboard();
+      });
+    } else if (state.guestMode) {
+      authGateBuilt = false;
+      renderGuestAccount();
+    } else {
+      renderAuthGate();
+    }
+  }
+
+  function renderAuthGate() {
+    if (authGateBuilt) return;
+    authGateBuilt = true;
+    accountContentEl.innerHTML =
+      '<div class="auth-tabs">' +
+        '<button type="button" class="auth-tab' + (state.authTab === 'signin' ? ' is-active' : '') + '" data-tab="signin">Sign in</button>' +
+        '<button type="button" class="auth-tab' + (state.authTab === 'signup' ? ' is-active' : '') + '" data-tab="signup">Create account</button>' +
+      '</div>' +
+      '<div id="authFormMount"></div>' +
+      '<div class="guest-link-row"><button type="button" id="continueGuestBtn">Continue as guest instead</button></div>';
+
+    accountContentEl.querySelectorAll('.auth-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        state.authTab = tab.getAttribute('data-tab');
+        authGateBuilt = false;
+        renderAuthGate();
+      });
+    });
+    document.getElementById('continueGuestBtn').addEventListener('click', function () {
+      state.guestMode = true;
+      localStorage.setItem(GUEST_MODE_KEY, '1');
+      renderAccountView();
+    });
+
+    var mount = document.getElementById('authFormMount');
+    if (state.authTab === 'signup') {
+      mount.innerHTML =
+        '<div class="field"><label for="su-name">Your name</label><input id="su-name" type="text" /></div>' +
+        '<div class="field"><label for="su-email">Email</label><input id="su-email" type="email" autocomplete="username" /></div>' +
+        '<div class="field"><label for="su-password">Password <span class="hint">(6+ characters)</span></label><input id="su-password" type="password" autocomplete="new-password" /></div>' +
+        '<div class="auth-error" id="authError"></div>' +
+        '<button type="button" class="btn-primary" id="authSubmitBtn">Create account</button>';
+      document.getElementById('authSubmitBtn').addEventListener('click', function () {
+        var btn = this;
+        var name = document.getElementById('su-name').value.trim();
+        var email = document.getElementById('su-email').value.trim();
+        var password = document.getElementById('su-password').value;
+        var errEl = document.getElementById('authError');
+        errEl.textContent = '';
+        if (!name || !email || !password) { errEl.textContent = 'Fill in your name, email and password.'; return; }
+        btn.disabled = true; btn.textContent = 'Creating account…';
+        apiSignup(name, email, password)
+          .then(function (result) { return afterAuthSuccess(result, 'Account created — welcome!'); })
+          .catch(function (err) { errEl.textContent = err.message || 'Could not create your account.'; })
+          .finally(function () { btn.disabled = false; btn.textContent = 'Create account'; });
+      });
+    } else {
+      mount.innerHTML =
+        '<div class="field"><label for="si-email">Email</label><input id="si-email" type="email" autocomplete="username" /></div>' +
+        '<div class="field"><label for="si-password">Password</label><input id="si-password" type="password" autocomplete="current-password" /></div>' +
+        '<div class="auth-error" id="authError"></div>' +
+        '<button type="button" class="btn-primary" id="authSubmitBtn">Sign in</button>';
+      document.getElementById('authSubmitBtn').addEventListener('click', function () {
+        var btn = this;
+        var email = document.getElementById('si-email').value.trim();
+        var password = document.getElementById('si-password').value;
+        var errEl = document.getElementById('authError');
+        errEl.textContent = '';
+        if (!email || !password) { errEl.textContent = 'Enter your email and password.'; return; }
+        btn.disabled = true; btn.textContent = 'Signing in…';
+        apiLogin(email, password)
+          .then(function (result) {
+            if (result.user.role !== 'buyer') {
+              throw new Error("That's the staff login — sign in from the Manage tab instead.");
+            }
+            return afterAuthSuccess(result, 'Signed in — welcome back!');
+          })
+          .catch(function (err) { errEl.textContent = err.message || 'Could not sign in.'; })
+          .finally(function () { btn.disabled = false; btn.textContent = 'Sign in'; });
+      });
+    }
+  }
+
+  // Common tail for a successful buyer sign-in/sign-up: attach whatever this
+  // device has submitted as a guest onto the new account, then load their list.
+  function afterAuthSuccess(result, toastMsg) {
+    setAuth(result.token, result.user);
+    var guestIds = loadGuestIds();
+    return apiClaim(guestIds)
+      .then(function () {
+        localStorage.removeItem(GUEST_IDS_KEY);
+        localStorage.removeItem(GUEST_MODE_KEY);
+        state.guestMode = false;
+        return refreshRequests();
+      })
+      .then(function () {
+        showToast(toastMsg);
+        renderAccountView();
+      });
+  }
+
+  function renderBuyerAccount() {
+    accountContentEl.innerHTML =
+      '<div class="account-banner">Signed in as <strong>' + escapeHtml(state.authUser.name) + '</strong> (' + escapeHtml(state.authUser.email) + ').</div>' +
+      '<button type="button" class="btn-secondary" id="accSignOutBtn" style="margin-bottom:16px;">Sign out</button>' +
+      '<div class="card-list" id="myReqCardList"></div>';
+    document.getElementById('accSignOutBtn').addEventListener('click', function () {
+      clearAuth();
+      refreshRequests().then(function () { renderAccountView(); });
+    });
+    renderMyRequestsList();
+  }
+
+  function renderGuestAccount() {
+    accountContentEl.innerHTML =
+      '<div class="account-banner is-note">Browsing as a guest — these requests are only tracked on this device. <button type="button" id="switchToAuthBtn" style="background:none;border:none;color:var(--series-blue);font-weight:700;font-family:inherit;cursor:pointer;padding:0;text-decoration:underline;">Sign in or create an account</button> to see them anywhere.</div>' +
+      '<div class="card-list" id="myReqCardList"></div>';
+    document.getElementById('switchToAuthBtn').addEventListener('click', function () {
+      state.guestMode = false;
+      localStorage.removeItem(GUEST_MODE_KEY);
+      authGateBuilt = false;
+      renderAccountView();
+    });
+    renderMyRequestsList();
+  }
+
+  // Refreshes just the request cards inside "My requests" — safe to call on
+  // every poll tick, since it's a no-op whenever that list isn't on screen
+  // (e.g. the auth-gate forms are showing instead), so it never wipes out
+  // something the buyer is mid-typing.
+  function renderMyRequestsList() {
+    var listEl = document.getElementById('myReqCardList');
+    if (!listEl) return;
+    if (state.loading && !requests.length) {
+      listEl.innerHTML = '<div class="empty-state"><div class="emoji">⏳</div>Loading…</div>';
+      return;
+    }
+    if (!requests.length) {
+      listEl.innerHTML = '<div class="empty-state"><div class="emoji">🎄</div>No requests yet — submit one from the New request tab.</div>';
+      return;
+    }
+    listEl.innerHTML = buildCardListHtml(requests);
+    wireCardClicks(listEl, 'buyer');
+  }
+
+  // ---------- detail sheet ----------
+  var overlay = document.getElementById('detailOverlay');
+  var sheet = document.getElementById('detailSheet');
+
+  function fmtMoney(n) {
+    return '£' + Number(n).toFixed(2);
+  }
+
+  function quoteSectionHtml(r, opts) {
+    var editMode = !!(opts && opts.editQuote);
+    var reconsider = !!(opts && opts.reconsider);
+    var isStaff = !opts || opts.viewer !== 'buyer';
+
+    // Company hasn't quoted yet (or is Processing) -> always show the entry
+    // form (staff only — a buyer viewing their own Processing request
+    // instead sees a "waiting for a quote" message below).
+    // Quoted (or Awaiting Payment + reconsidering) -> choose-an-option tiles, which pay via Stripe.
+    // Awaiting Payment, not reconsidering -> "complete payment" panel for the chosen tier.
+    // Past that (any delivery stage, or Cancelled) with quotes -> read-only summary incl. payment status.
+    var showEntryForm = isStaff && ((r.status === 'Processing') || (r.status === 'Quoted' && editMode));
+    var showChooser = (r.status === 'Quoted' && !editMode) || (r.status === 'Awaiting Payment' && reconsider);
+    var showAwaitingPayment = (r.status === 'Awaiting Payment') && !reconsider;
+    var showSummary = DELIVERY_STATUSES.concat(['Cancelled']).indexOf(r.status) !== -1 && r.quotes;
+
+    if (!isStaff && r.status === 'Processing') {
+      return '<div class="account-banner">Waiting for the purchasing team to quote this request — check back soon.</div>';
+    }
+
+    if (showEntryForm) {
+      return '<h4 class="section-title">Cost options</h4>' +
+        '<p style="margin:-4px 0 10px;font-size:12px;color:var(--text-secondary);">Enter the direct cost for each tier. Pricing for the requester is worked out automatically and never shows this figure.</p>' +
+        BUDGET_TIERS.map(function (tier) {
+          var cost = (r.directCosts && r.directCosts[tier] != null) ? r.directCosts[tier] : '';
+          return '<div class="quote-row"><label>' + tier + '</label>' +
+            '<div class="quote-input-wrap"><span class="prefix">£</span>' +
+            '<input type="number" min="0" step="0.01" class="cost-input" data-tier="' + escapeHtml(tier) + '" value="' + cost + '" placeholder="0.00" /></div></div>';
+        }).join('') +
+        '<button type="button" class="btn-quote" id="sendQuoteBtn">' + (r.quotes ? 'Save quote' : 'Send quote to requester') + '</button>';
+    }
+
+    if (showChooser) {
+      var paymentNote = state.paymentsEnabled
+        ? 'The company has quoted these prices — tap the one you\'d like to go for to pay securely and confirm the order.'
+        : 'The company has quoted these prices — tap the one you\'d like to go for. (Online payment isn\'t switched on yet, so the team will follow up to arrange payment separately.)';
+      return '<h4 class="section-title">Choose an option</h4>' +
+        '<p style="margin:-4px 0 10px;font-size:12px;color:var(--text-secondary);">' + paymentNote + '</p>' +
+        BUDGET_TIERS.map(function (tier) {
+          var price = r.quotes[tier];
+          return '<button type="button" class="choice-tile" data-tier="' + escapeHtml(tier) + '">' +
+            '<span class="ct-name">' + tier + (r.selectedTier === tier ? ' ✓' : '') + '</span>' +
+            '<span class="ct-price">' + fmtMoney(price) + '</span></button>';
+        }).join('') +
+        (isStaff ? '<button type="button" class="link-btn" id="editQuoteBtn">Edit costs</button>' : '');
+    }
+
+    if (showAwaitingPayment) {
+      var cost = r.selectedCost != null ? r.selectedCost : (r.quotes ? r.quotes[r.selectedTier] : null);
+      return '<h4 class="section-title">Payment</h4>' +
+        '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedTier || '') + '</span><span>' + fmtMoney(cost) + '</span></div>' +
+        '<p style="margin:10px 0;font-size:12px;color:var(--text-secondary);">Waiting for payment to complete. If the payment page was closed before finishing, pick up where it left off below.</p>' +
+        '<button type="button" class="btn-quote" id="completePaymentBtn" data-tier="' + escapeHtml(r.selectedTier || '') + '">Complete payment (' + fmtMoney(cost) + ')</button>' +
+        '<button type="button" class="link-btn" id="reconsiderBtn">Choose a different option instead</button>';
+    }
+
+    if (showSummary) {
+      var paidLine = r.paymentStatus === 'paid'
+        ? '<div class="quote-summary-row is-chosen"><span>✓ Paid via card' + (r.paidAt ? ' · ' + fmtDate(r.paidAt) : '') + '</span><span></span></div>'
+        : '<div class="quote-summary-row"><span>Not paid online</span><span></span></div>';
+      return '<h4 class="section-title">Cost options</h4>' +
+        BUDGET_TIERS.map(function (tier) {
+          var price = r.quotes[tier];
+          var chosen = r.selectedTier === tier;
+          return '<div class="quote-summary-row' + (chosen ? ' is-chosen' : '') + '">' +
+            '<span>' + (chosen ? '✓ ' : '') + tier + '</span><span>' + fmtMoney(price) + '</span></div>';
+        }).join('') +
+        paidLine;
+    }
+
+    return '';
+  }
+
+  function openDetail(id, opts) {
+    opts = opts || {};
+    var viewer = opts.viewer || 'staff';
+    var isStaff = viewer === 'staff';
+    var r = requests.find(function (x) { return x.id === id; });
+    if (!r) return;
+    var s = statusInfo(r.status);
+
+    var orderItems = (r.items && r.items.length) ? r.items : [{
+      item: r.item, link: r.link, qty: r.qty, budgetTier: r.budgetTier,
+      recipient: r.recipient, postcode: r.postcode, addressLine: r.addressLine,
+      neededBy: r.neededBy, priority: r.priority, notes: r.notes
+    }];
+    var isBasket = orderItems.length > 1;
+
+    var rows = [
+      ['Requested by', r.requester],
+      ['Submitted', fmtDate(r.createdAt)]
+    ];
+
+    var itemsHtml =
+      '<h4 class="section-title">' + (isBasket ? 'Items (' + orderItems.length + ')' : 'Item details') + '</h4>' +
+      orderItems.map(function (it, idx) {
+        var itRows = [
+          ['Recipient', it.recipient],
+          ['Postcode', it.postcode || '—'],
+          ['Address', it.addressLine || '—'],
+          ['Quantity', it.qty],
+          ['Preferred budget', it.budgetTier || '—'],
+          ['Priority', it.priority],
+          ['Needed by', it.neededBy ? fmtDate(it.neededBy) : '—'],
+          ['Link / details', it.link || '—'],
+          ['Notes', it.notes || '—']
+        ];
+        return '<div class="basket-detail-item">' +
+          (isBasket ? '<div class="basket-detail-item-name">' + (idx + 1) + '. ' + escapeHtml(it.item) + '</div>' : '') +
+          itRows.map(function (row) {
+            return '<div class="detail-row"><span class="k">' + row[0] + '</span><span class="v">' + escapeHtml(row[1]) + '</span></div>';
+          }).join('') +
+        '</div>';
+      }).join('');
+
+    var statusSectionHtml = isStaff
+      ? '<h4 class="section-title">Status</h4>' +
+        '<div class="status-actions">' +
+          STATUSES.map(function (st) {
+            return '<button type="button" class="status-btn' + (st.key === r.status ? ' is-current' : '') + '" data-status="' + st.key + '">' + icon(st.icon, 12) + ' ' + st.key + '</button>';
+          }).join('') +
+        '</div>'
+      : '';
+
+    var deleteSectionHtml = isStaff
+      ? '<button type="button" class="danger-btn" id="deleteBtn">Delete request</button>'
+      : (r.status === 'Processing' ? '<button type="button" class="danger-btn" id="cancelBtn">Cancel request</button>' : '');
+
+    sheet.innerHTML =
+      '<div class="sheet-handle"></div>' +
+      '<span class="badge" style="background:' + s.tint + ';color:' + s.color + '">' + icon(s.icon, 12) + s.key + '</span>' +
+      '<h3 style="margin-top:8px">' + escapeHtml(r.item) + '</h3>' +
+      rows.map(function (row) {
+        return '<div class="detail-row"><span class="k">' + row[0] + '</span><span class="v">' + escapeHtml(row[1]) + '</span></div>';
+      }).join('') +
+      stageTrackerHtml(r) +
+      timelineHtml(r) +
+      itemsHtml +
+      quoteSectionHtml(r, opts) +
+      statusSectionHtml +
+      deleteSectionHtml;
+
+    sheet.querySelectorAll('.status-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var newStatus = btn.getAttribute('data-status');
+        btn.disabled = true;
+        apiPatch(r.id, { status: newStatus })
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Marked as ' + newStatus);
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            alert(err.message || "Couldn't update the status — check your connection and try again.");
+          });
+      });
+    });
+
+    var sendQuoteBtn = sheet.querySelector('#sendQuoteBtn');
+    if (sendQuoteBtn) {
+      sendQuoteBtn.addEventListener('click', function () {
+        var directCosts = {};
+        var ok = true;
+        sheet.querySelectorAll('.cost-input').forEach(function (input) {
+          var v = parseFloat(input.value);
+          if (isNaN(v) || v < 0) ok = false;
+          directCosts[input.getAttribute('data-tier')] = v;
+        });
+        if (!ok) { alert('Enter a valid direct cost for all three options.'); return; }
+
+        var patch = { directCosts: directCosts };
+        if (r.status === 'Processing') patch.status = 'Quoted';
+
+        sendQuoteBtn.disabled = true;
+        sendQuoteBtn.textContent = 'Saving…';
+        apiPatch(r.id, patch)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Quote sent — waiting for the requester to choose.');
+          })
+          .catch(function (err) {
+            sendQuoteBtn.disabled = false;
+            sendQuoteBtn.textContent = r.quotes ? 'Save quote' : 'Send quote to requester';
+            alert(err.message || "Couldn't save the quote — check your connection and try again.");
+          });
+      });
+    }
+
+    var editQuoteBtn = sheet.querySelector('#editQuoteBtn');
+    if (editQuoteBtn) {
+      editQuoteBtn.addEventListener('click', function () {
+        openDetail(r.id, { viewer: viewer, editQuote: true });
+      });
+    }
+
+    var reconsiderBtn = sheet.querySelector('#reconsiderBtn');
+    if (reconsiderBtn) {
+      reconsiderBtn.addEventListener('click', function () {
+        openDetail(r.id, { viewer: viewer, reconsider: true });
+      });
+    }
+
+    var completePaymentBtn = sheet.querySelector('#completePaymentBtn');
+    if (completePaymentBtn) {
+      completePaymentBtn.addEventListener('click', function () {
+        startPayment(completePaymentBtn.getAttribute('data-tier'), completePaymentBtn);
+      });
+    }
+
+    function startPayment(tier, triggerBtn) {
+      if (!state.paymentsEnabled) {
+        alert("Online payment isn't switched on yet for this app. The purchasing team will need to arrange payment with you another way, then mark the request as Order On Route.");
+        return;
+      }
+      if (triggerBtn) { triggerBtn.disabled = true; }
+      var previousLabel = triggerBtn ? triggerBtn.textContent : '';
+      if (triggerBtn) triggerBtn.textContent = 'Redirecting to secure payment…';
+      apiPay(r.id, tier)
+        .then(function (result) {
+          window.location.href = result.url;
+        })
+        .catch(function (err) {
+          if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.textContent = previousLabel; }
+          alert(err.message || "Couldn't start payment — check your connection and try again.");
+        });
+    }
+
+    sheet.querySelectorAll('.choice-tile').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        startPayment(btn.getAttribute('data-tier'), btn);
+      });
+    });
+
+    var deleteBtn = sheet.querySelector('#deleteBtn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', function () {
+        if (!confirm('Delete this request? This cannot be undone.')) return;
+        apiDelete(r.id)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            closeDetail();
+            showToast('Request deleted');
+          })
+          .catch(function (err) {
+            alert(err.message || "Couldn't delete the request — check your connection and try again.");
+          });
+      });
+    }
+
+    var cancelBtn = sheet.querySelector('#cancelBtn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function () {
+        if (!confirm('Cancel this request? This cannot be undone.')) return;
+        apiDelete(r.id)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            closeDetail();
+            showToast('Request cancelled');
+          })
+          .catch(function (err) {
+            alert(err.message || "Couldn't cancel the request — check your connection and try again.");
+          });
+      });
+    }
+
+    overlay.classList.add('active');
+  }
+  function closeDetail() { overlay.classList.remove('active'); }
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeDetail(); });
+
+  // ---------- init: load config, handle a return trip from Stripe, then go ----------
+  async function handlePaymentReturn() {
+    var params = new URLSearchParams(location.search);
+    var paidId = params.get('paid');
+    var sessionId = params.get('session_id');
+    var cancelledId = params.get('paymentCancelled');
+
+    if (paidId && sessionId) {
+      try {
+        await apiConfirmPayment(paidId, sessionId);
+        await refreshRequests();
+        showToast('Payment received — your order has been placed.');
+        showView('view-account');
+        openDetail(paidId, { viewer: 'buyer' });
+      } catch (err) {
+        showToast(err.message || "Couldn't confirm the payment — it may still be processing.");
+      }
+    } else if (cancelledId) {
+      await refreshRequests();
+      showToast('Payment was cancelled — you can try again any time.');
+      showView('view-account');
+      openDetail(cancelledId, { viewer: 'buyer' });
+    }
+
+    if (paidId || cancelledId) {
+      history.replaceState({}, '', location.pathname);
+    }
+  }
+
+  async function init() {
+    try {
+      var cfg = await apiConfig();
+      state.paymentsEnabled = !!cfg.paymentsEnabled;
+      if (typeof cfg.markupRate === 'number') state.markupRate = cfg.markupRate;
+    } catch (err) {
+      state.paymentsEnabled = false;
+    }
+    if (state.authToken) {
+      try {
+        var me = await apiMe(state.authToken);
+        state.authUser = me.user;
+        saveAuth({ token: state.authToken, user: me.user });
+      } catch (err) {
+        // Stored session is no longer valid (server restarted, logged out
+        // elsewhere, etc.) — fall back to signed-out rather than get stuck.
+        state.authToken = null;
+        state.authUser = null;
+        saveAuth(null);
+      }
+    }
+    applyAuthToForm();
+    await refreshRequests();
+    await handlePaymentReturn();
+    setInterval(function () { refreshRequests({ silent: true }); }, POLL_INTERVAL_MS);
+  }
+
+  init();
+})();
+</script>
+
+<script>
+  // Register the service worker so the app is installable and reopens
+  // instantly. Safe to run on every load — the browser handles re-registers.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/service-worker.js').catch(function (err) {
+        console.warn('Service worker registration failed:', err);
+      });
+    });
+  }
+</script>
+</body>
+</html>
