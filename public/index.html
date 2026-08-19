@@ -2890,7 +2890,6 @@
     return '';
   }
 
-  var SOURCE_URGENCY_OPTIONS = ['Same Day', 'Next Day', 'ASAP'];
 
   // Staff-only: for Same Day / Next Day items, lets staff say "can't do that
   // date" and offer an alternative instead of just leaving the requester
@@ -2932,7 +2931,17 @@
   }
 
   function sourcingToolHtml(it, idx) {
-    var selected = SOURCE_URGENCY_OPTIONS.indexOf(it.priority) !== -1 ? it.priority : 'Next Day';
+    // Every item carries a real neededBy date now (Same Day/Next Day
+    // auto-fill it, Preferred Date requires the buyer to choose one) — so
+    // the search tool can prefill an actual delivery date instead of an
+    // abstract urgency category. Falls back to tomorrow only for very old
+    // items that predate that change and have no date on record at all.
+    var fallbackDate = (function () {
+      var d = new Date();
+      d.setDate(d.getDate() + 1);
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    })();
+    var deliveryDate = it.neededBy || fallbackDate;
     return '<div class="source-tool">' +
       '<button type="button" class="source-toggle-btn" data-idx="' + idx + '">' +
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' +
@@ -2940,13 +2949,9 @@
       '</button>' +
       '<div class="source-panel" id="sourcePanel-' + idx + '" style="display:none;">' +
         '<div class="field"><label>Item description</label><input type="text" class="source-desc" data-idx="' + idx + '" value="' + escapeHtml(it.item) + '"></div>' +
+        '<div class="field"><label>Delivery date</label><input type="date" class="source-date" data-idx="' + idx + '" value="' + escapeHtml(deliveryDate) + '"></div>' +
+        '<div class="field"><label>Postcode</label><input type="text" class="source-postcode" data-idx="' + idx + '" value="' + escapeHtml(it.postcode || '') + '"></div>' +
         '<div class="field"><label>Product link <span class="hint">(optional, if we have one)</span></label><input type="text" class="source-link" data-idx="' + idx + '" value="' + escapeHtml(it.link || '') + '" placeholder="Paste a link if the customer gave one"></div>' +
-        '<div class="field"><label>Delivery postcode</label><input type="text" class="source-postcode" data-idx="' + idx + '" value="' + escapeHtml(it.postcode || '') + '"></div>' +
-        '<div class="field"><label>Needed by</label><div class="pill-group source-urgency" data-idx="' + idx + '">' +
-          SOURCE_URGENCY_OPTIONS.map(function (p) {
-            return '<button type="button" class="pill-option' + (p === selected ? ' is-selected' : '') + '" data-value="' + p + '">' + p + '</button>';
-          }).join('') +
-        '</div></div>' +
         '<button type="button" class="btn-add-basket source-search-btn" data-idx="' + idx + '">Search for options</button>' +
         '<div class="source-status" id="sourceStatus-' + idx + '"></div>' +
         '<div class="source-results" id="sourceResults-' + idx + '"></div>' +
@@ -3166,18 +3171,16 @@
       function runSearch() {
         var statusEl = document.getElementById('sourceStatus-' + idx);
         var resultsEl = document.getElementById('sourceResults-' + idx);
-        var urgencyGroup = sheet.querySelector('.source-urgency[data-idx="' + idx + '"]');
-        var selectedPill = urgencyGroup ? urgencyGroup.querySelector('.pill-option.is-selected') : null;
 
         var payload = {
           itemDescription: sheet.querySelector('.source-desc[data-idx="' + idx + '"]').value.trim(),
           link: sheet.querySelector('.source-link[data-idx="' + idx + '"]').value.trim(),
           deliveryAddress: sheet.querySelector('.source-postcode[data-idx="' + idx + '"]').value.trim(),
-          urgency: selectedPill ? selectedPill.getAttribute('data-value') : 'Next Day'
+          deliveryDate: sheet.querySelector('.source-date[data-idx="' + idx + '"]').value
         };
-        if (!payload.itemDescription || !payload.deliveryAddress) {
+        if (!payload.itemDescription || !payload.deliveryAddress || !payload.deliveryDate) {
           statusEl.className = 'source-status is-error';
-          statusEl.textContent = 'Item description and delivery postcode are both needed to search.';
+          statusEl.textContent = 'Item description, delivery date, and postcode are all needed to search.';
           return;
         }
 
@@ -3190,7 +3193,7 @@
           'Searching the web for options…',
           'Checking local shops and online retailers…',
           'Comparing prices…',
-          'Checking delivery windows for ' + payload.urgency.toLowerCase() + '…'
+          'Checking delivery windows for ' + fmtDate(payload.deliveryDate) + '…'
         ];
         var msgIdx = 0;
         statusEl.className = 'source-status';
@@ -3239,7 +3242,7 @@
 
       // Enter in any of the three fields runs the search too, so staff can
       // fill them in and go without reaching for the mouse.
-      ['.source-desc', '.source-link', '.source-postcode'].forEach(function (sel) {
+      ['.source-desc', '.source-date', '.source-postcode', '.source-link'].forEach(function (sel) {
         var input = sheet.querySelector(sel + '[data-idx="' + idx + '"]');
         if (input) {
           input.addEventListener('keydown', function (e) {

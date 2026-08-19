@@ -934,31 +934,34 @@ app.get('/api/config', (req, res) => {
 // major retailer — found via Claude with web search. Gated behind
 // ANTHROPIC_API_KEY so it's entirely optional, same pattern as Stripe/
 // getAddress.io: if the key isn't set, the frontend just hides the tool.
-const SOURCE_URGENCY_VALUES = ['Same Day', 'Next Day', 'ASAP'];
 
 app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(501).json({ error: 'Item search is not configured on this server yet.' });
   }
-  const { itemDescription, link, deliveryAddress, urgency } = req.body || {};
+  const { itemDescription, link, deliveryAddress, deliveryDate } = req.body || {};
   if (!isNonEmptyString(itemDescription)) {
     return res.status(400).json({ error: 'Describe the item you want to search for.' });
   }
   if (!isNonEmptyString(deliveryAddress)) {
-    return res.status(400).json({ error: 'A delivery address is needed so results can be checked for feasibility.' });
+    return res.status(400).json({ error: 'A postcode is needed so results can be checked for feasibility.' });
   }
-  const urgencyLabel = SOURCE_URGENCY_VALUES.includes(urgency) ? urgency : 'Next Day';
+  if (!isNonEmptyString(deliveryDate) || isNaN(Date.parse(deliveryDate))) {
+    return res.status(400).json({ error: 'A valid delivery date is needed so results can be checked for feasibility.' });
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
 
   const prompt = 'You are helping a personal-concierge purchasing team source a specific item for a customer.\n\n' +
     'Item requested: ' + itemDescription + '\n' +
     (isNonEmptyString(link) ? 'Reference link the customer provided: ' + link + '\n' : '') +
-    'Delivery address: ' + deliveryAddress + '\n' +
-    'Needed by: ' + urgencyLabel + '\n\n' +
+    'Delivery postcode: ' + deliveryAddress + '\n' +
+    'Needed by: ' + deliveryDate + ' (today\'s date is ' + today + ')\n\n' +
     'Search the web for real, currently available places to buy this exact item (or the closest sensible match). ' +
-    'Consider the full range of sources — small local/independent shops near the delivery address (e.g. a local florist, ' +
+    'Consider the full range of sources — small local/independent shops near the delivery postcode (e.g. a local florist, ' +
     'butcher, hardware shop) as well as major online retailers (e.g. Amazon, John Lewis, Argos) — whichever genuinely ' +
-    'fits the item and the delivery deadline. Find between 3 and 6 concrete options. For each, note whether delivery ' +
-    'or collection in the required timeframe looks realistic based on what the source page says.\n\n' +
+    'fits the item and the delivery date above. Find between 3 and 6 concrete options. For each, note whether delivery ' +
+    'or collection by that date looks realistic based on what the source page says.\n\n' +
     'Respond with ONLY valid JSON (no markdown fences, no commentary) in exactly this shape:\n' +
     '{"options":[{"retailer":string,"productName":string,"price":number|null,"currency":"GBP",' +
     '"url":string,"isLocal":boolean,"deliveryFeasible":boolean,"deliveryNote":string}]}';
@@ -976,7 +979,7 @@ app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
           'content-type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
+          model: 'claude-sonnet-5',
           max_tokens: 2000,
           messages: [{ role: 'user', content: prompt }],
           tools: [{ type: 'web_search_20250305', name: 'web_search' }]
@@ -1009,7 +1012,7 @@ app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
     }
 
     const options = Array.isArray(parsed.options) ? parsed.options : [];
-    res.json({ options: options, urgency: urgencyLabel });
+    res.json({ options: options, deliveryDate: deliveryDate });
   } catch (err) {
     console.error('source-item error', err);
     if (err.name === 'AbortError') {
