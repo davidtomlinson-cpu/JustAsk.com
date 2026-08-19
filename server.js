@@ -147,10 +147,26 @@ db.exec(`
     ['stripeSessionId', 'stripeSessionId TEXT'],
     ['paidAt', 'paidAt TEXT'],
     ['directCosts', 'directCosts TEXT'],
-    ['userId', 'userId TEXT']
+    ['userId', 'userId TEXT'],
+    ['proposedDate', 'proposedDate TEXT'],
+    ['proposedNote', 'proposedNote TEXT']
   ];
   for (const [name, ddl] of wanted) {
     if (!existingCols.includes(name)) db.exec('ALTER TABLE requests ADD COLUMN ' + ddl);
+  }
+})();
+
+// Same idea, for the per-item table — lets staff propose an alternative date
+// on a specific item (e.g. a Same Day request that can't actually be
+// fulfilled today) without touching the request's own quote/status.
+(function migrateOrderItems() {
+  const existingCols = db.prepare('PRAGMA table_info(order_items)').all().map((c) => c.name);
+  const wanted = [
+    ['proposedDate', 'proposedDate TEXT'],
+    ['proposedNote', 'proposedNote TEXT']
+  ];
+  for (const [name, ddl] of wanted) {
+    if (!existingCols.includes(name)) db.exec('ALTER TABLE order_items ADD COLUMN ' + ddl);
   }
 })();
 
@@ -396,6 +412,7 @@ function rowToRequest(row) {
       item: row.item, link: row.link, qty: row.qty, budgetTier: row.budgetTier,
       recipient: row.recipient, postcode: row.postcode, addressLine: row.addressLine,
       neededBy: row.neededBy, priority: row.priority, notes: row.notes,
+      proposedDate: row.proposedDate, proposedNote: row.proposedNote,
       createdAt: row.createdAt
     }],
     // Requests created before this feature existed (or that predate their
@@ -627,7 +644,55 @@ app.patch('/api/requests/:id', requireAuth('staff'), (req, res) => {
   res.json(rowToRequest(db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id)));
 });
 
-// ---- Start a payment: creates a Stripe Checkout Session for one tier ----
+// ---- Staff: propose (or withdraw) an alternative date for one item ----
+// Used when a Same Day or Next Day request can't actually be fulfilled —
+// staff offer the first date that does work, without touching the whole
+// request's quote or status. Passing proposedDate: null withdraws an
+// existing offer (e.g. staff change their mind before the buyer responds).
+app.patch('/api/requests/:id/items/:itemId', requireAuth('staff'), (req, res) => {
+  const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+
+  const item = db.prepare('SELECT * FROM order_items WHERE id = ? AND requestId = ?').get(req.params.itemId, req.params.id);
+  if (!item) return res.status(404).json({ error: 'Item not found on this request' });
+
+  const b = req.body || {};
+  const proposedDate = b.proposedDate === null ? null : (isNonEmptyString(b.proposedDate) ? b.proposedDate : undefined);
+  if (proposedDate === undefined) {
+    return res.status(400).json({ error: 'proposedDate is required (or null to withdraw an existing offer)' });
+  }
+  const proposedNote = proposedDate === null ? null : (isNonEmptyString(b.proposedNote) ? b.proposedNote.trim() : null);
+
+  db.prepare('UPDATE order_items SET proposedDate = ?, proposedNote = ? WHERE id = ?')
+    .run(proposedDate, proposedNote, req.params.itemId);
+
+  res.json(rowToRequest(db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id)));
+});
+
+// ---- Buyer/guest: accept a staff-proposed alternative date for one item ----
+// Anyone who can already see this request (its owner, or a guest holding its
+// id) can accept — no staff auth involved, matching how /pay and delete
+// already work for guest-submitted requests.
+app.post('/api/requests/:id/items/:itemId/accept-date', (req, res) => {
+  const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (!canAccessRequest(userFromReq(req), existing)) {
+    return res.status(403).json({ error: 'Not allowed for this account' });
+  }
+
+  const item = db.prepare('SELECT * FROM order_items WHERE id = ? AND requestId = ?').get(req.params.itemId, req.params.id);
+  if (!item) return res.status(404).json({ error: 'Item not found on this request' });
+  if (!isNonEmptyString(item.proposedDate)) {
+    return res.status(400).json({ error: 'There is no proposed date to accept for this item' });
+  }
+
+  db.prepare("UPDATE order_items SET neededBy = ?, priority = 'Preferred Date', proposedDate = NULL, proposedNote = NULL WHERE id = ?")
+    .run(item.proposedDate, req.params.itemId);
+
+  res.json(rowToRequest(db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id)));
+});
+
+
 app.post('/api/requests/:id/pay', async (req, res) => {
   if (!stripeClient) {
     return res.status(503).json({ error: "Online payment isn't set up yet. Ask whoever runs this app to add Stripe API keys." });

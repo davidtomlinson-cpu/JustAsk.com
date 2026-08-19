@@ -328,7 +328,20 @@
     outline: 2px solid var(--series-blue);
     outline-offset: 1px;
   }
+  .field input[readonly] { background: var(--page-plane); color: var(--text-secondary); cursor: not-allowed; }
   .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .same-day-disclaimer {
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: rgba(232,115,74,0.10);
+    border: 1px solid rgba(232,115,74,0.3);
+    color: var(--text-primary);
+    margin: -6px 0 16px;
+  }
+  .same-day-disclaimer.is-past-cutoff { background: rgba(232,115,74,0.18); font-weight: 600; }
 
   .pill-group { display: flex; gap: 8px; flex-wrap: wrap; }
   .pill-option {
@@ -948,6 +961,53 @@
     cursor: pointer;
     margin-top: 6px;
   }
+  /* staff decline + counter-offer a date */
+  .decline-tool { margin: 10px 0 4px; }
+  .decline-toggle-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--jewel-coral);
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .decline-panel {
+    margin-top: 10px;
+    padding: 14px;
+    background: rgba(232,115,74,0.06);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .decline-panel .field { margin-bottom: 10px; }
+  .decline-error { font-size: 12px; color: var(--status-critical); min-height: 14px; margin-bottom: 6px; }
+  .decline-pending-note {
+    background: rgba(232,115,74,0.10);
+    border: 1px solid rgba(232,115,74,0.3);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+  .decline-pending-sub { color: var(--text-secondary); margin-top: 4px; font-size: 12px; }
+  .decline-withdraw-btn { margin-top: 6px; color: var(--text-secondary); }
+
+  /* buyer-facing: staff proposed a different date */
+  .proposed-date-banner {
+    background: var(--gold-tint);
+    border: 1px solid rgba(212,175,55,0.35);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin: 10px 0 4px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .proposed-date-banner-title { font-weight: 700; margin-bottom: 4px; }
+  .proposed-date-banner-note { color: var(--text-secondary); font-size: 12.5px; margin: 6px 0; }
+  .proposed-date-banner .btn-primary { margin-top: 10px; }
+
   /* staff item sourcing search */
   .source-tool { margin: 10px 0 4px; }
   .source-toggle-btn {
@@ -1308,10 +1368,12 @@
           <div class="pill-group" id="priorityGroup">
             <button type="button" class="pill-option" data-value="Same Day">Same Day</button>
             <button type="button" class="pill-option is-selected" data-value="Next Day">Next Day</button>
+            <button type="button" class="pill-option" data-value="Preferred Date">Preferred Date</button>
           </div>
         </div>
+        <div class="same-day-disclaimer" id="sameDayDisclaimer" style="display:none;"></div>
         <div class="field">
-          <label for="f-needed">Needed by <span class="hint">(optional)</span></label>
+          <label for="f-needed" id="f-needed-label">Needed by</label>
           <input id="f-needed" type="date" />
         </div>
         <div class="field">
@@ -1532,6 +1594,25 @@
     var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id)), { method: 'DELETE', headers: authHeaders() });
     if (!res.ok && res.status !== 404) throw new Error('Could not delete the request (' + res.status + ')');
   }
+  async function apiProposeDate(requestId, itemId, proposedDate, proposedNote) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(requestId) + '/items/' + encodeURIComponent(itemId)), {
+      method: 'PATCH',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ proposedDate: proposedDate, proposedNote: proposedNote })
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not save the proposed date (' + res.status + ')');
+    return data;
+  }
+  async function apiAcceptDate(requestId, itemId) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(requestId) + '/items/' + encodeURIComponent(itemId) + '/accept-date'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders())
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not accept the new date (' + res.status + ')');
+    return data;
+  }
   async function apiConfig() {
     var res = await fetch(apiUrl('/api/config'));
     if (!res.ok) throw new Error('Could not load config');
@@ -1623,6 +1704,7 @@
   // changes, so a toast for every request they just patched would be noise)
   // and skipped on the very first load (nothing has "changed" yet).
   var knownStatusById = {};
+  var knownProposedById = {};
   var knownStatusPrimed = false;
 
   function notifyStatusChanges(freshRequests) {
@@ -1633,9 +1715,20 @@
         if (prev && prev !== r.status) {
           showToast('Update: "' + r.item + '" is now ' + r.status);
         }
+        (r.items || []).forEach(function (it) {
+          var key = r.id + ':' + it.id;
+          if (it.proposedDate && !knownProposedById[key]) {
+            showToast('New date suggested for "' + it.item + '" — open it to see details');
+          }
+        });
       });
     }
-    freshRequests.forEach(function (r) { knownStatusById[r.id] = r.status; });
+    freshRequests.forEach(function (r) {
+      knownStatusById[r.id] = r.status;
+      (r.items || []).forEach(function (it) {
+        knownProposedById[r.id + ':' + it.id] = it.proposedDate || null;
+      });
+    });
     knownStatusPrimed = true;
   }
 
@@ -1715,13 +1808,14 @@
   }
 
   // ---------- pill groups (Budget / Priority) ----------
-  function initPillGroup(id, allowDeselect) {
+  function initPillGroup(id, allowDeselect, onChange) {
     var group = document.getElementById(id);
     group.querySelectorAll('.pill-option').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var wasSelected = btn.classList.contains('is-selected');
         group.querySelectorAll('.pill-option').forEach(function (b) { b.classList.remove('is-selected'); });
         if (!(wasSelected && allowDeselect)) btn.classList.add('is-selected');
+        if (onChange) onChange(getPillValue(id));
       });
     });
   }
@@ -1735,7 +1829,48 @@
     });
   }
   initPillGroup('budgetGroup', true);
-  initPillGroup('priorityGroup', false);
+  initPillGroup('priorityGroup', false, updateNeededByForPriority);
+
+  // Same Day / Next Day auto-fill (and lock) the date to today/tomorrow —
+  // the buyer isn't choosing a date in those cases, they're choosing a
+  // speed, and the actual date follows from that. Preferred Date is the one
+  // case where they pick a specific date themselves.
+  function updateNeededByForPriority(priority) {
+    var input = document.getElementById('f-needed');
+    var label = document.getElementById('f-needed-label');
+    var disclaimer = document.getElementById('sameDayDisclaimer');
+    var now = new Date();
+    function isoDate(d) { return d.toISOString().slice(0, 10); }
+
+    if (priority === 'Same Day') {
+      input.value = isoDate(now);
+      input.readOnly = true;
+      label.textContent = 'Needed by';
+      var pastCutoff = now.getHours() >= 10;
+      disclaimer.style.display = 'block';
+      disclaimer.className = 'same-day-disclaimer' + (pastCutoff ? ' is-past-cutoff' : '');
+      disclaimer.textContent = pastCutoff
+        ? "It's after 10am, so today's Same Day cutoff has already passed — we'll still try, but today can't be guaranteed. Next Day or a Preferred Date is safer if this is time-critical."
+        : 'Same Day requests need to be made before 10am. We\'ll always try, but fulfilment on the day itself is never guaranteed.';
+    } else if (priority === 'Next Day') {
+      var tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      input.value = isoDate(tomorrow);
+      input.readOnly = true;
+      label.textContent = 'Needed by';
+      disclaimer.style.display = 'none';
+    } else if (priority === 'Preferred Date') {
+      input.readOnly = false;
+      input.value = '';
+      label.textContent = 'Preferred date *';
+      disclaimer.style.display = 'none';
+      input.focus();
+    } else {
+      input.readOnly = false;
+      disclaimer.style.display = 'none';
+    }
+  }
+  updateNeededByForPriority('Next Day'); // matches the pre-selected pill on first load
 
   // ---------- postcode / address lookup ----------
   var lookupStatusEl = document.getElementById('lookupStatus');
@@ -1894,6 +2029,7 @@
     document.getElementById('f-qty').value = 1;
     setPillValue('budgetGroup', null);
     setPillValue('priorityGroup', 'Next Day');
+    updateNeededByForPriority('Next Day');
     addressResultsEl.style.display = 'none';
     addressResultsEl.innerHTML = '';
     setLookupStatus('', false);
@@ -1905,10 +2041,16 @@
     var recipient = document.getElementById('f-recipient').value.trim();
     var postcode = document.getElementById('f-postcode').value.trim().toUpperCase();
     var addressLine = document.getElementById('f-address-line').value.trim();
+    var priority = getPillValue('priorityGroup') || 'Next Day';
+    var neededBy = document.getElementById('f-needed').value || null;
 
     itemErrorEl.textContent = '';
     if (!item || !recipient || !postcode || !addressLine) {
       itemErrorEl.textContent = 'Fill in the required fields (marked *) before adding this item.';
+      return;
+    }
+    if (priority === 'Preferred Date' && !neededBy) {
+      itemErrorEl.textContent = 'Choose your preferred date before adding this item.';
       return;
     }
 
@@ -1920,8 +2062,8 @@
       recipient: recipient,
       postcode: postcode,
       addressLine: addressLine,
-      neededBy: document.getElementById('f-needed').value || null,
-      priority: getPillValue('priorityGroup') || 'Next Day',
+      neededBy: neededBy,
+      priority: priority,
       notes: document.getElementById('f-notes').value.trim()
     });
 
@@ -2601,6 +2743,43 @@
 
   var SOURCE_URGENCY_OPTIONS = ['Same Day', 'Next Day', 'ASAP'];
 
+  // Staff-only: for Same Day / Next Day items, lets staff say "can't do that
+  // date" and offer an alternative instead of just leaving the requester
+  // waiting. Preferred Date items aren't covered here since the requester
+  // already picked a specific date themselves.
+  function declineToolHtml(it, idx) {
+    if (it.priority !== 'Same Day' && it.priority !== 'Next Day') return '';
+    if (it.proposedDate) {
+      return '<div class="decline-tool">' +
+        '<div class="decline-pending-note">📅 Suggested <strong>' + escapeHtml(fmtDate(it.proposedDate)) + '</strong> to the requester — awaiting their response' +
+        (it.proposedNote ? '<div class="decline-pending-sub">' + escapeHtml(it.proposedNote) + '</div>' : '') +
+        '</div>' +
+        '<button type="button" class="link-btn decline-withdraw-btn" data-idx="' + idx + '" data-item-id="' + escapeHtml(it.id) + '">Withdraw offer</button>' +
+      '</div>';
+    }
+    return '<div class="decline-tool">' +
+      '<button type="button" class="decline-toggle-btn" data-idx="' + idx + '">Can\'t fulfil this date?</button>' +
+      '<div class="decline-panel" id="declinePanel-' + idx + '" style="display:none;">' +
+        '<div class="field"><label>Offer a different date</label><input type="date" class="decline-date" data-idx="' + idx + '"></div>' +
+        '<div class="field"><label>Note <span class="hint">(optional)</span></label><input type="text" class="decline-note" data-idx="' + idx + '" placeholder="e.g. florist fully booked today"></div>' +
+        '<div class="decline-error" id="declineError-' + idx + '"></div>' +
+        '<button type="button" class="btn-add-basket decline-send-btn" data-idx="' + idx + '" data-item-id="' + escapeHtml(it.id) + '">Send new date to requester</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  // Buyer/guest-facing: shows up on their own request detail when staff have
+  // proposed an alternative date, with a one-tap way to accept it.
+  function proposedDateBannerHtml(it) {
+    if (!it.proposedDate) return '';
+    return '<div class="proposed-date-banner">' +
+      '<div class="proposed-date-banner-title">📅 New date suggested</div>' +
+      '<div>The team can\'t fulfil the original timing for this item. Suggested date: <strong>' + escapeHtml(fmtDate(it.proposedDate)) + '</strong></div>' +
+      (it.proposedNote ? '<div class="proposed-date-banner-note">' + escapeHtml(it.proposedNote) + '</div>' : '') +
+      '<button type="button" class="btn-primary accept-date-btn" data-item-id="' + escapeHtml(it.id) + '">Accept new date</button>' +
+    '</div>';
+  }
+
   function sourcingToolHtml(it, idx) {
     var selected = SOURCE_URGENCY_OPTIONS.indexOf(it.priority) !== -1 ? it.priority : 'Next Day';
     return '<div class="source-tool">' +
@@ -2699,6 +2878,7 @@
           itRows.map(function (row) {
             return '<div class="detail-row"><span class="k">' + row[0] + '</span><span class="v">' + escapeHtml(row[1]) + '</span></div>';
           }).join('') +
+          (isStaff ? declineToolHtml(it, idx) : proposedDateBannerHtml(it)) +
           ((isStaff && state.itemSearchEnabled) ? sourcingToolHtml(it, idx) : '') +
         '</div>';
       }).join('');
@@ -2913,6 +3093,78 @@
             if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
           });
         }
+      });
+    });
+
+    sheet.querySelectorAll('.decline-toggle-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var panel = document.getElementById('declinePanel-' + btn.getAttribute('data-idx'));
+        if (panel) panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
+      });
+    });
+
+    sheet.querySelectorAll('.decline-send-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = btn.getAttribute('data-idx');
+        var itemId = btn.getAttribute('data-item-id');
+        var dateInput = sheet.querySelector('.decline-date[data-idx="' + idx + '"]');
+        var noteInput = sheet.querySelector('.decline-note[data-idx="' + idx + '"]');
+        var errEl = document.getElementById('declineError-' + idx);
+        var proposedDate = dateInput.value;
+        errEl.textContent = '';
+        if (!proposedDate) {
+          errEl.textContent = 'Choose the date you can actually offer instead.';
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+        apiProposeDate(r.id, itemId, proposedDate, noteInput.value.trim())
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('New date suggested to the requester');
+          })
+          .catch(function (err) {
+            errEl.textContent = err.message || 'Could not send the new date — try again.';
+            btn.disabled = false;
+            btn.textContent = 'Send new date to requester';
+          });
+      });
+    });
+
+    sheet.querySelectorAll('.decline-withdraw-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var itemId = btn.getAttribute('data-item-id');
+        btn.disabled = true;
+        apiProposeDate(r.id, itemId, null, null)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Offer withdrawn');
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            alert(err.message || "Couldn't withdraw the offer — try again.");
+          });
+      });
+    });
+
+    sheet.querySelectorAll('.accept-date-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var itemId = btn.getAttribute('data-item-id');
+        btn.disabled = true;
+        btn.textContent = 'Accepting…';
+        apiAcceptDate(r.id, itemId)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('New date accepted');
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = 'Accept new date';
+            alert(err.message || "Couldn't accept the new date — try again.");
+          });
       });
     });
 
