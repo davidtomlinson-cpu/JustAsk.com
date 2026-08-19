@@ -520,6 +520,7 @@
   .req-card-item { font-size: 15px; font-weight: 700; }
   .req-card-meta { font-size: 12.5px; color: var(--text-secondary); margin: 1px 0; }
   .req-card-meta strong { color: var(--text-primary); font-weight: 600; }
+  .req-card-basket-note { font-style: italic; color: var(--gold-text); font-size: 11.5px; margin-top: 4px; }
 
   .badge {
     display: inline-flex;
@@ -2014,6 +2015,32 @@
       '</div>';
     }).join('');
   }
+
+  // Buyer-facing "My requests" list: a submitted basket is still one request
+  // under the hood (one quote, one status, one payment), but buyers think of
+  // it as the separate items they asked for — so show one card per item
+  // rather than folding a 3-item basket into a single card that only shows
+  // the first item's name.
+  function buildBuyerItemCardsHtml(list) {
+    return list.map(function (r) {
+      var s = statusInfo(r.status);
+      var orderItems = (r.items && r.items.length) ? r.items : [{ item: r.item, recipient: r.recipient }];
+      var multiNote = orderItems.length > 1
+        ? '<div class="req-card-meta req-card-basket-note">Part of a basket with ' + orderItems.length + ' items · quoted &amp; tracked together</div>'
+        : '';
+      return orderItems.map(function (it) {
+        return '<div class="req-card" data-id="' + r.id + '">' +
+          '<div class="req-card-top">' +
+            '<div class="req-card-item">' + escapeHtml(it.item) + '</div>' +
+            '<span class="badge" style="background:' + s.tint + ';color:' + s.color + '">' + icon(s.icon, 11) + s.key + '</span>' +
+          '</div>' +
+          '<div class="req-card-meta">To <strong>' + escapeHtml(it.recipient) + '</strong></div>' +
+          '<div class="req-card-meta">Requested by ' + escapeHtml(r.requester) + ' · ' + fmtDate(r.createdAt) + '</div>' +
+          multiNote +
+        '</div>';
+      }).join('');
+    }).join('');
+  }
   function wireCardClicks(containerEl, viewer) {
     containerEl.querySelectorAll('.req-card').forEach(function (card) {
       card.addEventListener('click', function () { openDetail(card.getAttribute('data-id'), { viewer: viewer }); });
@@ -2334,7 +2361,7 @@
       listEl.innerHTML = '<div class="empty-state"><div class="emoji">🎄</div>No requests yet — submit one from the New request tab.</div>';
       return;
     }
-    listEl.innerHTML = buildCardListHtml(requests);
+    listEl.innerHTML = buildBuyerItemCardsHtml(requests);
     wireCardClicks(listEl, 'buyer');
   }
 
