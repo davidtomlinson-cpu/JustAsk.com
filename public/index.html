@@ -588,6 +588,31 @@
   }
   .basket-hint { font-size: 12.5px; color: var(--text-secondary); margin: -4px 0 16px; }
 
+  .form-layout { display: block; }
+  .basket-sidebar { display: none; }
+
+  .btn-add-basket {
+    width: 100%;
+    padding: 13px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: linear-gradient(90deg, var(--jewel-emerald), var(--gold));
+    color: #ffffff;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 3px 10px rgba(15,123,92,0.28);
+    transition: transform .12s ease, box-shadow .15s ease;
+  }
+  .btn-add-basket:active { transform: scale(.98); }
+  @media (hover: hover) {
+    .btn-add-basket:hover { box-shadow: 0 5px 16px rgba(15,123,92,0.4); }
+  }
+
   .ticket-card {
     position: relative;
     background: var(--surface-1);
@@ -1035,11 +1060,26 @@
       padding: 40px 48px 56px;
     }
     .view { max-width: 720px; }
+    #view-form { max-width: 1000px; }
     h2.view-title { font-size: 26px; }
     .hero-band { margin: 0 0 28px; border-radius: var(--radius); padding: 40px 32px; }
     .hero-logo { max-width: 340px; }
     .how-it-works { flex-direction: row; gap: 22px; }
     .how-step { flex: 1; flex-direction: column; align-items: flex-start; gap: 10px; }
+
+    .form-layout { display: grid; grid-template-columns: 1fr 320px; gap: 28px; align-items: start; }
+    .basket-sidebar { display: block; position: sticky; top: 0; }
+    .basket-section { display: none !important; }
+    .basket-sidebar-inner {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: 0 2px 10px rgba(11,37,69,0.06);
+    }
+    .basket-sidebar-inner h3 { font-family: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif; font-size: 15px; font-weight: 700; margin: 0 0 12px; }
+    /* the sidebar is always visible here, so the header icon/modal would be redundant */
+    #basketNavBtn { display: none; }
 
     .toast { bottom: 32px; }
   }
@@ -1130,6 +1170,9 @@
       <h2 class="view-title">New request</h2>
       <p class="view-sub">Add one or more items to your basket, then submit them together — each item can go to a different person and address.</p>
 
+      <div class="form-layout">
+      <div class="form-main">
+
       <div class="field">
         <label for="f-requester">Your name *</label>
         <input id="f-requester" type="text" placeholder="Who is asking for this?" />
@@ -1183,28 +1226,42 @@
           <textarea id="f-address-line" rows="2" placeholder="House/flat number, street, town" required></textarea>
         </div>
         <div class="field">
-          <label for="f-needed">Needed by <span class="hint">(optional)</span></label>
-          <input id="f-needed" type="date" />
-        </div>
-        <div class="field">
           <label>Priority</label>
           <div class="pill-group" id="priorityGroup">
             <button type="button" class="pill-option" data-value="Same Day">Same Day</button>
             <button type="button" class="pill-option is-selected" data-value="Next Day">Next Day</button>
-            <button type="button" class="pill-option" data-value="ASAP">ASAP</button>
           </div>
+        </div>
+        <div class="field">
+          <label for="f-needed">Needed by <span class="hint">(optional)</span></label>
+          <input id="f-needed" type="date" />
         </div>
         <div class="field">
           <label for="f-notes">Notes <span class="hint">(optional)</span></label>
           <textarea id="f-notes" rows="2" placeholder="Anything else the purchasing team should know"></textarea>
         </div>
         <div class="lookup-status is-error" id="itemError"></div>
-        <button class="btn-secondary" type="submit" id="addItemBtn">Add to basket</button>
+        <button class="btn-add-basket" type="submit" id="addItemBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+          Add to basket
+        </button>
       </form>
 
       <p class="basket-hint">Submitting sends the whole basket as one request — the team will quote it all together.</p>
       <div class="lookup-status is-error" id="submitError"></div>
       <button class="btn-primary" type="button" id="submitBtn" disabled>Submit basket</button>
+
+      </div>
+
+      <aside class="basket-sidebar">
+        <div class="basket-sidebar-inner">
+          <h3>Your basket (<span id="basketSidebarCount">0</span>)</h3>
+          <p class="basket-modal-empty" id="basketSidebarEmpty" style="display:none;">Your basket is empty. Add an item using the form to the left.</p>
+          <div class="basket-list" id="basketSidebarList"></div>
+        </div>
+      </aside>
+
+      </div>
     </section>
 
     <!-- MY REQUESTS VIEW (buyer / guest) -->
@@ -1659,6 +1716,9 @@
   var basketModalListEl = document.getElementById('basketModalList');
   var basketModalCountEl = document.getElementById('basketModalCount');
   var basketModalEmptyEl = document.getElementById('basketModalEmpty');
+  var basketSidebarListEl = document.getElementById('basketSidebarList');
+  var basketSidebarCountEl = document.getElementById('basketSidebarCount');
+  var basketSidebarEmptyEl = document.getElementById('basketSidebarEmpty');
   var itemErrorEl = document.getElementById('itemError');
   var itemEyebrowEl = document.getElementById('itemEyebrow');
   var submitErrorEl = document.getElementById('submitError');
@@ -1714,6 +1774,12 @@
     basketModalListEl.style.display = basket.length ? 'block' : 'none';
     basketModalListEl.innerHTML = html;
     attachRemoveHandlers(basketModalListEl);
+
+    basketSidebarCountEl.textContent = basket.length;
+    basketSidebarEmptyEl.style.display = basket.length ? 'none' : 'block';
+    basketSidebarListEl.style.display = basket.length ? 'block' : 'none';
+    basketSidebarListEl.innerHTML = html;
+    attachRemoveHandlers(basketSidebarListEl);
   }
 
   function openBasketModal() { basketOverlayEl.classList.add('active'); }

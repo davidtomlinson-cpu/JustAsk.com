@@ -253,7 +253,7 @@ On the wire, `POST /api/requests` takes:
   "requester": "Dave Tomlinson",
   "items": [
     { "item": "Christmas hamper", "recipient": "Alice Smith", "postcode": "SW1A 1AA", "addressLine": "10 Downing St", "budgetTier": "Standard" },
-    { "item": "Wireless headphones", "recipient": "Bob Jones", "postcode": "EC1A 1BB", "addressLine": "22 Old St", "qty": 2, "priority": "ASAP" }
+    { "item": "Wireless headphones", "recipient": "Bob Jones", "postcode": "EC1A 1BB", "addressLine": "22 Old St", "qty": 2, "priority": "Same Day" }
   ]
 }
 ```
