@@ -188,7 +188,11 @@ db.exec(`
     ['userId', 'userId TEXT'],
     ['proposedDate', 'proposedDate TEXT'],
     ['proposedNote', 'proposedNote TEXT'],
-    ['buyerEmail', 'buyerEmail TEXT']
+    ['buyerEmail', 'buyerEmail TEXT'],
+    ['speedDirectCosts', 'speedDirectCosts TEXT'],
+    ['speedQuotes', 'speedQuotes TEXT'],
+    ['selectedSpeedTier', 'selectedSpeedTier TEXT'],
+    ['selectedSpeedCost', 'selectedSpeedCost REAL']
   ];
   for (const [name, ddl] of wanted) {
     if (!existingCols.includes(name)) db.exec('ALTER TABLE requests ADD COLUMN ' + ddl);
@@ -357,6 +361,12 @@ app.post('/api/requests/claim', requireAuth('buyer'), (req, res) => {
 // a separate exception outcome, not part of the normal flow.
 const VALID_STATUSES = ['Processing', 'Quoted', 'Awaiting Payment', 'Order On Route', 'Order Delivered', 'Cancelled'];
 const VALID_TIERS = ['Basic', 'Standard', 'Premium'];
+// A second, independent cost dimension — delivery speed. Kept entirely
+// separate from the Basic/Standard/Premium budget tiers above rather than
+// folded into them as a surcharge: staff quote each on its own terms, and
+// the buyer picks one from each (when speed has been quoted at all — older
+// requests, or ones staff never speed-quoted, work exactly as before).
+const VALID_SPEED_TIERS = ['Same Day', 'Next Day', 'Preferred Date'];
 
 function baseUrlFromReq(req) {
   return PUBLIC_BASE_URL || (req.protocol + '://' + req.get('host'));
@@ -460,6 +470,8 @@ function rowToRequest(row) {
   return Object.assign({}, row, {
     quotes: row.quotes ? JSON.parse(row.quotes) : null,
     directCosts: row.directCosts ? JSON.parse(row.directCosts) : null,
+    speedQuotes: row.speedQuotes ? JSON.parse(row.speedQuotes) : null,
+    speedDirectCosts: row.speedDirectCosts ? JSON.parse(row.speedDirectCosts) : null,
     // Requests created before basket support existed have no order_items row
     // at all — synthesize one from the old flat columns so every request
     // looks the same shape (`items: [...]`) to callers, old or new.
@@ -569,6 +581,10 @@ app.post('/api/requests', (req, res) => {
     quotes: null,
     selectedTier: null,
     selectedCost: null,
+    speedDirectCosts: null,
+    speedQuotes: null,
+    selectedSpeedTier: null,
+    selectedSpeedCost: null,
     paymentStatus: 'unpaid',
     stripeSessionId: null,
     paidAt: null,
@@ -582,10 +598,12 @@ app.post('/api/requests', (req, res) => {
     INSERT INTO requests
       (id, item, link, qty, budgetTier, recipient, postcode, addressLine, neededBy,
        priority, requester, notes, status, directCosts, quotes, selectedTier, selectedCost,
+       speedDirectCosts, speedQuotes, selectedSpeedTier, selectedSpeedCost,
        paymentStatus, stripeSessionId, paidAt, userId, buyerEmail, createdAt, updatedAt)
     VALUES
       (@id, @item, @link, @qty, @budgetTier, @recipient, @postcode, @addressLine, @neededBy,
        @priority, @requester, @notes, @status, @directCosts, @quotes, @selectedTier, @selectedCost,
+       @speedDirectCosts, @speedQuotes, @selectedSpeedTier, @selectedSpeedCost,
        @paymentStatus, @stripeSessionId, @paidAt, @userId, @buyerEmail, @createdAt, @updatedAt)
   `).run(row);
 
@@ -668,6 +686,27 @@ app.patch('/api/requests/:id', requireAuth('staff'), (req, res) => {
     }
   }
 
+  // Delivery-speed cost options — entirely independent of the budget tiers
+  // above. Optional: a request with no speedDirectCosts set just never
+  // shows a speed choice to the buyer, same as before this feature existed.
+  if (b.speedDirectCosts !== undefined) {
+    if (b.speedDirectCosts === null) {
+      next.speedDirectCosts = null;
+      next.speedQuotes = null;
+    } else {
+      const computedSpeedQuotes = {};
+      for (const tier of VALID_SPEED_TIERS) {
+        const v = b.speedDirectCosts[tier];
+        if (typeof v !== 'number' || isNaN(v) || v < 0) {
+          return res.status(400).json({ error: 'speedDirectCosts must include a non-negative number for: ' + tier });
+        }
+        computedSpeedQuotes[tier] = applyMarkup(v);
+      }
+      next.speedDirectCosts = JSON.stringify(b.speedDirectCosts);
+      next.speedQuotes = JSON.stringify(computedSpeedQuotes);
+    }
+  }
+
   if (b.selectedTier !== undefined) {
     if (b.selectedTier !== null && !VALID_TIERS.includes(b.selectedTier)) {
       return res.status(400).json({ error: 'Invalid selectedTier' });
@@ -687,7 +726,8 @@ app.patch('/api/requests/:id', requireAuth('staff'), (req, res) => {
   db.prepare(`
     UPDATE requests
     SET status = @status, directCosts = @directCosts, quotes = @quotes, selectedTier = @selectedTier,
-        selectedCost = @selectedCost, updatedAt = @updatedAt
+        selectedCost = @selectedCost, speedDirectCosts = @speedDirectCosts, speedQuotes = @speedQuotes,
+        updatedAt = @updatedAt
     WHERE id = @id
   `).run(next);
 
@@ -772,24 +812,56 @@ app.post('/api/requests/:id/pay', async (req, res) => {
     return res.status(400).json({ error: 'No valid quoted price for that tier yet.' });
   }
 
+  // Delivery speed is a second, fully separate quote — only required if
+  // staff have actually quoted speed options for this request at all. A
+  // request nobody ever speed-quoted works exactly as before this feature
+  // existed: one tier, one price, one line item.
+  const speedQuotes = existing.speedQuotes ? JSON.parse(existing.speedQuotes) : null;
+  const speedTier = (req.body || {}).speedTier || null;
+  let speedPrice = 0;
+  if (speedQuotes && Object.keys(speedQuotes).length) {
+    if (!VALID_SPEED_TIERS.includes(speedTier)) {
+      return res.status(400).json({ error: 'Choose a delivery speed option too.' });
+    }
+    speedPrice = speedQuotes[speedTier];
+    if (typeof speedPrice !== 'number' || isNaN(speedPrice) || speedPrice <= 0) {
+      return res.status(400).json({ error: 'No valid quoted price for that delivery speed yet.' });
+    }
+  }
+
   const baseUrl = baseUrlFromReq(req);
+
+  const lineItems = [{
+    price_data: {
+      currency: 'gbp',
+      product_data: {
+        name: existing.item + ' — ' + tier,
+        description: 'JustAsk.com purchase request'
+      },
+      unit_amount: Math.round(price * 100)
+    },
+    quantity: 1
+  }];
+  if (speedPrice > 0) {
+    lineItems.push({
+      price_data: {
+        currency: 'gbp',
+        product_data: {
+          name: 'Delivery — ' + speedTier,
+          description: 'JustAsk.com delivery speed'
+        },
+        unit_amount: Math.round(speedPrice * 100)
+      },
+      quantity: 1
+    });
+  }
 
   try {
     const session = await stripeClient.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'gbp',
-          product_data: {
-            name: existing.item + ' — ' + tier,
-            description: 'JustAsk.com purchase request'
-          },
-          unit_amount: Math.round(price * 100)
-        },
-        quantity: 1
-      }],
-      metadata: { requestId: existing.id, tier: tier },
+      line_items: lineItems,
+      metadata: { requestId: existing.id, tier: tier, speedTier: speedTier || '' },
       success_url: baseUrl + '/?paid=' + encodeURIComponent(existing.id) + '&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: baseUrl + '/?paymentCancelled=' + encodeURIComponent(existing.id)
     });
@@ -798,9 +870,10 @@ app.post('/api/requests/:id/pay', async (req, res) => {
     db.prepare(`
       UPDATE requests
       SET status = 'Awaiting Payment', selectedTier = ?, selectedCost = ?,
+          selectedSpeedTier = ?, selectedSpeedCost = ?,
           paymentStatus = 'pending', stripeSessionId = ?, updatedAt = ?
       WHERE id = ?
-    `).run(tier, price, session.id, payNow, existing.id);
+    `).run(tier, price, speedTier, speedPrice > 0 ? speedPrice : null, session.id, payNow, existing.id);
     if (existing.status !== 'Awaiting Payment') recordStatusEvent(existing.id, 'Awaiting Payment', payNow);
 
     res.json({ url: session.url });
