@@ -2814,10 +2814,19 @@
       var speedLine = r.selectedSpeedTier
         ? '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedSpeedTier) + '</span><span>' + fmtMoney(speedCost) + '</span></div>'
         : '';
+      var totalLine = r.selectedSpeedTier ? '<div class="quote-summary-row" style="font-weight:700;"><span>Total</span><span>' + fmtMoney(totalCost) + '</span></div>' : '';
+
+      if (!state.paymentsEnabled) {
+        return '<h4 class="section-title">Choice recorded</h4>' +
+          '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedTier || '') + '</span><span>' + fmtMoney(cost) + '</span></div>' +
+          speedLine + totalLine +
+          '<p style="margin:10px 0;font-size:12px;color:var(--text-secondary);">Online payment isn\'t switched on for this app yet, so the team will follow up separately to arrange payment.</p>' +
+          '<button type="button" class="link-btn" id="reconsiderBtn">Choose a different option instead</button>';
+      }
+
       return '<h4 class="section-title">Payment</h4>' +
         '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedTier || '') + '</span><span>' + fmtMoney(cost) + '</span></div>' +
-        speedLine +
-        (r.selectedSpeedTier ? '<div class="quote-summary-row" style="font-weight:700;"><span>Total</span><span>' + fmtMoney(totalCost) + '</span></div>' : '') +
+        speedLine + totalLine +
         '<p style="margin:10px 0;font-size:12px;color:var(--text-secondary);">Waiting for payment to complete. If the payment page was closed before finishing, pick up where it left off below.</p>' +
         '<button type="button" class="btn-quote" id="completePaymentBtn" data-tier="' + escapeHtml(r.selectedTier || '') + '" data-speed-tier="' + escapeHtml(r.selectedSpeedTier || '') + '">Complete payment (' + fmtMoney(totalCost) + ')</button>' +
         '<button type="button" class="link-btn" id="reconsiderBtn">Choose a different option instead</button>';
@@ -3380,20 +3389,26 @@
     }
 
     function startPayment(tier, speedTier, triggerBtn) {
-      if (!state.paymentsEnabled) {
-        alert("Online payment isn't switched on yet for this app. The purchasing team will need to arrange payment with you another way, then mark the request as Order On Route.");
-        return;
-      }
       if (triggerBtn) { triggerBtn.disabled = true; }
       var previousLabel = triggerBtn ? triggerBtn.textContent : '';
-      if (triggerBtn) triggerBtn.textContent = 'Redirecting to secure payment…';
+      if (triggerBtn) triggerBtn.textContent = state.paymentsEnabled ? 'Redirecting to secure payment…' : 'Confirming…';
       apiPay(r.id, tier, speedTier)
         .then(function (result) {
-          window.location.href = result.url;
+          if (result.url) {
+            window.location.href = result.url;
+            return;
+          }
+          // No Stripe configured — the choice is still recorded and the
+          // request has already moved to Awaiting Payment server-side;
+          // just reflect that here instead of redirecting anywhere.
+          return refreshRequests().then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Choice recorded — the team will follow up to arrange payment.');
+          });
         })
         .catch(function (err) {
           if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.textContent = previousLabel; }
-          alert(err.message || "Couldn't start payment — check your connection and try again.");
+          alert(err.message || "Couldn't record your choice — check your connection and try again.");
         });
     }
 

@@ -791,10 +791,6 @@ app.post('/api/requests/:id/items/:itemId/accept-date', (req, res) => {
 
 
 app.post('/api/requests/:id/pay', async (req, res) => {
-  if (!stripeClient) {
-    return res.status(503).json({ error: "Online payment isn't set up yet. Ask whoever runs this app to add Stripe API keys." });
-  }
-
   const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   if (!canAccessRequest(userFromReq(req), existing)) return res.status(404).json({ error: 'Not found' });
@@ -827,6 +823,24 @@ app.post('/api/requests/:id/pay', async (req, res) => {
     if (typeof speedPrice !== 'number' || isNaN(speedPrice) || speedPrice <= 0) {
       return res.status(400).json({ error: 'No valid quoted price for that delivery speed yet.' });
     }
+  }
+
+  // Choosing an option always moves the request along and records exactly
+  // what was picked — this happens whether or not Stripe is configured, so
+  // staff always see the choice show up in Manage requests immediately. The
+  // Stripe checkout session below is an add-on for when online payment is
+  // actually switched on; without it, the team just follows up separately.
+  const payNow = new Date().toISOString();
+  db.prepare(`
+    UPDATE requests
+    SET status = 'Awaiting Payment', selectedTier = ?, selectedCost = ?,
+        selectedSpeedTier = ?, selectedSpeedCost = ?, updatedAt = ?
+    WHERE id = ?
+  `).run(tier, price, speedTier, speedPrice > 0 ? speedPrice : null, payNow, existing.id);
+  if (existing.status !== 'Awaiting Payment') recordStatusEvent(existing.id, 'Awaiting Payment', payNow);
+
+  if (!stripeClient) {
+    return res.json({ url: null, paymentsEnabled: false });
   }
 
   const baseUrl = baseUrlFromReq(req);
@@ -866,15 +880,11 @@ app.post('/api/requests/:id/pay', async (req, res) => {
       cancel_url: baseUrl + '/?paymentCancelled=' + encodeURIComponent(existing.id)
     });
 
-    const payNow = new Date().toISOString();
     db.prepare(`
       UPDATE requests
-      SET status = 'Awaiting Payment', selectedTier = ?, selectedCost = ?,
-          selectedSpeedTier = ?, selectedSpeedCost = ?,
-          paymentStatus = 'pending', stripeSessionId = ?, updatedAt = ?
+      SET paymentStatus = 'pending', stripeSessionId = ?, updatedAt = ?
       WHERE id = ?
-    `).run(tier, price, speedTier, speedPrice > 0 ? speedPrice : null, session.id, payNow, existing.id);
-    if (existing.status !== 'Awaiting Payment') recordStatusEvent(existing.id, 'Awaiting Payment', payNow);
+    `).run(session.id, new Date().toISOString(), existing.id);
 
     res.json({ url: session.url });
   } catch (err) {
