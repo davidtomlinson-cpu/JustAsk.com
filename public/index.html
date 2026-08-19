@@ -1021,32 +1021,16 @@
   .proposed-date-banner-note { color: var(--text-secondary); font-size: 12.5px; margin: 6px 0; }
   .proposed-date-banner .btn-primary { margin-top: 10px; }
 
-  /* staff item sourcing search */
-  .source-tool { margin: 10px 0 4px; }
-  .source-toggle-btn {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 8px 12px;
-    color: var(--jewel-teal);
-    font-size: 12.5px;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .source-panel {
-    margin-top: 10px;
-    padding: 14px;
-    background: var(--gold-tint);
+  /* staff item sourcing search — standalone tool on the Manage dashboard */
+  .item-search-standalone {
+    background: var(--surface-1);
     border: 1px solid var(--border);
     border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 22px;
+    box-shadow: 0 2px 10px rgba(11,37,69,0.06);
   }
-  .source-panel .field { margin-bottom: 10px; }
-  .source-panel .field label { font-size: 12px; }
-  .source-panel .pill-option { font-size: 11.5px; padding: 7px 4px; }
+  .item-search-standalone .field { margin-bottom: 12px; }
   .source-status { font-size: 12.5px; color: var(--text-secondary); margin: 8px 0; }
   .source-status.is-error { color: var(--status-critical); }
   .source-results { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
@@ -1065,22 +1049,6 @@
   .source-option-note.is-feasible { color: var(--jewel-emerald); }
   .source-option-note.is-tight { color: var(--jewel-coral); }
   .source-option-link { font-size: 12px; margin-top: 6px; display: inline-block; color: var(--jewel-teal); font-weight: 600; }
-  .source-option-card.is-chosen { border-left-color: var(--jewel-emerald); background: rgba(15,123,92,0.06); }
-  .source-choose-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
-  .source-choose-label { font-size: 11px; color: var(--text-secondary); margin-right: 2px; }
-  .source-tier-btn {
-    border: 1px solid var(--border);
-    background: var(--page-plane);
-    color: var(--text-primary);
-    border-radius: 999px;
-    padding: 5px 10px;
-    font-size: 11.5px;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-  }
-  .source-tier-btn.is-chosen { background: var(--jewel-emerald); border-color: var(--jewel-emerald); color: #ffffff; }
-  .source-chosen-note { font-size: 11.5px; font-weight: 700; color: var(--jewel-emerald); margin-top: 6px; }
 
   .source-loading { display: flex; align-items: center; gap: 10px; }
   .source-spinner {
@@ -1436,6 +1404,18 @@
       <div id="dashboardGate"></div>
 
       <div id="dashboardContent" style="display:none;">
+        <div class="item-search-standalone" id="itemSearchStandalone" style="display:none;">
+          <h4 class="section-title">Search for sourcing options</h4>
+          <p class="view-sub" style="margin:-4px 0 12px;">Search the web via Claude for a specific item — anything from a local shop to a major retailer.</p>
+          <div class="field"><label for="standaloneSearchDesc">Item description</label><input type="text" id="standaloneSearchDesc" placeholder="e.g. bouquet of red roses"></div>
+          <div class="field"><label for="standaloneSearchDate">Delivery date</label><input type="date" id="standaloneSearchDate"></div>
+          <div class="field"><label for="standaloneSearchPostcode">Postcode</label><input type="text" id="standaloneSearchPostcode" placeholder="e.g. NW1 6XE"></div>
+          <div class="field"><label for="standaloneSearchLink">Product link <span class="hint">(optional)</span></label><input type="text" id="standaloneSearchLink" placeholder="Paste a link if you have one"></div>
+          <button type="button" class="btn-add-basket" id="standaloneSearchBtn">Search for options</button>
+          <div class="source-status" id="standaloneSearchStatus"></div>
+          <div class="source-results" id="standaloneSearchResults"></div>
+        </div>
+
         <div class="dashboard-layout">
         <div class="dashboard-controls">
         <div id="marginTile"></div>
@@ -1830,6 +1810,83 @@
   document.getElementById('refreshBtn').addEventListener('click', function () {
     refreshRequests();
   });
+
+  // ---------- standalone item sourcing search (Manage dashboard) ----------
+  (function () {
+    var btn = document.getElementById('standaloneSearchBtn');
+    if (!btn) return;
+
+    function runStandaloneSearch() {
+      var statusEl = document.getElementById('standaloneSearchStatus');
+      var resultsEl = document.getElementById('standaloneSearchResults');
+      var payload = {
+        itemDescription: document.getElementById('standaloneSearchDesc').value.trim(),
+        link: document.getElementById('standaloneSearchLink').value.trim(),
+        deliveryAddress: document.getElementById('standaloneSearchPostcode').value.trim(),
+        deliveryDate: document.getElementById('standaloneSearchDate').value
+      };
+      if (!payload.itemDescription || !payload.deliveryAddress || !payload.deliveryDate) {
+        statusEl.className = 'source-status is-error';
+        statusEl.textContent = 'Item description, delivery date, and postcode are all needed to search.';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Searching…';
+      resultsEl.innerHTML = '';
+
+      var loadingMessages = [
+        'Searching the web for options…',
+        'Checking local shops and online retailers…',
+        'Comparing prices…',
+        'Checking delivery windows for ' + fmtDate(payload.deliveryDate) + '…'
+      ];
+      var msgIdx = 0;
+      statusEl.className = 'source-status';
+      statusEl.innerHTML = '<div class="source-loading"><div class="source-spinner"></div><span class="source-loading-text">' + loadingMessages[0] + '</span></div>';
+      var loadingInterval = setInterval(function () {
+        msgIdx = (msgIdx + 1) % loadingMessages.length;
+        var textEl = statusEl.querySelector('.source-loading-text');
+        if (textEl) textEl.textContent = loadingMessages[msgIdx];
+      }, 2200);
+
+      apiSourceItem(payload)
+        .then(function (data) {
+          clearInterval(loadingInterval);
+          var options = (data.options || []).slice().sort(function (a, b) {
+            var aFeasible = a.deliveryFeasible !== false ? 0 : 1;
+            var bFeasible = b.deliveryFeasible !== false ? 0 : 1;
+            if (aFeasible !== bFeasible) return aFeasible - bFeasible;
+            var aPrice = (a.price != null && !isNaN(parseFloat(a.price))) ? parseFloat(a.price) : Infinity;
+            var bPrice = (b.price != null && !isNaN(parseFloat(b.price))) ? parseFloat(b.price) : Infinity;
+            return aPrice - bPrice;
+          });
+          statusEl.className = 'source-status';
+          if (!options.length) {
+            statusEl.textContent = 'No options found — try a more specific description.';
+          } else {
+            statusEl.textContent = options.length + ' option' + (options.length === 1 ? '' : 's') + ' found:';
+            resultsEl.innerHTML = options.map(function (opt, optIdx) { return sourceOptionCardHtml(opt, optIdx, optIdx === 0); }).join('');
+          }
+        })
+        .catch(function (err) {
+          clearInterval(loadingInterval);
+          statusEl.className = 'source-status is-error';
+          statusEl.textContent = err.message || 'Could not search for options — try again.';
+        })
+        .finally(function () {
+          btn.disabled = false;
+          btn.textContent = 'Search for options';
+        });
+    }
+
+    btn.addEventListener('click', runStandaloneSearch);
+    ['standaloneSearchDesc', 'standaloneSearchDate', 'standaloneSearchPostcode', 'standaloneSearchLink'].forEach(function (id) {
+      document.getElementById(id).addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); runStandaloneSearch(); }
+      });
+    });
+  })();
 
   // ---------- nav ----------
   var navBtns = document.querySelectorAll('.nav-btn');
@@ -2429,6 +2486,8 @@
       return;
     }
     staffGateBuilt = false; // rebuild fresh if they ever sign out
+    var itemSearchEl = document.getElementById('itemSearchStandalone');
+    if (itemSearchEl) itemSearchEl.style.display = state.itemSearchEnabled ? 'block' : 'none';
     renderMarginTile();
     renderStatTiles();
     renderChips();
@@ -2930,45 +2989,14 @@
     '</div>';
   }
 
-  function sourcingToolHtml(it, idx) {
-    // Every item carries a real neededBy date now (Same Day/Next Day
-    // auto-fill it, Preferred Date requires the buyer to choose one) — so
-    // the search tool can prefill an actual delivery date instead of an
-    // abstract urgency category. Falls back to tomorrow only for very old
-    // items that predate that change and have no date on record at all.
-    var fallbackDate = (function () {
-      var d = new Date();
-      d.setDate(d.getDate() + 1);
-      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    })();
-    var deliveryDate = it.neededBy || fallbackDate;
-    return '<div class="source-tool">' +
-      '<button type="button" class="source-toggle-btn" data-idx="' + idx + '">' +
-        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' +
-        ' Find sourcing options' +
-      '</button>' +
-      '<div class="source-panel" id="sourcePanel-' + idx + '" style="display:none;">' +
-        '<div class="field"><label>Item description</label><input type="text" class="source-desc" data-idx="' + idx + '" value="' + escapeHtml(it.item) + '"></div>' +
-        '<div class="field"><label>Delivery date</label><input type="date" class="source-date" data-idx="' + idx + '" value="' + escapeHtml(deliveryDate) + '"></div>' +
-        '<div class="field"><label>Postcode</label><input type="text" class="source-postcode" data-idx="' + idx + '" value="' + escapeHtml(it.postcode || '') + '"></div>' +
-        '<div class="field"><label>Product link <span class="hint">(optional, if we have one)</span></label><input type="text" class="source-link" data-idx="' + idx + '" value="' + escapeHtml(it.link || '') + '" placeholder="Paste a link if the customer gave one"></div>' +
-        '<button type="button" class="btn-add-basket source-search-btn" data-idx="' + idx + '">Search for options</button>' +
-        '<div class="source-status" id="sourceStatus-' + idx + '"></div>' +
-        '<div class="source-results" id="sourceResults-' + idx + '"></div>' +
-      '</div>' +
-    '</div>';
-  }
-
-  var BUDGET_TIERS_FOR_CHOICE = ['Basic', 'Standard', 'Premium'];
-
-  function sourceOptionCardHtml(opt, idx, optIdx, isBest) {
+  function sourceOptionCardHtml(opt, optIdx, isBest) {
     var priceHtml = (opt.price != null && !isNaN(parseFloat(opt.price)))
       ? '£' + Number(opt.price).toFixed(2)
       : 'Price unknown';
     var feasible = opt.deliveryFeasible !== false;
     var hasPrice = opt.price != null && !isNaN(parseFloat(opt.price));
     var showBestBadge = !!(isBest && hasPrice && feasible);
-    return '<div class="source-option-card' + (showBestBadge ? ' is-best' : '') + '" id="sourceCard-' + idx + '-' + optIdx + '">' +
+    return '<div class="source-option-card' + (showBestBadge ? ' is-best' : '') + '" id="standaloneSourceCard-' + optIdx + '">' +
       (showBestBadge ? '<div class="source-best-badge">✨ Best match</div>' : '') +
       '<div class="source-option-top">' +
         '<div><div class="source-option-retailer">' + escapeHtml(opt.retailer || 'Unknown retailer') + (opt.isLocal ? ' · local' : '') + '</div>' +
@@ -2977,15 +3005,6 @@
       '</div>' +
       (opt.deliveryNote ? '<div class="source-option-note ' + (feasible ? 'is-feasible' : 'is-tight') + '">' + (feasible ? '✓' : '⚠') + ' ' + escapeHtml(opt.deliveryNote) + '</div>' : '') +
       (opt.url ? '<a class="source-option-link" href="' + escapeHtml(opt.url) + '" target="_blank" rel="noopener noreferrer">View →</a>' : '') +
-      (hasPrice
-        ? '<div class="source-choose-row">' +
-            '<span class="source-choose-label">Add to quote:</span>' +
-            BUDGET_TIERS_FOR_CHOICE.map(function (tier) {
-              return '<button type="button" class="source-tier-btn" data-idx="' + idx + '" data-opt-idx="' + optIdx + '" data-tier="' + tier + '">' + tier + '</button>';
-            }).join('') +
-          '</div>' +
-          '<div class="source-chosen-note" id="sourceChosenNote-' + idx + '-' + optIdx + '" style="display:none;"></div>'
-        : '<div class="source-choose-row"><span class="source-choose-label">No price found — enter costs manually if you use this option</span></div>') +
     '</div>';
   }
 
@@ -3035,7 +3054,6 @@
             return '<div class="detail-row"><span class="k">' + row[0] + '</span><span class="v">' + escapeHtml(row[1]) + '</span></div>';
           }).join('') +
           (isStaff ? declineToolHtml(it, idx, r.status) : proposedDateBannerHtml(it, r.status)) +
-          ((isStaff && state.itemSearchEnabled) ? sourcingToolHtml(it, idx) : '') +
         '</div>';
       }).join('');
 
@@ -3068,189 +3086,6 @@
       statusSectionHtml +
       deleteSectionHtml;
 
-    sheet.querySelectorAll('.source-toggle-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var panel = document.getElementById('sourcePanel-' + btn.getAttribute('data-idx'));
-        if (panel) panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
-      });
-    });
-    sheet.querySelectorAll('.source-urgency').forEach(function (group) {
-      group.querySelectorAll('.pill-option').forEach(function (pill) {
-        pill.addEventListener('click', function () {
-          group.querySelectorAll('.pill-option').forEach(function (p) { p.classList.remove('is-selected'); });
-          pill.classList.add('is-selected');
-        });
-      });
-    });
-    // Applies (or removes, via a negative delta) an amount to a Basic/
-    // Standard/Premium cost-input field elsewhere in this same sheet.
-    // Returns false if that field isn't currently on screen (e.g. the quote
-    // has already been sent and isn't in edit mode), so the caller can warn.
-    function applyCostDelta(tier, delta) {
-      var input = sheet.querySelector('.cost-input[data-tier="' + tier + '"]');
-      if (!input) return false;
-      var current = parseFloat(input.value) || 0;
-      var next = Math.max(0, current + delta);
-      input.value = next.toFixed(2);
-      return true;
-    }
-
-    function refreshChosenNote(idx, optIdx) {
-      var noteEl = document.getElementById('sourceChosenNote-' + idx + '-' + optIdx);
-      var cardEl = document.getElementById('sourceCard-' + idx + '-' + optIdx);
-      var tiers = [];
-      Object.keys(sourceChoices).forEach(function (key) {
-        if (key.indexOf(idx + ':') === 0 && String(sourceChoices[key].optIdx) === String(optIdx)) {
-          tiers.push(key.split(':')[1]);
-        }
-      });
-      if (noteEl) {
-        noteEl.style.display = tiers.length ? 'block' : 'none';
-        noteEl.textContent = tiers.length ? ('✓ Chosen for ' + tiers.join(', ')) : '';
-      }
-      if (cardEl) {
-        cardEl.classList.toggle('is-chosen', tiers.length > 0);
-        cardEl.querySelectorAll('.source-tier-btn').forEach(function (b) {
-          b.classList.toggle('is-chosen', tiers.indexOf(b.getAttribute('data-tier')) !== -1);
-        });
-      }
-    }
-
-    // Removes any contribution a given item's previous search results made
-    // to the cost-input totals — called right before that item's results are
-    // replaced by a fresh search, so old choices can't linger unseen.
-    function clearItemChoices(idx) {
-      Object.keys(sourceChoices).forEach(function (key) {
-        if (key.indexOf(idx + ':') === 0) {
-          applyCostDelta(key.split(':')[1], -sourceChoices[key].price);
-          delete sourceChoices[key];
-        }
-      });
-    }
-
-    function wireSourceResultCards(idx, options) {
-      var container = document.getElementById('sourceResults-' + idx);
-      if (!container) return;
-      container.querySelectorAll('.source-tier-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var optIdx = btn.getAttribute('data-opt-idx');
-          var tier = btn.getAttribute('data-tier');
-          var key = idx + ':' + tier;
-          var opt = options[optIdx];
-          var price = Number(opt && opt.price) || 0;
-          var existing = sourceChoices[key];
-          var statusEl = document.getElementById('sourceStatus-' + idx);
-
-          if (existing && String(existing.optIdx) === String(optIdx)) {
-            applyCostDelta(tier, -existing.price);
-            delete sourceChoices[key];
-            refreshChosenNote(idx, optIdx);
-            return;
-          }
-          if (existing) {
-            applyCostDelta(tier, -existing.price);
-            refreshChosenNote(idx, existing.optIdx);
-          }
-          var applied = applyCostDelta(tier, price);
-          if (!applied) {
-            if (statusEl) {
-              statusEl.className = 'source-status is-error';
-              statusEl.textContent = 'Open "Cost options" first (or "Edit costs") before choosing a tier — nowhere to add the price yet.';
-            }
-            return;
-          }
-          sourceChoices[key] = { optIdx: optIdx, price: price };
-          refreshChosenNote(idx, optIdx);
-        });
-      });
-    }
-
-    sheet.querySelectorAll('.source-search-btn').forEach(function (btn) {
-      var idx = btn.getAttribute('data-idx');
-
-      function runSearch() {
-        var statusEl = document.getElementById('sourceStatus-' + idx);
-        var resultsEl = document.getElementById('sourceResults-' + idx);
-
-        var payload = {
-          itemDescription: sheet.querySelector('.source-desc[data-idx="' + idx + '"]').value.trim(),
-          link: sheet.querySelector('.source-link[data-idx="' + idx + '"]').value.trim(),
-          deliveryAddress: sheet.querySelector('.source-postcode[data-idx="' + idx + '"]').value.trim(),
-          deliveryDate: sheet.querySelector('.source-date[data-idx="' + idx + '"]').value
-        };
-        if (!payload.itemDescription || !payload.deliveryAddress || !payload.deliveryDate) {
-          statusEl.className = 'source-status is-error';
-          statusEl.textContent = 'Item description, delivery date, and postcode are all needed to search.';
-          return;
-        }
-
-        clearItemChoices(idx);
-        btn.disabled = true;
-        btn.textContent = 'Searching…';
-        resultsEl.innerHTML = '';
-
-        var loadingMessages = [
-          'Searching the web for options…',
-          'Checking local shops and online retailers…',
-          'Comparing prices…',
-          'Checking delivery windows for ' + fmtDate(payload.deliveryDate) + '…'
-        ];
-        var msgIdx = 0;
-        statusEl.className = 'source-status';
-        statusEl.innerHTML = '<div class="source-loading"><div class="source-spinner"></div><span class="source-loading-text">' + loadingMessages[0] + '</span></div>';
-        var loadingInterval = setInterval(function () {
-          msgIdx = (msgIdx + 1) % loadingMessages.length;
-          var textEl = statusEl.querySelector('.source-loading-text');
-          if (textEl) textEl.textContent = loadingMessages[msgIdx];
-        }, 2200);
-
-        apiSourceItem(payload)
-          .then(function (data) {
-            clearInterval(loadingInterval);
-            // Best options first: anything that fits the delivery deadline
-            // before anything that doesn't, then cheapest-first within each
-            // group (no-price options sort to the end of their group).
-            var options = (data.options || []).slice().sort(function (a, b) {
-              var aFeasible = a.deliveryFeasible !== false ? 0 : 1;
-              var bFeasible = b.deliveryFeasible !== false ? 0 : 1;
-              if (aFeasible !== bFeasible) return aFeasible - bFeasible;
-              var aPrice = (a.price != null && !isNaN(parseFloat(a.price))) ? parseFloat(a.price) : Infinity;
-              var bPrice = (b.price != null && !isNaN(parseFloat(b.price))) ? parseFloat(b.price) : Infinity;
-              return aPrice - bPrice;
-            });
-            statusEl.className = 'source-status';
-            if (!options.length) {
-              statusEl.textContent = 'No options found — try a more specific description.';
-            } else {
-              statusEl.textContent = options.length + ' option' + (options.length === 1 ? '' : 's') + ' found — choose a tier to add its price to your quote:';
-              resultsEl.innerHTML = options.map(function (opt, optIdx) { return sourceOptionCardHtml(opt, idx, optIdx, optIdx === 0); }).join('');
-              wireSourceResultCards(idx, options);
-            }
-          })
-          .catch(function (err) {
-            clearInterval(loadingInterval);
-            statusEl.className = 'source-status is-error';
-            statusEl.textContent = err.message || 'Could not search for options — try again.';
-          })
-          .finally(function () {
-            btn.disabled = false;
-            btn.textContent = 'Search for options';
-          });
-      }
-
-      btn.addEventListener('click', runSearch);
-
-      // Enter in any of the three fields runs the search too, so staff can
-      // fill them in and go without reaching for the mouse.
-      ['.source-desc', '.source-date', '.source-postcode', '.source-link'].forEach(function (sel) {
-        var input = sheet.querySelector(sel + '[data-idx="' + idx + '"]');
-        if (input) {
-          input.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
-          });
-        }
-      });
-    });
 
     sheet.querySelectorAll('.decline-toggle-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
