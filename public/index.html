@@ -1622,6 +1622,15 @@
     if (!res.ok) throw new Error(data.error || 'Could not cancel the request (' + res.status + ')');
     return data;
   }
+  async function apiMarkPaid(id) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id) + '/mark-paid'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders())
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not mark this as paid (' + res.status + ')');
+    return data;
+  }
   async function apiProposeDate(requestId, itemId, proposedDate, proposedNote) {
     var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(requestId) + '/items/' + encodeURIComponent(itemId)), {
       method: 'PATCH',
@@ -2816,6 +2825,23 @@
         : '';
       var totalLine = r.selectedSpeedTier ? '<div class="quote-summary-row" style="font-weight:700;"><span>Total</span><span>' + fmtMoney(totalCost) + '</span></div>' : '';
 
+      if (isStaff) {
+        // Staff took payment outside Stripe (bank transfer, card over the
+        // phone, cash, whatever) — or Stripe isn't configured at all — so
+        // give them one action to record it and move the order along,
+        // rather than a generic status button that would silently leave
+        // paymentStatus at 'unpaid' forever.
+        return '<h4 class="section-title">Awaiting payment</h4>' +
+          '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedTier || '') + '</span><span>' + fmtMoney(cost) + '</span></div>' +
+          speedLine + totalLine +
+          '<p style="margin:10px 0;font-size:12px;color:var(--text-secondary);">' +
+          (state.paymentsEnabled
+            ? 'The requester is completing payment online. If they\'ve paid another way instead, mark it below to move things along.'
+            : 'Online payment isn\'t switched on, so once you\'ve taken payment another way, mark it here to move the order on to On Route.') +
+          '</p>' +
+          '<button type="button" class="btn-quote" id="markPaidBtn">Mark as paid — move to On Route</button>';
+      }
+
       if (!state.paymentsEnabled) {
         return '<h4 class="section-title">Choice recorded</h4>' +
           '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedTier || '') + '</span><span>' + fmtMoney(cost) + '</span></div>' +
@@ -2834,7 +2860,7 @@
 
     if (showSummary) {
       var paidLine = r.paymentStatus === 'paid'
-        ? '<div class="quote-summary-row is-chosen"><span>✓ Paid via card' + (r.paidAt ? ' · ' + fmtDate(r.paidAt) : '') + '</span><span></span></div>'
+        ? '<div class="quote-summary-row is-chosen"><span>✓ ' + (r.stripeSessionId ? 'Paid via card' : 'Paid') + (r.paidAt ? ' · ' + fmtDate(r.paidAt) : '') + '</span><span></span></div>'
         : '<div class="quote-summary-row"><span>Not paid online</span><span></span></div>';
       var speedSummaryLines = (r.speedQuotes && Object.keys(r.speedQuotes).length)
         ? '<h4 class="section-title" style="margin-top:16px;">Delivery speed</h4>' +
@@ -3378,6 +3404,25 @@
     if (reconsiderBtn) {
       reconsiderBtn.addEventListener('click', function () {
         openDetail(r.id, { viewer: viewer, reconsider: true });
+      });
+    }
+
+    var markPaidBtn = sheet.querySelector('#markPaidBtn');
+    if (markPaidBtn) {
+      markPaidBtn.addEventListener('click', function () {
+        markPaidBtn.disabled = true;
+        markPaidBtn.textContent = 'Marking as paid…';
+        apiMarkPaid(r.id)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Marked as paid — moved to Order On Route');
+          })
+          .catch(function (err) {
+            markPaidBtn.disabled = false;
+            markPaidBtn.textContent = 'Mark as paid — move to On Route';
+            alert(err.message || "Couldn't mark this as paid — try again.");
+          });
       });
     }
 

@@ -1025,6 +1025,26 @@ app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
 // any time before actual payment goes through (Processing, Quoted, or
 // Awaiting Payment); once it's paid and moving, cancelling isn't offered —
 // staff can still use Delete if something genuinely needs removing.
+// ---- Staff: mark as paid when payment was arranged outside Stripe ----
+// Same effect as a completed Stripe payment (moves to Order On Route,
+// paymentStatus='paid', triggers the same status-change email) — for when
+// the team took payment by bank transfer, card over the phone, etc.,
+// either because Stripe isn't switched on at all or the buyer paid another
+// way. Only valid once a tier (and speed, if quoted) has actually been
+// chosen — i.e. the request is genuinely Awaiting Payment.
+app.post('/api/requests/:id/mark-paid', requireAuth('staff'), (req, res) => {
+  const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (existing.status !== 'Awaiting Payment') {
+    return res.status(409).json({ error: "This request isn't awaiting payment right now." });
+  }
+  if (existing.paymentStatus === 'paid') {
+    return res.status(400).json({ error: 'Already marked as paid.' });
+  }
+  markPaid(existing.id, null);
+  res.json(rowToRequest(db.prepare('SELECT * FROM requests WHERE id = ?').get(existing.id)));
+});
+
 app.post('/api/requests/:id/cancel', (req, res) => {
   const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
