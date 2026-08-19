@@ -443,6 +443,8 @@
   }
   .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
+  .dashboard-layout { display: block; }
+
   /* filter chips + search */
   .search-row { margin-bottom: 12px; }
   .search-row input {
@@ -1086,6 +1088,9 @@
     }
     .view { max-width: 720px; }
     #view-form { max-width: 1000px; }
+    #view-dashboard { max-width: 1100px; }
+    .dashboard-layout { display: grid; grid-template-columns: 300px 1fr; gap: 28px; align-items: start; }
+    .dashboard-controls { position: sticky; top: 0; }
     h2.view-title { font-size: 26px; }
     .hero-band { margin: 0 0 28px; border-radius: var(--radius); padding: 40px 32px; }
     .hero-logo { max-width: 340px; }
@@ -1299,6 +1304,8 @@
       <div id="dashboardGate"></div>
 
       <div id="dashboardContent" style="display:none;">
+        <div class="dashboard-layout">
+        <div class="dashboard-controls">
         <div id="marginTile"></div>
 
         <div class="stat-grid" id="statGrid"></div>
@@ -1307,7 +1314,12 @@
           <input type="text" id="searchInput" placeholder="Search item, recipient, requester..." />
         </div>
         <div class="chip-row" id="chipRow"></div>
+        </div>
+
+        <div class="dashboard-list">
         <div class="card-list" id="cardList"></div>
+        </div>
+        </div>
       </div>
     </section>
   </main>
