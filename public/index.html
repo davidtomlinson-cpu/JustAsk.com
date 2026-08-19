@@ -992,6 +992,22 @@
   .source-option-note.is-feasible { color: var(--jewel-emerald); }
   .source-option-note.is-tight { color: var(--jewel-coral); }
   .source-option-link { font-size: 12px; margin-top: 6px; display: inline-block; color: var(--jewel-teal); font-weight: 600; }
+  .source-option-card.is-chosen { border-left-color: var(--jewel-emerald); background: rgba(15,123,92,0.06); }
+  .source-choose-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+  .source-choose-label { font-size: 11px; color: var(--text-secondary); margin-right: 2px; }
+  .source-tier-btn {
+    border: 1px solid var(--border);
+    background: var(--page-plane);
+    color: var(--text-primary);
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .source-tier-btn.is-chosen { background: var(--jewel-emerald); border-color: var(--jewel-emerald); color: #ffffff; }
+  .source-chosen-note { font-size: 11.5px; font-weight: 700; color: var(--jewel-emerald); margin-top: 6px; }
 
   .danger-btn {
     width: 100%;
@@ -2550,7 +2566,6 @@
   var SOURCE_URGENCY_OPTIONS = ['Same Day', 'Next Day', 'ASAP'];
 
   function sourcingToolHtml(it, idx) {
-    var addr = [it.addressLine, it.postcode].filter(Boolean).join(', ');
     var selected = SOURCE_URGENCY_OPTIONS.indexOf(it.priority) !== -1 ? it.priority : 'Next Day';
     return '<div class="source-tool">' +
       '<button type="button" class="source-toggle-btn" data-idx="' + idx + '">' +
@@ -2559,8 +2574,8 @@
       '</button>' +
       '<div class="source-panel" id="sourcePanel-' + idx + '" style="display:none;">' +
         '<div class="field"><label>Item description</label><input type="text" class="source-desc" data-idx="' + idx + '" value="' + escapeHtml(it.item) + '"></div>' +
-        '<div class="field"><label>Link <span class="hint">(optional, if we have one)</span></label><input type="text" class="source-link" data-idx="' + idx + '" value="' + escapeHtml(it.link || '') + '" placeholder="Paste a link if the customer gave one"></div>' +
-        '<div class="field"><label>Delivery address</label><input type="text" class="source-address" data-idx="' + idx + '" value="' + escapeHtml(addr) + '"></div>' +
+        '<div class="field"><label>Product link <span class="hint">(optional, if we have one)</span></label><input type="text" class="source-link" data-idx="' + idx + '" value="' + escapeHtml(it.link || '') + '" placeholder="Paste a link if the customer gave one"></div>' +
+        '<div class="field"><label>Delivery postcode</label><input type="text" class="source-postcode" data-idx="' + idx + '" value="' + escapeHtml(it.postcode || '') + '"></div>' +
         '<div class="field"><label>Needed by</label><div class="pill-group source-urgency" data-idx="' + idx + '">' +
           SOURCE_URGENCY_OPTIONS.map(function (p) {
             return '<button type="button" class="pill-option' + (p === selected ? ' is-selected' : '') + '" data-value="' + p + '">' + p + '</button>';
@@ -2573,12 +2588,15 @@
     '</div>';
   }
 
-  function sourceOptionCardHtml(opt) {
+  var BUDGET_TIERS_FOR_CHOICE = ['Basic', 'Standard', 'Premium'];
+
+  function sourceOptionCardHtml(opt, idx, optIdx) {
     var priceHtml = (opt.price != null && !isNaN(parseFloat(opt.price)))
       ? '£' + Number(opt.price).toFixed(2)
       : 'Price unknown';
     var feasible = opt.deliveryFeasible !== false;
-    return '<div class="source-option-card">' +
+    var hasPrice = opt.price != null && !isNaN(parseFloat(opt.price));
+    return '<div class="source-option-card" id="sourceCard-' + idx + '-' + optIdx + '">' +
       '<div class="source-option-top">' +
         '<div><div class="source-option-retailer">' + escapeHtml(opt.retailer || 'Unknown retailer') + (opt.isLocal ? ' · local' : '') + '</div>' +
         '<div class="source-option-name">' + escapeHtml(opt.productName || '') + '</div></div>' +
@@ -2586,6 +2604,15 @@
       '</div>' +
       (opt.deliveryNote ? '<div class="source-option-note ' + (feasible ? 'is-feasible' : 'is-tight') + '">' + (feasible ? '✓' : '⚠') + ' ' + escapeHtml(opt.deliveryNote) + '</div>' : '') +
       (opt.url ? '<a class="source-option-link" href="' + escapeHtml(opt.url) + '" target="_blank" rel="noopener noreferrer">View →</a>' : '') +
+      (hasPrice
+        ? '<div class="source-choose-row">' +
+            '<span class="source-choose-label">Add to quote:</span>' +
+            BUDGET_TIERS_FOR_CHOICE.map(function (tier) {
+              return '<button type="button" class="source-tier-btn" data-idx="' + idx + '" data-opt-idx="' + optIdx + '" data-tier="' + tier + '">' + tier + '</button>';
+            }).join('') +
+          '</div>' +
+          '<div class="source-chosen-note" id="sourceChosenNote-' + idx + '-' + optIdx + '" style="display:none;"></div>'
+        : '<div class="source-choose-row"><span class="source-choose-label">No price found — enter costs manually if you use this option</span></div>') +
     '</div>';
   }
 
@@ -2596,6 +2623,12 @@
     var r = requests.find(function (x) { return x.id === id; });
     if (!r) return;
     var s = statusInfo(r.status);
+
+    // Ephemeral working state for the sourcing-search "choose a tier" flow —
+    // not persisted anywhere; resets each time the sheet is (re)built, which
+    // is fine since by that point either the choice has already been
+    // reflected in the cost-input values, or the request itself changed.
+    var sourceChoices = {}; // key: idx + ':' + tier -> { optIdx, price }
 
     var orderItems = (r.items && r.items.length) ? r.items : [{
       item: r.item, link: r.link, qty: r.qty, budgetTier: r.budgetTier,
@@ -2673,6 +2706,89 @@
         });
       });
     });
+    // Applies (or removes, via a negative delta) an amount to a Basic/
+    // Standard/Premium cost-input field elsewhere in this same sheet.
+    // Returns false if that field isn't currently on screen (e.g. the quote
+    // has already been sent and isn't in edit mode), so the caller can warn.
+    function applyCostDelta(tier, delta) {
+      var input = sheet.querySelector('.cost-input[data-tier="' + tier + '"]');
+      if (!input) return false;
+      var current = parseFloat(input.value) || 0;
+      var next = Math.max(0, current + delta);
+      input.value = next.toFixed(2);
+      return true;
+    }
+
+    function refreshChosenNote(idx, optIdx) {
+      var noteEl = document.getElementById('sourceChosenNote-' + idx + '-' + optIdx);
+      var cardEl = document.getElementById('sourceCard-' + idx + '-' + optIdx);
+      var tiers = [];
+      Object.keys(sourceChoices).forEach(function (key) {
+        if (key.indexOf(idx + ':') === 0 && String(sourceChoices[key].optIdx) === String(optIdx)) {
+          tiers.push(key.split(':')[1]);
+        }
+      });
+      if (noteEl) {
+        noteEl.style.display = tiers.length ? 'block' : 'none';
+        noteEl.textContent = tiers.length ? ('✓ Chosen for ' + tiers.join(', ')) : '';
+      }
+      if (cardEl) {
+        cardEl.classList.toggle('is-chosen', tiers.length > 0);
+        cardEl.querySelectorAll('.source-tier-btn').forEach(function (b) {
+          b.classList.toggle('is-chosen', tiers.indexOf(b.getAttribute('data-tier')) !== -1);
+        });
+      }
+    }
+
+    // Removes any contribution a given item's previous search results made
+    // to the cost-input totals — called right before that item's results are
+    // replaced by a fresh search, so old choices can't linger unseen.
+    function clearItemChoices(idx) {
+      Object.keys(sourceChoices).forEach(function (key) {
+        if (key.indexOf(idx + ':') === 0) {
+          applyCostDelta(key.split(':')[1], -sourceChoices[key].price);
+          delete sourceChoices[key];
+        }
+      });
+    }
+
+    function wireSourceResultCards(idx, options) {
+      var container = document.getElementById('sourceResults-' + idx);
+      if (!container) return;
+      container.querySelectorAll('.source-tier-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var optIdx = btn.getAttribute('data-opt-idx');
+          var tier = btn.getAttribute('data-tier');
+          var key = idx + ':' + tier;
+          var opt = options[optIdx];
+          var price = Number(opt && opt.price) || 0;
+          var existing = sourceChoices[key];
+          var statusEl = document.getElementById('sourceStatus-' + idx);
+
+          if (existing && String(existing.optIdx) === String(optIdx)) {
+            applyCostDelta(tier, -existing.price);
+            delete sourceChoices[key];
+            refreshChosenNote(idx, optIdx);
+            return;
+          }
+          if (existing) {
+            applyCostDelta(tier, -existing.price);
+            refreshChosenNote(idx, existing.optIdx);
+          }
+          var applied = applyCostDelta(tier, price);
+          if (!applied) {
+            if (statusEl) {
+              statusEl.className = 'source-status is-error';
+              statusEl.textContent = 'Open "Cost options" first (or "Edit costs") before choosing a tier — nowhere to add the price yet.';
+            }
+            return;
+          }
+          sourceChoices[key] = { optIdx: optIdx, price: price };
+          refreshChosenNote(idx, optIdx);
+        });
+      });
+    }
+
     sheet.querySelectorAll('.source-search-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var idx = btn.getAttribute('data-idx');
@@ -2684,15 +2800,16 @@
         var payload = {
           itemDescription: sheet.querySelector('.source-desc[data-idx="' + idx + '"]').value.trim(),
           link: sheet.querySelector('.source-link[data-idx="' + idx + '"]').value.trim(),
-          deliveryAddress: sheet.querySelector('.source-address[data-idx="' + idx + '"]').value.trim(),
+          deliveryAddress: sheet.querySelector('.source-postcode[data-idx="' + idx + '"]').value.trim(),
           urgency: selectedPill ? selectedPill.getAttribute('data-value') : 'Next Day'
         };
         if (!payload.itemDescription || !payload.deliveryAddress) {
-          statusEl.textContent = 'Item description and delivery address are both needed to search.';
+          statusEl.textContent = 'Item description and delivery postcode are both needed to search.';
           statusEl.className = 'source-status is-error';
           return;
         }
 
+        clearItemChoices(idx);
         btn.disabled = true;
         btn.textContent = 'Searching…';
         statusEl.className = 'source-status';
@@ -2705,8 +2822,9 @@
             if (!options.length) {
               statusEl.textContent = 'No options found — try a more specific description.';
             } else {
-              statusEl.textContent = options.length + ' option' + (options.length === 1 ? '' : 's') + ' found:';
-              resultsEl.innerHTML = options.map(sourceOptionCardHtml).join('');
+              statusEl.textContent = options.length + ' option' + (options.length === 1 ? '' : 's') + ' found — choose a tier to add its price to your quote:';
+              resultsEl.innerHTML = options.map(function (opt, optIdx) { return sourceOptionCardHtml(opt, idx, optIdx); }).join('');
+              wireSourceResultCards(idx, options);
             }
           })
           .catch(function (err) {
