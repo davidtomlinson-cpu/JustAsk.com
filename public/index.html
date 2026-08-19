@@ -894,6 +894,9 @@
   }
   .account-banner strong { color: var(--text-primary); }
   .account-banner.is-note { border-color: var(--series-blue); background: var(--series-blue-tint); }
+  .staff-login-prompt { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; }
+  .staff-login-prompt .link-btn { margin-top: 0; }
+  .staff-login-prompt .field { text-align: left; }
   .btn-quote {
     width: 100%;
     padding: 12px;
@@ -2256,6 +2259,59 @@
     }
   }
 
+  // Small, low-key staff sign-in entry point embedded in the My Requests /
+  // Account view. Needed because the Manage tab is now hidden until a staff
+  // session exists (see updateManageNavVisibility) — without this, there'd
+  // be no way for staff to ever sign in in the first place. Uses "-acc"
+  // suffixed ids so it never collides with the (now mostly unreachable, but
+  // left in place) dashboard-gate version of the same form.
+  function staffLoginPromptHtml() {
+    return '<div class="staff-login-prompt">' +
+      '<button type="button" class="link-btn" id="staffLoginToggle">Staff sign in</button>' +
+      '<div id="staffLoginPanel" style="display:none; margin-top:10px;">' +
+        '<div class="field"><label for="staff-email-acc">Email</label><input id="staff-email-acc" type="email" autocomplete="username" /></div>' +
+        '<div class="field"><label for="staff-password-acc">Password</label><input id="staff-password-acc" type="password" autocomplete="current-password" /></div>' +
+        '<div class="auth-error" id="staffLoginError-acc"></div>' +
+        '<button type="button" class="btn-primary" id="staffLoginBtn-acc">Sign in</button>' +
+      '</div>' +
+    '</div>';
+  }
+  function wireStaffLoginPrompt() {
+    var toggle = document.getElementById('staffLoginToggle');
+    if (!toggle) return;
+    toggle.addEventListener('click', function () {
+      var panel = document.getElementById('staffLoginPanel');
+      panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
+    });
+    document.getElementById('staffLoginBtn-acc').addEventListener('click', function () {
+      var btn = this;
+      var email = document.getElementById('staff-email-acc').value.trim();
+      var password = document.getElementById('staff-password-acc').value;
+      var errEl = document.getElementById('staffLoginError-acc');
+      errEl.textContent = '';
+      if (!email || !password) { errEl.textContent = 'Enter an email and password.'; return; }
+      btn.disabled = true; btn.textContent = 'Signing in…';
+      apiLogin(email, password)
+        .then(function (result) {
+          if (result.user.role !== 'staff') {
+            throw new Error("That's a buyer account — sign in from the form above instead.");
+          }
+          setAuth(result.token, result.user);
+          showToast('Signed in as staff');
+          return refreshRequests();
+        })
+        .then(function () {
+          showView('view-dashboard'); // Manage is visible now — jump straight in
+        })
+        .catch(function (err) {
+          errEl.textContent = err.message || 'Could not sign in.';
+        })
+        .finally(function () {
+          btn.disabled = false; btn.textContent = 'Sign in';
+        });
+    });
+  }
+
   function renderAuthGate() {
     if (authGateBuilt) return;
     authGateBuilt = true;
@@ -2265,7 +2321,10 @@
         '<button type="button" class="auth-tab' + (state.authTab === 'signup' ? ' is-active' : '') + '" data-tab="signup">Create account</button>' +
       '</div>' +
       '<div id="authFormMount"></div>' +
-      '<div class="guest-link-row"><button type="button" id="continueGuestBtn">Continue as guest instead</button></div>';
+      '<div class="guest-link-row"><button type="button" id="continueGuestBtn">Continue as guest instead</button></div>' +
+      staffLoginPromptHtml();
+
+    wireStaffLoginPrompt();
 
     accountContentEl.querySelectorAll('.auth-tab').forEach(function (tab) {
       tab.addEventListener('click', function () {
@@ -2319,7 +2378,7 @@
         apiLogin(email, password)
           .then(function (result) {
             if (result.user.role !== 'buyer') {
-              throw new Error("That's the staff login — sign in from the Manage tab instead.");
+              throw new Error("That's the staff login — use the \"Staff sign in\" link below instead.");
             }
             return afterAuthSuccess(result, 'Signed in — welcome back!');
           })
@@ -2351,24 +2410,28 @@
     accountContentEl.innerHTML =
       '<div class="account-banner">Signed in as <strong>' + escapeHtml(state.authUser.name) + '</strong> (' + escapeHtml(state.authUser.email) + ').</div>' +
       '<button type="button" class="btn-secondary" id="accSignOutBtn" style="margin-bottom:16px;">Sign out</button>' +
-      '<div class="card-list" id="myReqCardList"></div>';
+      '<div class="card-list" id="myReqCardList"></div>' +
+      staffLoginPromptHtml();
     document.getElementById('accSignOutBtn').addEventListener('click', function () {
       clearAuth();
       refreshRequests().then(function () { renderAccountView(); });
     });
+    wireStaffLoginPrompt();
     renderMyRequestsList();
   }
 
   function renderGuestAccount() {
     accountContentEl.innerHTML =
       '<div class="account-banner is-note">Browsing as a guest — these requests are only tracked on this device. <button type="button" id="switchToAuthBtn" style="background:none;border:none;color:var(--series-blue);font-weight:700;font-family:inherit;cursor:pointer;padding:0;text-decoration:underline;">Sign in or create an account</button> to see them anywhere.</div>' +
-      '<div class="card-list" id="myReqCardList"></div>';
+      '<div class="card-list" id="myReqCardList"></div>' +
+      staffLoginPromptHtml();
     document.getElementById('switchToAuthBtn').addEventListener('click', function () {
       state.guestMode = false;
       localStorage.removeItem(GUEST_MODE_KEY);
       authGateBuilt = false;
       renderAccountView();
     });
+    wireStaffLoginPrompt();
     renderMyRequestsList();
   }
 
