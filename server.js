@@ -31,6 +31,44 @@ const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
 
 const stripeClient = STRIPE_SECRET_KEY ? require('stripe')(STRIPE_SECRET_KEY) : null;
 
+// ---- Email notifications (optional, SMTP-based) ----
+// Entirely optional, same pattern as Stripe/getAddress/Anthropic: if these
+// env vars aren't set, email sending just silently no-ops everywhere it's
+// called, so nothing breaks — the app works exactly the same without it.
+const nodemailer = require('nodemailer');
+const SMTP_HOST = process.env.SMTP_HOST || '';
+const SMTP_PORT = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587;
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const EMAIL_FROM = process.env.EMAIL_FROM || SMTP_USER;
+
+const mailTransport = (SMTP_HOST && SMTP_USER && SMTP_PASS)
+  ? nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: { user: SMTP_USER, pass: SMTP_PASS }
+    })
+  : null;
+
+// Fire-and-forget: callers never await this and never let a failed email
+// break the actual request (status update, payment, etc.) it was triggered
+// by — it just logs and moves on.
+function sendStatusEmail(toEmail, subject, bodyLines) {
+  if (!mailTransport || !isNonEmptyString(toEmail)) return;
+  const text = bodyLines.join('\n');
+  const html = bodyLines.map((line) => '<p>' + line.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</p>').join('');
+  mailTransport.sendMail({
+    from: EMAIL_FROM,
+    to: toEmail,
+    subject: subject,
+    text: text,
+    html: html
+  }).catch((err) => {
+    console.error('Email send failed:', err.message);
+  });
+}
+
 // ---- Staff login ----
 // There's no self-signup for the purchasing team — you set one login here.
 // Change these before deploying anywhere real; the fallback values below
@@ -149,7 +187,8 @@ db.exec(`
     ['directCosts', 'directCosts TEXT'],
     ['userId', 'userId TEXT'],
     ['proposedDate', 'proposedDate TEXT'],
-    ['proposedNote', 'proposedNote TEXT']
+    ['proposedNote', 'proposedNote TEXT'],
+    ['buyerEmail', 'buyerEmail TEXT']
   ];
   for (const [name, ddl] of wanted) {
     if (!existingCols.includes(name)) db.exec('ALTER TABLE requests ADD COLUMN ' + ddl);
@@ -302,10 +341,10 @@ app.post('/api/requests/claim', requireAuth('buyer'), (req, res) => {
   const ids = Array.isArray((req.body || {}).ids) ? req.body.ids.filter(isNonEmptyString) : [];
   if (!ids.length) return res.json({ claimed: 0 });
   const now = new Date().toISOString();
-  const stmt = db.prepare("UPDATE requests SET userId = ?, updatedAt = ? WHERE id = ? AND userId IS NULL");
+  const stmt = db.prepare("UPDATE requests SET userId = ?, buyerEmail = COALESCE(buyerEmail, ?), updatedAt = ? WHERE id = ? AND userId IS NULL");
   let claimed = 0;
   for (const id of ids) {
-    const result = stmt.run(req.user.id, now, id);
+    const result = stmt.run(req.user.id, req.user.email, now, id);
     claimed += result.changes;
   }
   res.json({ claimed });
@@ -340,6 +379,23 @@ function canAccessRequest(user, row) {
 function recordStatusEvent(requestId, status, when) {
   db.prepare('INSERT INTO status_events (id, requestId, status, createdAt) VALUES (?,?,?,?)')
     .run('se_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8), requestId, status, when);
+
+  // Fire off a status-change email if we have somewhere to send it and email
+  // is configured. This is the one place every status change flows through
+  // (creation, staff edits, /pay, markPaid, the Stripe webhook), so hooking
+  // in here covers all of them without touching any of those call sites.
+  const row = db.prepare('SELECT item, buyerEmail FROM requests WHERE id = ?').get(requestId);
+  if (row && row.buyerEmail) {
+    sendStatusEmail(
+      row.buyerEmail,
+      'JustAsk.com: your request is now ' + status,
+      [
+        'Hi,',
+        'Your request for "' + row.item + '" has moved to: ' + status + '.',
+        'You can see the full details any time by opening JustAsk.com and going to My Requests.'
+      ]
+    );
+  }
 }
 
 function statusHistoryForRequest(id) {
@@ -517,6 +573,7 @@ app.post('/api/requests', (req, res) => {
     stripeSessionId: null,
     paidAt: null,
     userId: (user && user.role === 'buyer') ? user.id : null,
+    buyerEmail: (user && user.role === 'buyer') ? user.email : (isNonEmptyString(b.email) ? b.email.trim() : null),
     createdAt: now,
     updatedAt: now
   };
@@ -525,11 +582,11 @@ app.post('/api/requests', (req, res) => {
     INSERT INTO requests
       (id, item, link, qty, budgetTier, recipient, postcode, addressLine, neededBy,
        priority, requester, notes, status, directCosts, quotes, selectedTier, selectedCost,
-       paymentStatus, stripeSessionId, paidAt, userId, createdAt, updatedAt)
+       paymentStatus, stripeSessionId, paidAt, userId, buyerEmail, createdAt, updatedAt)
     VALUES
       (@id, @item, @link, @qty, @budgetTier, @recipient, @postcode, @addressLine, @neededBy,
        @priority, @requester, @notes, @status, @directCosts, @quotes, @selectedTier, @selectedCost,
-       @paymentStatus, @stripeSessionId, @paidAt, @userId, @createdAt, @updatedAt)
+       @paymentStatus, @stripeSessionId, @paidAt, @userId, @buyerEmail, @createdAt, @updatedAt)
   `).run(row);
 
   const insertItem = db.prepare(`
@@ -784,7 +841,7 @@ app.post('/api/requests/:id/confirm-payment', async (req, res) => {
 
 // ---- Frontend config: lets the UI know whether payment is switched on, and the markup rate ----
 app.get('/api/config', (req, res) => {
-  res.json({ paymentsEnabled: !!stripeClient, markupRate: MARKUP_RATE, itemSearchEnabled: !!process.env.ANTHROPIC_API_KEY });
+  res.json({ paymentsEnabled: !!stripeClient, markupRate: MARKUP_RATE, itemSearchEnabled: !!process.env.ANTHROPIC_API_KEY, emailEnabled: !!mailTransport });
 });
 
 // ---- Staff item sourcing search ----
@@ -877,6 +934,28 @@ app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
     }
     res.status(502).json({ error: 'Could not reach the search service. Try again in a moment.' });
   }
+});
+
+// ---- Buyer/guest: cancel a request before paying ----
+// Deliberately a status change, not a delete — once staff may have already
+// put work into quoting it, erasing the record loses that history. Allowed
+// any time before actual payment goes through (Processing, Quoted, or
+// Awaiting Payment); once it's paid and moving, cancelling isn't offered —
+// staff can still use Delete if something genuinely needs removing.
+app.post('/api/requests/:id/cancel', (req, res) => {
+  const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (!canAccessRequest(userFromReq(req), existing)) return res.status(404).json({ error: 'Not found' });
+  if (existing.paymentStatus === 'paid') {
+    return res.status(400).json({ error: 'This has already been paid for and is on its way — it can\'t be cancelled from here.' });
+  }
+  if (!['Processing', 'Quoted', 'Awaiting Payment'].includes(existing.status)) {
+    return res.status(400).json({ error: 'This request can\'t be cancelled at its current stage.' });
+  }
+  const now = new Date().toISOString();
+  db.prepare("UPDATE requests SET status = 'Cancelled', updatedAt = ? WHERE id = ?").run(now, req.params.id);
+  recordStatusEvent(req.params.id, 'Cancelled', now);
+  res.json(rowToRequest(db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id)));
 });
 
 // ---- Delete ----

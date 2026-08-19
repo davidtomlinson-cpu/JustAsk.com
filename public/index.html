@@ -1180,6 +1180,7 @@
       gap: 2px;
     }
     nav.bottomnav button {
+      flex: none;
       flex-direction: row;
       justify-content: flex-start;
       gap: 12px;
@@ -1314,6 +1315,10 @@
       <div class="field">
         <label for="f-requester">Your name *</label>
         <input id="f-requester" type="text" placeholder="Who is asking for this?" />
+      </div>
+      <div class="field">
+        <label for="f-email">Email <span class="hint">(optional — for order updates)</span></label>
+        <input id="f-email" type="email" placeholder="you@example.com" />
       </div>
 
       <div class="basket-section" id="basketSection" style="display:none;">
@@ -1594,6 +1599,15 @@
     var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id)), { method: 'DELETE', headers: authHeaders() });
     if (!res.ok && res.status !== 404) throw new Error('Could not delete the request (' + res.status + ')');
   }
+  async function apiCancel(id) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id) + '/cancel'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders())
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not cancel the request (' + res.status + ')');
+    return data;
+  }
   async function apiProposeDate(requestId, itemId, proposedDate, proposedNote) {
     var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(requestId) + '/items/' + encodeURIComponent(itemId)), {
       method: 'PATCH',
@@ -1768,16 +1782,25 @@
     if (mode === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
       themeIconEl.innerHTML = ICONS_THEME.sun;
-    } else {
+    } else if (mode === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');
       themeIconEl.innerHTML = ICONS_THEME.moon;
+    } else {
+      // No explicit choice made yet — don't force either theme. Leaving
+      // data-theme unset lets the CSS's prefers-color-scheme rule decide,
+      // so a visitor's system dark-mode setting is actually respected
+      // instead of always defaulting to light until they manually toggle.
+      document.documentElement.removeAttribute('data-theme');
+      var systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      themeIconEl.innerHTML = systemPrefersDark ? ICONS_THEME.sun : ICONS_THEME.moon;
     }
   }
   var savedTheme = localStorage.getItem(THEME_KEY);
-  applyTheme(savedTheme === 'dark' ? 'dark' : 'light');
+  applyTheme(savedTheme === 'dark' ? 'dark' : (savedTheme === 'light' ? 'light' : 'auto'));
   document.getElementById('themeToggle').addEventListener('click', function () {
-    var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-    var next = current === 'dark' ? 'light' : 'dark';
+    var currentlyDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+      (!document.documentElement.getAttribute('data-theme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var next = currentlyDark ? 'light' : 'dark';
     applyTheme(next);
     localStorage.setItem(THEME_KEY, next);
   });
@@ -1840,7 +1863,12 @@
     var label = document.getElementById('f-needed-label');
     var disclaimer = document.getElementById('sameDayDisclaimer');
     var now = new Date();
-    function isoDate(d) { return d.toISOString().slice(0, 10); }
+    function isoDate(d) {
+      var y = d.getFullYear();
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
 
     if (priority === 'Same Day') {
       input.value = isoDate(now);
@@ -2078,6 +2106,7 @@
 
   submitBtnEl.addEventListener('click', function () {
     var requester = document.getElementById('f-requester').value.trim();
+    var email = document.getElementById('f-email').value.trim();
     submitErrorEl.textContent = '';
 
     if (!requester) {
@@ -2092,7 +2121,7 @@
     submitBtnEl.disabled = true;
     submitBtnEl.textContent = 'Submitting…';
 
-    apiCreate({ requester: requester, items: basket })
+    apiCreate({ requester: requester, email: email, items: basket })
       .then(function (created) {
         if (!state.authUser) {
           // No account — remember it on this device so it shows up under
@@ -2438,10 +2467,19 @@
     authGateBuilt = false;
     staffGateBuilt = false;
     if (token) apiLogout(token);
+    var emailEl = document.getElementById('f-email');
+    if (emailEl) { emailEl.readOnly = false; emailEl.value = ''; }
   }
   function applyAuthToForm() {
     var f = document.getElementById('f-requester');
     if (f && !f.value && state.authUser && state.authUser.role === 'buyer') f.value = state.authUser.name;
+    var emailEl = document.getElementById('f-email');
+    if (emailEl && state.authUser && state.authUser.role === 'buyer') {
+      emailEl.value = state.authUser.email;
+      emailEl.readOnly = true;
+    } else if (emailEl) {
+      emailEl.readOnly = false;
+    }
   }
 
   function renderAccountView() {
@@ -2747,7 +2785,8 @@
   // date" and offer an alternative instead of just leaving the requester
   // waiting. Preferred Date items aren't covered here since the requester
   // already picked a specific date themselves.
-  function declineToolHtml(it, idx) {
+  function declineToolHtml(it, idx, status) {
+    if (['Processing', 'Quoted', 'Awaiting Payment'].indexOf(status) === -1) return '';
     if (it.priority !== 'Same Day' && it.priority !== 'Next Day') return '';
     if (it.proposedDate) {
       return '<div class="decline-tool">' +
@@ -2770,7 +2809,8 @@
 
   // Buyer/guest-facing: shows up on their own request detail when staff have
   // proposed an alternative date, with a one-tap way to accept it.
-  function proposedDateBannerHtml(it) {
+  function proposedDateBannerHtml(it, status) {
+    if (['Processing', 'Quoted', 'Awaiting Payment'].indexOf(status) === -1) return '';
     if (!it.proposedDate) return '';
     return '<div class="proposed-date-banner">' +
       '<div class="proposed-date-banner-title">📅 New date suggested</div>' +
@@ -2878,7 +2918,7 @@
           itRows.map(function (row) {
             return '<div class="detail-row"><span class="k">' + row[0] + '</span><span class="v">' + escapeHtml(row[1]) + '</span></div>';
           }).join('') +
-          (isStaff ? declineToolHtml(it, idx) : proposedDateBannerHtml(it)) +
+          (isStaff ? declineToolHtml(it, idx, r.status) : proposedDateBannerHtml(it, r.status)) +
           ((isStaff && state.itemSearchEnabled) ? sourcingToolHtml(it, idx) : '') +
         '</div>';
       }).join('');
@@ -2894,7 +2934,9 @@
 
     var deleteSectionHtml = isStaff
       ? '<button type="button" class="danger-btn" id="deleteBtn">Delete request</button>'
-      : (r.status === 'Processing' ? '<button type="button" class="danger-btn" id="cancelBtn">Cancel request</button>' : '');
+      : ((r.paymentStatus !== 'paid' && ['Processing', 'Quoted', 'Awaiting Payment'].indexOf(r.status) !== -1)
+          ? '<button type="button" class="danger-btn" id="cancelBtn">Cancel request</button>'
+          : '');
 
     sheet.innerHTML =
       '<div class="sheet-handle"></div>' +
@@ -3281,13 +3323,15 @@
     if (cancelBtn) {
       cancelBtn.addEventListener('click', function () {
         if (!confirm('Cancel this request? This cannot be undone.')) return;
-        apiDelete(r.id)
+        cancelBtn.disabled = true;
+        apiCancel(r.id)
           .then(function () { return refreshRequests(); })
           .then(function () {
-            closeDetail();
+            openDetail(r.id, { viewer: viewer });
             showToast('Request cancelled');
           })
           .catch(function (err) {
+            cancelBtn.disabled = false;
             alert(err.message || "Couldn't cancel the request — check your connection and try again.");
           });
       });
