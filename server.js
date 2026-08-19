@@ -719,7 +719,99 @@ app.post('/api/requests/:id/confirm-payment', async (req, res) => {
 
 // ---- Frontend config: lets the UI know whether payment is switched on, and the markup rate ----
 app.get('/api/config', (req, res) => {
-  res.json({ paymentsEnabled: !!stripeClient, markupRate: MARKUP_RATE });
+  res.json({ paymentsEnabled: !!stripeClient, markupRate: MARKUP_RATE, itemSearchEnabled: !!process.env.ANTHROPIC_API_KEY });
+});
+
+// ---- Staff item sourcing search ----
+// Lets staff describe an item (plus an optional reference link, the delivery
+// address, and how urgently it's needed) and get back real, currently
+// available places to buy it — anything from a small local shop up to a
+// major retailer — found via Claude with web search. Gated behind
+// ANTHROPIC_API_KEY so it's entirely optional, same pattern as Stripe/
+// getAddress.io: if the key isn't set, the frontend just hides the tool.
+const SOURCE_URGENCY_VALUES = ['Same Day', 'Next Day', 'ASAP'];
+
+app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(501).json({ error: 'Item search is not configured on this server yet.' });
+  }
+  const { itemDescription, link, deliveryAddress, urgency } = req.body || {};
+  if (!isNonEmptyString(itemDescription)) {
+    return res.status(400).json({ error: 'Describe the item you want to search for.' });
+  }
+  if (!isNonEmptyString(deliveryAddress)) {
+    return res.status(400).json({ error: 'A delivery address is needed so results can be checked for feasibility.' });
+  }
+  const urgencyLabel = SOURCE_URGENCY_VALUES.includes(urgency) ? urgency : 'Next Day';
+
+  const prompt = 'You are helping a personal-concierge purchasing team source a specific item for a customer.\n\n' +
+    'Item requested: ' + itemDescription + '\n' +
+    (isNonEmptyString(link) ? 'Reference link the customer provided: ' + link + '\n' : '') +
+    'Delivery address: ' + deliveryAddress + '\n' +
+    'Needed by: ' + urgencyLabel + '\n\n' +
+    'Search the web for real, currently available places to buy this exact item (or the closest sensible match). ' +
+    'Consider the full range of sources — small local/independent shops near the delivery address (e.g. a local florist, ' +
+    'butcher, hardware shop) as well as major online retailers (e.g. Amazon, John Lewis, Argos) — whichever genuinely ' +
+    'fits the item and the delivery deadline. Find between 3 and 6 concrete options. For each, note whether delivery ' +
+    'or collection in the required timeframe looks realistic based on what the source page says.\n\n' +
+    'Respond with ONLY valid JSON (no markdown fences, no commentary) in exactly this shape:\n' +
+    '{"options":[{"retailer":string,"productName":string,"price":number|null,"currency":"GBP",' +
+    '"url":string,"isLocal":boolean,"deliveryFeasible":boolean,"deliveryNote":string}]}';
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    let apiRes;
+    try {
+      apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2000,
+          messages: [{ role: 'user', content: prompt }],
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+        }),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!apiRes.ok) {
+      const errBody = await apiRes.text().catch(() => '');
+      console.error('source-item: Anthropic API error', apiRes.status, errBody);
+      return res.status(502).json({ error: 'The search service returned an error. Try again in a moment.' });
+    }
+
+    const data = await apiRes.json();
+    const textBlocks = (data.content || [])
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('\n');
+
+    let parsed;
+    try {
+      const cleaned = textBlocks.replace(/```json|```/g, '').trim();
+      parsed = JSON.parse(cleaned);
+    } catch (parseErr) {
+      console.error('source-item: could not parse model output as JSON', textBlocks);
+      return res.status(502).json({ error: 'Got a response back but could not read it as search results. Try again.' });
+    }
+
+    const options = Array.isArray(parsed.options) ? parsed.options : [];
+    res.json({ options: options, urgency: urgencyLabel });
+  } catch (err) {
+    console.error('source-item error', err);
+    if (err.name === 'AbortError') {
+      return res.status(504).json({ error: 'The search took too long and timed out. Try again, maybe with a more specific description.' });
+    }
+    res.status(502).json({ error: 'Could not reach the search service. Try again in a moment.' });
+  }
 });
 
 // ---- Delete ----

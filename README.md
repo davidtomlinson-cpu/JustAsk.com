@@ -68,7 +68,8 @@ All under `/api`, all JSON:
 | PATCH  | /api/requests/:id    | **Staff only.** Update `status`, `directCosts`, `quotes`, `selectedTier`, `selectedCost` — send only the fields you're changing |
 | DELETE | /api/requests/:id    | Staff can delete anything; a signed-in buyer can delete their own; an unowned (guest) request can be deleted by anyone holding its id |
 | GET    | /api/health          | Returns `{ ok: true }` — useful for uptime checks |
-| GET    | /api/config          | Returns `{ paymentsEnabled: true/false, markupRate: 0.2 }` so the frontend knows whether Stripe is switched on (`markupRate` is included for completeness — the current frontend doesn't display it anywhere) |
+| GET    | /api/config          | Returns `{ paymentsEnabled, markupRate, itemSearchEnabled }` so the frontend knows whether Stripe and the item sourcing search are switched on (`markupRate` is included for completeness — the current frontend doesn't display it anywhere) |
+| POST   | /api/staff/source-item | **Staff only.** Body `{ itemDescription, link?, deliveryAddress, urgency }` (`urgency` one of `Same Day`/`Next Day`/`ASAP`) — asks Claude to search the web and returns `{ options: [...] }`. 501 if `ANTHROPIC_API_KEY` isn't set. |
 | POST   | /api/requests/:id/pay | Body `{ tier }` — creates a Stripe Checkout Session for that tier's quoted price, returns `{ url }` to redirect the browser to |
 | POST   | /api/requests/:id/confirm-payment | Body `{ sessionId }` — re-checks that session with Stripe and marks the request paid if it succeeded; called automatically when someone returns from the Stripe payment page |
 | POST   | /api/stripe/webhook  | Stripe calls this directly (not something you call yourself) — see "Online payment" below |
@@ -151,6 +152,7 @@ details (names, addresses) will be traveling over it.
 | `MARKUP_RATE` | `0.2` (20%) | The margin added automatically on top of the direct cost the purchasing team enters. `0.2` = 20%, `0.15` = 15%, and so on. |
 | `STAFF_EMAIL` | `staff@example.com` | The purchasing team's login email. **Change this before deploying anywhere real** — the default is only there so the app runs out of the box locally. |
 | `STAFF_PASSWORD` | `changeme123` | The purchasing team's login password. **Change this too.** If either `STAFF_EMAIL` or `STAFF_PASSWORD` is left unset, the server logs a warning on startup as a reminder. |
+| `ANTHROPIC_API_KEY` | *(unset — item search off)* | Your Anthropic API key. Setting this switches on the staff "Find sourcing options" tool (see below). Each search costs a small amount of API usage, so treat it like the Stripe/getAddress keys — optional, and billed to your own Anthropic account. |
 
 ## Installing it as an app (PWA)
 
@@ -344,6 +346,32 @@ figure is never visible to a buyer or guest.
 To change the percentage, set `MARKUP_RATE` (e.g. `MARKUP_RATE=0.15` for
 15%) as an environment variable and restart the server — no code changes
 needed.
+
+## Staff item sourcing search (Claude + web search)
+
+Staff can ask Claude to search the web for real, currently available places
+to buy a specific item — anything from a small local shop (a florist, a
+butcher) up to a major online retailer — right from the item breakdown in
+the request detail view. It takes an item description, an optional link the
+customer provided, the delivery address, and how urgently it's needed (Same
+Day / Next Day / ASAP), and returns a short list of options with retailer,
+price (where found), a link, and a note on whether delivery in that window
+looks realistic.
+
+This is entirely optional and off by default. Until you set
+`ANTHROPIC_API_KEY`, the tool simply doesn't appear in the staff view — same
+pattern as Stripe and getAddress.io. To turn it on:
+
+1. Get an API key from the [Anthropic Console](https://console.anthropic.com)
+2. Set `ANTHROPIC_API_KEY=sk-ant-...` in your environment (or Render's
+   environment variables) and restart/redeploy
+3. `/api/config` will now report `itemSearchEnabled: true`, and a "Find
+   sourcing options" button will appear next to each item for staff
+
+Each search makes one call to Claude with web search enabled, billed to your
+own Anthropic account at standard API rates — there's no separate charge
+from JustAsk.com itself, but it's real usage, so it's worth keeping an eye on
+if staff use it heavily.
 
 ## Online payment (Stripe)
 
