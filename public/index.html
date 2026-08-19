@@ -1009,6 +1009,42 @@
   .source-tier-btn.is-chosen { background: var(--jewel-emerald); border-color: var(--jewel-emerald); color: #ffffff; }
   .source-chosen-note { font-size: 11.5px; font-weight: 700; color: var(--jewel-emerald); margin-top: 6px; }
 
+  .source-loading { display: flex; align-items: center; gap: 10px; }
+  .source-spinner {
+    width: 15px; height: 15px;
+    border: 2px solid var(--border);
+    border-top-color: var(--jewel-teal);
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: sourceSpin .8s linear infinite;
+  }
+  @keyframes sourceSpin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .source-spinner { animation: none; }
+    .source-option-card { animation: none !important; }
+  }
+  .source-option-card {
+    animation: sourceCardIn .22s ease;
+    position: relative;
+  }
+  @keyframes sourceCardIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: none; }
+  }
+  .source-option-card.is-best { border-left-color: var(--gold); box-shadow: 0 2px 10px rgba(212,175,55,0.18); }
+  .source-best-badge {
+    display: inline-block;
+    background: var(--gold-tint);
+    color: var(--gold-text);
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: .3px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    margin-bottom: 6px;
+  }
+  .source-option-card.is-best.is-chosen { border-left-color: var(--jewel-emerald); box-shadow: none; }
+
   .danger-btn {
     width: 100%;
     padding: 12px;
@@ -2590,13 +2626,15 @@
 
   var BUDGET_TIERS_FOR_CHOICE = ['Basic', 'Standard', 'Premium'];
 
-  function sourceOptionCardHtml(opt, idx, optIdx) {
+  function sourceOptionCardHtml(opt, idx, optIdx, isBest) {
     var priceHtml = (opt.price != null && !isNaN(parseFloat(opt.price)))
       ? '£' + Number(opt.price).toFixed(2)
       : 'Price unknown';
     var feasible = opt.deliveryFeasible !== false;
     var hasPrice = opt.price != null && !isNaN(parseFloat(opt.price));
-    return '<div class="source-option-card" id="sourceCard-' + idx + '-' + optIdx + '">' +
+    var showBestBadge = !!(isBest && hasPrice && feasible);
+    return '<div class="source-option-card' + (showBestBadge ? ' is-best' : '') + '" id="sourceCard-' + idx + '-' + optIdx + '">' +
+      (showBestBadge ? '<div class="source-best-badge">✨ Best match</div>' : '') +
       '<div class="source-option-top">' +
         '<div><div class="source-option-retailer">' + escapeHtml(opt.retailer || 'Unknown retailer') + (opt.isLocal ? ' · local' : '') + '</div>' +
         '<div class="source-option-name">' + escapeHtml(opt.productName || '') + '</div></div>' +
@@ -2790,8 +2828,9 @@
     }
 
     sheet.querySelectorAll('.source-search-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var idx = btn.getAttribute('data-idx');
+      var idx = btn.getAttribute('data-idx');
+
+      function runSearch() {
         var statusEl = document.getElementById('sourceStatus-' + idx);
         var resultsEl = document.getElementById('sourceResults-' + idx);
         var urgencyGroup = sheet.querySelector('.source-urgency[data-idx="' + idx + '"]');
@@ -2804,30 +2843,56 @@
           urgency: selectedPill ? selectedPill.getAttribute('data-value') : 'Next Day'
         };
         if (!payload.itemDescription || !payload.deliveryAddress) {
-          statusEl.textContent = 'Item description and delivery postcode are both needed to search.';
           statusEl.className = 'source-status is-error';
+          statusEl.textContent = 'Item description and delivery postcode are both needed to search.';
           return;
         }
 
         clearItemChoices(idx);
         btn.disabled = true;
         btn.textContent = 'Searching…';
-        statusEl.className = 'source-status';
-        statusEl.textContent = 'Searching the web for options — this can take a little while.';
         resultsEl.innerHTML = '';
+
+        var loadingMessages = [
+          'Searching the web for options…',
+          'Checking local shops and online retailers…',
+          'Comparing prices…',
+          'Checking delivery windows for ' + payload.urgency.toLowerCase() + '…'
+        ];
+        var msgIdx = 0;
+        statusEl.className = 'source-status';
+        statusEl.innerHTML = '<div class="source-loading"><div class="source-spinner"></div><span class="source-loading-text">' + loadingMessages[0] + '</span></div>';
+        var loadingInterval = setInterval(function () {
+          msgIdx = (msgIdx + 1) % loadingMessages.length;
+          var textEl = statusEl.querySelector('.source-loading-text');
+          if (textEl) textEl.textContent = loadingMessages[msgIdx];
+        }, 2200);
 
         apiSourceItem(payload)
           .then(function (data) {
-            var options = data.options || [];
+            clearInterval(loadingInterval);
+            // Best options first: anything that fits the delivery deadline
+            // before anything that doesn't, then cheapest-first within each
+            // group (no-price options sort to the end of their group).
+            var options = (data.options || []).slice().sort(function (a, b) {
+              var aFeasible = a.deliveryFeasible !== false ? 0 : 1;
+              var bFeasible = b.deliveryFeasible !== false ? 0 : 1;
+              if (aFeasible !== bFeasible) return aFeasible - bFeasible;
+              var aPrice = (a.price != null && !isNaN(parseFloat(a.price))) ? parseFloat(a.price) : Infinity;
+              var bPrice = (b.price != null && !isNaN(parseFloat(b.price))) ? parseFloat(b.price) : Infinity;
+              return aPrice - bPrice;
+            });
+            statusEl.className = 'source-status';
             if (!options.length) {
               statusEl.textContent = 'No options found — try a more specific description.';
             } else {
               statusEl.textContent = options.length + ' option' + (options.length === 1 ? '' : 's') + ' found — choose a tier to add its price to your quote:';
-              resultsEl.innerHTML = options.map(function (opt, optIdx) { return sourceOptionCardHtml(opt, idx, optIdx); }).join('');
+              resultsEl.innerHTML = options.map(function (opt, optIdx) { return sourceOptionCardHtml(opt, idx, optIdx, optIdx === 0); }).join('');
               wireSourceResultCards(idx, options);
             }
           })
           .catch(function (err) {
+            clearInterval(loadingInterval);
             statusEl.className = 'source-status is-error';
             statusEl.textContent = err.message || 'Could not search for options — try again.';
           })
@@ -2835,6 +2900,19 @@
             btn.disabled = false;
             btn.textContent = 'Search for options';
           });
+      }
+
+      btn.addEventListener('click', runSearch);
+
+      // Enter in any of the three fields runs the search too, so staff can
+      // fill them in and go without reaching for the mouse.
+      ['.source-desc', '.source-link', '.source-postcode'].forEach(function (sel) {
+        var input = sheet.querySelector(sel + '[data-idx="' + idx + '"]');
+        if (input) {
+          input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
+          });
+        }
       });
     });
 
