@@ -50,6 +50,9 @@
     --gold:            #D4AF37;
     --gold-tint:       rgba(212,175,55,0.10);
     --gold-text:       #8a6a1f;
+    --jewel-teal:      #0F5C6B;
+    --jewel-emerald:   #0F7B5C;
+    --jewel-coral:     #E8734A;
     --radius: 16px;
     --radius-sm: 10px;
   }
@@ -154,7 +157,7 @@
     min-width: 0;
   }
   .brand-logo {
-    height: 44px;
+    height: 58px;
     width: auto;
     display: block;
   }
@@ -215,6 +218,102 @@
     font-weight: 700;
     letter-spacing: .2px;
     margin: 10px 0 4px;
+  }
+
+  /* hero (New Request landing moment) */
+  .hero-band {
+    position: relative;
+    overflow: hidden;
+    margin: -4px -20px 20px;
+    padding: 30px 24px 26px;
+    background: linear-gradient(135deg, #0B2545 0%, #0F5C6B 55%, #0F7B5C 100%);
+    text-align: center;
+  }
+  .hero-band::after {
+    content: '';
+    position: absolute;
+    width: 220px; height: 220px;
+    top: -70px; right: -50px;
+    background: radial-gradient(circle, rgba(232,115,74,0.35), transparent 70%);
+    pointer-events: none;
+    animation: heroGlowDrift 8s ease-in-out infinite;
+  }
+  .hero-band::before {
+    content: '';
+    position: absolute;
+    width: 260px; height: 260px;
+    bottom: -100px; left: -70px;
+    background: radial-gradient(circle, rgba(212,175,55,0.22), transparent 70%);
+    pointer-events: none;
+    animation: heroGlowDrift 10s ease-in-out infinite reverse;
+  }
+  @keyframes heroGlowDrift {
+    0%, 100% { transform: translate(0,0) scale(1); opacity: .85; }
+    50% { transform: translate(10px,-8px) scale(1.08); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-band::before, .hero-band::after, .basket-item, .basket-badge.pulse { animation: none !important; }
+  }
+  .hero-logo { width: 100%; max-width: 280px; height: auto; display: block; margin: 0 auto 14px; position: relative; }
+  .hero-tagline {
+    position: relative;
+    color: rgba(255,255,255,0.94);
+    font-size: 14px;
+    line-height: 1.55;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  .hero-features {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 16px auto 0;
+    max-width: 420px;
+  }
+  .hero-feature {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.22);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .hero-feature svg { flex-shrink: 0; }
+
+  /* how it works */
+  .how-it-works {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 0 0 26px;
+  }
+  .how-step { display: flex; align-items: flex-start; gap: 12px; }
+  .how-icon {
+    flex-shrink: 0;
+    width: 38px; height: 38px;
+    border-radius: 999px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .how-text strong { display: block; font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+  .how-text span { display: block; font-size: 12.5px; color: var(--text-secondary); }
+
+  /* basket badge pulse on add */
+  .basket-badge.pulse { animation: badgePulse .4s ease; }
+  @keyframes badgePulse {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+  }
+
+  @media (hover: hover) {
+    .ticket-card { transition: transform .18s ease, box-shadow .18s ease; }
+    .ticket-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(11,37,69,0.10); }
   }
   p.view-sub {
     margin: 0 0 18px;
@@ -490,13 +589,20 @@
   .basket-hint { font-size: 12.5px; color: var(--text-secondary); margin: -4px 0 16px; }
 
   .ticket-card {
+    position: relative;
     background: var(--surface-1);
     border: 1px solid var(--border);
-    border-top: 3px solid var(--gold);
     border-radius: var(--radius);
-    padding: 20px 18px 18px;
+    padding: 23px 18px 18px;
     box-shadow: 0 2px 10px rgba(11,37,69,0.06);
     margin-bottom: 4px;
+  }
+  .ticket-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: linear-gradient(90deg, var(--gold) 0%, var(--jewel-emerald) 65%, var(--jewel-coral) 100%);
   }
   .ticket-eyebrow {
     font-size: 11px;
@@ -891,7 +997,7 @@
       grid-template-areas: "header header" "nav main";
     }
     header.topbar { grid-area: header; padding: 14px 32px; }
-    .brand-logo { height: 48px; }
+    .brand-logo { height: 72px; }
 
     nav.bottomnav {
       grid-area: nav;
@@ -930,6 +1036,10 @@
     }
     .view { max-width: 720px; }
     h2.view-title { font-size: 26px; }
+    .hero-band { margin: 0 0 28px; border-radius: var(--radius); padding: 40px 32px; }
+    .hero-logo { max-width: 340px; }
+    .how-it-works { flex-direction: row; gap: 22px; }
+    .how-step { flex: 1; flex-direction: column; align-items: flex-start; gap: 10px; }
 
     .toast { bottom: 32px; }
   }
@@ -971,6 +1081,52 @@
   <main>
     <!-- NEW REQUEST VIEW -->
     <section class="view active" id="view-form">
+      <div class="hero-band">
+        <svg class="hero-logo" viewBox="0 0 760 220" role="img" aria-label="JustAsk.com – Your Personal Concierge">
+          <g transform="translate(30,50)">
+            <g fill="none" stroke-linecap="round" stroke-width="16">
+              <path d="M 60,20 A 40,40 0 0 1 99.39,66.94" stroke="#FFFFFF"/>
+              <path d="M 94.64,80 A 40,40 0 0 1 34.29,90.64" stroke="#D4AF37"/>
+              <path d="M 25.36,80 A 40,40 0 0 1 46.32,22.41" stroke="#FFFFFF"/>
+            </g>
+          </g>
+          <text x="185" y="145" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="80" letter-spacing="1" fill="#FFFFFF">JustAsk<tspan fill="#D4AF37">.com</tspan></text>
+          <text x="188" y="182" font-family="Arial, Helvetica, sans-serif" font-weight="600" font-size="17" letter-spacing="3.5" fill="#D4AF37">YOUR PERSONAL CONCIERGE</text>
+        </svg>
+        <p class="hero-tagline">Your personal concierge, built for busy people who need a one-stop shop for their daily needs. Just ask — we'll take care of the request for you, on your behalf.</p>
+        <div class="hero-features">
+          <span class="hero-feature">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M17 5.5c0-1.9-2.2-3.5-5-3.5s-5 1.6-5 3.5S9.2 9 12 9s5 1.6 5 3.5-2.2 3.5-5 3.5-5-1.6-5-3.5" stroke="#D4AF37" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+            Options to match your budget
+          </span>
+          <span class="hero-feature">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#D4AF37" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="#D4AF37" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+            Real-time order updates
+          </span>
+        </div>
+      </div>
+
+      <div class="how-it-works">
+        <div class="how-step">
+          <div class="how-icon" style="background: var(--gold-tint); color: var(--gold-text);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.3 0-2.5-.3-3.6-.8L4 20l1-4.7A8.5 8.5 0 1 1 21 11.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/></svg>
+          </div>
+          <div class="how-text"><strong>Ask</strong><span>Tell us what you need — big or small, one item or a whole list</span></div>
+        </div>
+        <div class="how-step">
+          <div class="how-icon" style="background: rgba(15,123,92,0.10); color: var(--jewel-emerald);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M17 5.5c0-1.9-2.2-3.5-5-3.5s-5 1.6-5 3.5S9.2 9 12 9s5 1.6 5 3.5-2.2 3.5-5 3.5-5-1.6-5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+          </div>
+          <div class="how-text"><strong>We source &amp; quote</strong><span>Pick the option that matches your budget</span></div>
+        </div>
+        <div class="how-step">
+          <div class="how-icon" style="background: rgba(232,115,74,0.12); color: var(--jewel-coral);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0 1 13.66-5.66M20 12a8 8 0 0 1-13.66 5.66M9 3l3-1 3 1M9 21l3 1 3-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+          </div>
+          <div class="how-text"><strong>Delivered</strong><span>Track it in real time, right to your door</span></div>
+        </div>
+      </div>
+
       <h2 class="view-title">New request</h2>
       <p class="view-sub">Add one or more items to your basket, then submit them together — each item can go to a different person and address.</p>
 
@@ -1612,6 +1768,9 @@
     saveBasket();
     resetItemForm();
     renderBasket();
+    basketBadgeEl.classList.remove('pulse');
+    void basketBadgeEl.offsetWidth; // restart the animation even if it's already mid-pulse
+    basketBadgeEl.classList.add('pulse');
     showToast('Added to basket');
   });
 
