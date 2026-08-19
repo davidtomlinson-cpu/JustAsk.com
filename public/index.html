@@ -1089,7 +1089,7 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c1-3.6 4-5.6 7.5-5.6s6.5 2 7.5 5.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
         My requests
       </button>
-      <button type="button" class="nav-btn" data-view="view-dashboard">
+      <button type="button" class="nav-btn" data-view="view-dashboard" id="manageNavBtn" style="display:none;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/></svg>
         Manage
       </button>
@@ -1871,7 +1871,17 @@
   var dashboardContentEl = document.getElementById('dashboardContent');
   var staffGateBuilt = false; // guards against the 8s poll wiping out a half-typed password
 
+  var manageNavBtn = document.getElementById('manageNavBtn');
+  function updateManageNavVisibility() {
+    var isStaff = !!(state.authUser && state.authUser.role === 'staff');
+    manageNavBtn.style.display = isStaff ? '' : 'none';
+    // If staff signs out (or a stored session turns out invalid) while this
+    // tab happens to be active, don't leave them stranded on a hidden tab.
+    if (!isStaff && manageNavBtn.classList.contains('is-active')) showView('view-form');
+  }
+
   function renderDashboard() {
+    updateManageNavVisibility();
     var isStaff = !!(state.authUser && state.authUser.role === 'staff');
     dashboardContentEl.style.display = isStaff ? '' : 'none';
     dashboardGateEl.style.display = isStaff ? 'none' : '';
