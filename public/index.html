@@ -357,6 +357,18 @@
   .field input[readonly] { background: var(--page-plane); color: var(--text-secondary); cursor: not-allowed; }
   .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+  .home-account-prompt {
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    background: var(--gold-tint);
+    border: 1px solid rgba(212,175,55,0.3);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin: -6px 0 16px;
+  }
+  .home-account-prompt .link-btn { font-size: 12.5px; font-weight: 700; }
+
   .same-day-disclaimer {
     font-size: 12px;
     line-height: 1.5;
@@ -1388,6 +1400,11 @@
         <input id="f-email" type="email" placeholder="you@example.com" />
       </div>
 
+      <div class="home-account-prompt" id="homeAccountPrompt">
+        Have an account? <button type="button" class="link-btn" id="homeSignInBtn" style="margin:0;display:inline;">Sign in</button>
+        or <button type="button" class="link-btn" id="homeCreateAccountBtn" style="margin:0;display:inline;">create one</button> to track your requests from anywhere.
+      </div>
+
       <div class="basket-section" id="basketSection" style="display:none;">
         <div class="basket-header">
           <h3>Your basket (<span id="basketCount">0</span>)</h3>
@@ -1929,6 +1946,16 @@
   });
   document.getElementById('backToManageBtn').addEventListener('click', function () {
     showView('view-dashboard');
+  });
+  document.getElementById('homeSignInBtn').addEventListener('click', function () {
+    state.authTab = 'signin';
+    authGateBuilt = false;
+    showView('view-account');
+  });
+  document.getElementById('homeCreateAccountBtn').addEventListener('click', function () {
+    state.authTab = 'signup';
+    authGateBuilt = false;
+    showView('view-account');
   });
 
   // ---------- standalone item sourcing search (Manage dashboard) ----------
@@ -3219,6 +3246,11 @@
     } else if (emailEl) {
       emailEl.readOnly = false;
     }
+    var promptEl = document.getElementById('homeAccountPrompt');
+    if (promptEl) {
+      var isSignedInBuyer = !!(state.authUser && state.authUser.role === 'buyer');
+      promptEl.style.display = isSignedInBuyer ? 'none' : 'block';
+    }
   }
 
   function renderAccountView() {
@@ -3248,7 +3280,21 @@
   // be no way for staff to ever sign in in the first place. Uses "-acc"
   // suffixed ids so it never collides with the (now mostly unreachable, but
   // left in place) dashboard-gate version of the same form.
+  //
+  // The link itself only appears when the page was opened with ?staff in
+  // the URL — an ordinary customer browsing normally will never see any
+  // staff sign-in option anywhere in the app. This is a visibility gate,
+  // not real security: the actual protection is (and always was) the staff
+  // password plus the server checking role on every request, both fully in
+  // place regardless of this. A technically determined person could still
+  // find the login endpoint by inspecting the code, same as with any
+  // client-side app — this just stops it from being something a normal
+  // customer would ever stumble onto.
+  function hasStaffAccessParam() {
+    try { return new URLSearchParams(window.location.search).has('staff'); } catch (e) { return false; }
+  }
   function staffLoginPromptHtml() {
+    if (!hasStaffAccessParam()) return '';
     return '<div class="staff-login-prompt">' +
       '<button type="button" class="link-btn" id="staffLoginToggle">Staff sign in</button>' +
       '<div id="staffLoginPanel" style="display:none; margin-top:10px;">' +
