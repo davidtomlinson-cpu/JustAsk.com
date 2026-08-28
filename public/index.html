@@ -2302,181 +2302,306 @@
   var ITEM_SUGGESTIONS = [
     {
       keywords: ['headphone', 'headphones', 'earphone', 'earphones', 'earbud', 'earbuds'],
-      suggestions: ['Wireless headphones', 'Over-ear headphones', 'In-ear headphones', 'Noise cancelling headphones', 'Bluetooth headphones', 'Gaming headset', 'Sports headphones'],
+      suggestions: ['Wireless headphones', 'Over-ear headphones', 'In-ear headphones', 'Noise cancelling headphones', 'Bluetooth headphones', 'Gaming headset', 'Sports headphones', 'Kids headphones'],
       refine: {
-        'wireless': ['True wireless earbuds', 'Wireless over-ear headphones', 'Wireless noise cancelling headphones', 'Wireless sports earbuds'],
+        'wireless': ['True wireless earbuds', 'Wireless over-ear headphones', 'Wireless noise cancelling headphones', 'Wireless sports earbuds', 'Black wireless headphones', 'White wireless headphones'],
         'noise cancelling': ['Active noise cancelling over-ear headphones', 'Noise cancelling earbuds', 'Noise cancelling travel headphones'],
-        'gaming': ['Wired gaming headset', 'Wireless gaming headset', 'Gaming headset with mic'],
-        'sports': ['Sweatproof sports earbuds', 'Bone conduction sports headphones', 'Wireless running earbuds']
+        'gaming': ['Wired gaming headset', 'Wireless gaming headset', 'Gaming headset with mic', '7.1 surround gaming headset'],
+        'sports': ['Sweatproof sports earbuds', 'Bone conduction sports headphones', 'Wireless running earbuds'],
+        'kids': ['Volume-limited kids headphones', 'Wired kids headphones', 'Kids headphones with cat ears design']
       }
     },
     {
       keywords: ['flower', 'flowers', 'bouquet'],
-      suggestions: ['Red roses', 'Mixed seasonal bouquet', 'Tulips', 'Lilies', 'Sunflowers', 'Orchids', 'Pastel bouquet'],
+      suggestions: ['Red roses', 'Mixed seasonal bouquet', 'Tulips', 'Lilies', 'Sunflowers', 'Orchids', 'Pastel bouquet', 'Dried flower bouquet'],
       refine: {
-        'rose': ['Dozen red roses', 'Mixed colour roses', 'White roses', 'Long-stem red roses'],
-        'mixed': ['Bright mixed bouquet', 'Pastel mixed bouquet', 'Seasonal mixed bouquet with foliage']
+        'rose': ['Dozen red roses', 'Half-dozen red roses', 'Mixed colour roses', 'White roses', 'Pink roses'],
+        'mixed': ['Bright mixed bouquet', 'Pastel mixed bouquet', 'Seasonal mixed bouquet with foliage', 'Small mixed bouquet', 'Large/deluxe mixed bouquet'],
+        'tulip': ['Yellow tulips', 'Pink tulips', 'Mixed colour tulips', 'Bunch of 10 tulips'],
+        'lily': ['White lilies', 'Pink lilies', 'Oriental lilies']
       }
     },
     {
       keywords: ['chocolate', 'chocolates', 'sweets'],
-      suggestions: ['Luxury chocolate box', 'Dark chocolate selection', 'Milk chocolate selection', 'Chocolate hamper', 'Personalised chocolates', 'Vegan chocolates']
+      suggestions: ['Luxury chocolate box', 'Dark chocolate selection', 'Milk chocolate selection', 'Chocolate hamper', 'Personalised chocolates', 'Vegan chocolates', 'Chocolate truffles'],
+      refine: {
+        'luxury': ['Small luxury box (12 pieces)', 'Medium luxury box (24 pieces)', 'Large luxury box (36 pieces)'],
+        'dark': ['70% dark chocolate', '85% dark chocolate', 'Dark chocolate truffles', 'Dark chocolate orange'],
+        'personalised': ['Personalised message box', 'Personalised photo chocolate bar', 'Personalised name chocolates']
+      }
     },
     {
       keywords: ['wine', 'champagne', 'prosecco'],
       suggestions: ['Red wine', 'White wine', 'Champagne', 'Prosecco', 'Rosé wine', 'Wine gift set', 'Non-alcoholic sparkling'],
       refine: {
-        'red wine': ['Red wine gift box', 'Fine red wine', 'Red wine and glasses set'],
-        'champagne': ['Champagne and flutes gift set', 'Vintage champagne', 'Half-bottle champagne']
+        'red wine': ['Red wine gift box', 'Fine red wine', 'Red wine and glasses set', 'Merlot', 'Cabernet Sauvignon'],
+        'white wine': ['Chilled white wine', 'Sauvignon Blanc', 'Chardonnay', 'White wine and glasses set'],
+        'champagne': ['Champagne and flutes gift set', 'Vintage champagne', 'Half-bottle champagne', 'Pink champagne'],
+        'prosecco': ['750ml prosecco', 'Prosecco gift box', 'Rosé prosecco', 'Prosecco and glasses set']
       }
     },
     {
       keywords: ['cake', 'birthday cake'],
-      suggestions: ['Birthday cake', 'Celebration cake', 'Cupcakes', 'Personalised cake', 'Gluten-free cake', 'Vegan cake']
+      suggestions: ['Small cake (serves 6-8)', 'Medium cake (serves 10-12)', 'Large cake (serves 15-20)', 'Cupcakes', 'Personalised cake', 'Gluten-free cake', 'Vegan cake'],
+      refine: {
+        'personalised': ['Personalised message cake', 'Photo cake', 'Personalised name/age cake'],
+        'cupcake': ['Box of 6 cupcakes', 'Box of 12 cupcakes', 'Box of 24 cupcakes']
+      }
     },
     {
       keywords: ['plant', 'plants', 'houseplant'],
-      suggestions: ['Houseplant', 'Succulent', 'Orchid plant', 'Bonsai', 'Flowering plant', 'Low-maintenance plant']
+      suggestions: ['Houseplant', 'Succulent', 'Orchid plant', 'Bonsai', 'Flowering plant', 'Low-maintenance plant'],
+      refine: {
+        'succulent': ['Small succulent (single pot)', 'Succulent trio/set', 'Succulent in decorative pot'],
+        'orchid': ['White orchid', 'Pink orchid', 'Orchid in ceramic pot']
+      }
     },
     {
       keywords: ['perfume', 'fragrance', 'cologne'],
-      suggestions: ["Women's perfume", "Men's cologne", 'Unisex fragrance', 'Perfume gift set', 'Travel-size fragrance']
+      suggestions: ["Women's perfume", "Men's cologne", 'Unisex fragrance', 'Perfume gift set', 'Travel-size fragrance'],
+      refine: {
+        "women's": ['30ml bottle', '50ml bottle', '100ml bottle', 'Perfume and body lotion set'],
+        "men's": ['50ml bottle', '100ml bottle', 'Cologne and aftershave set']
+      }
     },
     {
       keywords: ['jewelry', 'jewellery', 'necklace', 'bracelet', 'earrings', 'ring'],
-      suggestions: ['Necklace', 'Bracelet', 'Earrings', 'Ring', 'Personalised jewellery', 'Silver jewellery', 'Gold jewellery']
+      suggestions: ['Necklace', 'Bracelet', 'Earrings', 'Ring', 'Personalised jewellery', 'Silver jewellery', 'Gold jewellery'],
+      refine: {
+        'necklace': ['Short/choker necklace', 'Mid-length necklace', 'Long/statement necklace', 'Personalised initial necklace'],
+        'bracelet': ['Charm bracelet', 'Bangle', 'Adjustable bracelet', 'Personalised bracelet'],
+        'earrings': ['Stud earrings', 'Hoop earrings', 'Drop earrings']
+      }
     },
     {
       keywords: ['book', 'books'],
-      suggestions: ['Fiction book', 'Non-fiction book', "Children's book", 'Cookbook', 'Biography', 'Personalised book']
+      suggestions: ['Fiction book', 'Non-fiction book', "Children's book", 'Cookbook', 'Biography', 'Personalised book'],
+      refine: {
+        'fiction': ['Thriller/crime fiction', 'Romance fiction', 'Fantasy/sci-fi fiction', 'Bestseller fiction'],
+        "children's": ["Picture book (ages 0-5)", 'Early reader (ages 5-8)', 'Middle grade (ages 8-12)']
+      }
     },
     {
       keywords: ['toy', 'toys'],
-      suggestions: ['Educational toy', 'Soft toy', 'Board game', 'Building blocks set', 'Jigsaw puzzle', 'Outdoor toy']
+      suggestions: ['Educational toy', 'Soft toy', 'Board game', 'Building blocks set', 'Jigsaw puzzle', 'Outdoor toy'],
+      refine: {
+        'educational': ['Toy for ages 0-2', 'Toy for ages 3-5', 'Toy for ages 6-8', 'Toy for ages 9+'],
+        'board game': ['2-player board game', 'Family board game (4+ players)', 'Strategy board game']
+      }
     },
     {
       keywords: ['shoe', 'shoes', 'trainer', 'trainers', 'sneaker', 'sneakers'],
-      suggestions: ['Trainers', 'Running shoes', 'Formal shoes', 'Boots', 'Sandals', "Kids' shoes"]
+      suggestions: ['Trainers', 'Running shoes', 'Formal shoes', 'Boots', 'Sandals', "Kids' shoes"],
+      refine: {
+        'trainer': ['Men\'s trainers', 'Women\'s trainers', 'Wide-fit trainers', 'Specific size (state UK size)'],
+        'running': ['Road running shoes', 'Trail running shoes', 'Lightweight racing shoes']
+      }
     },
     {
       keywords: ['watch', 'watches'],
-      suggestions: ['Smartwatch', 'Analogue watch', 'Sports watch', 'Luxury watch', "Women's watch", "Men's watch"]
+      suggestions: ['Smartwatch', 'Analogue watch', 'Sports watch', 'Luxury watch', "Women's watch", "Men's watch"],
+      refine: {
+        'smartwatch': ['Fitness-tracking smartwatch', 'GPS smartwatch', 'Smartwatch with phone calls'],
+        'analogue': ['Leather strap watch', 'Metal strap watch', 'Minimalist dial watch']
+      }
     },
     {
       keywords: ['candle', 'candles'],
-      suggestions: ['Scented candle', 'Luxury candle', 'Candle gift set', 'Soy candle', 'Personalised candle']
+      suggestions: ['Scented candle', 'Luxury candle', 'Candle gift set', 'Soy candle', 'Personalised candle'],
+      refine: {
+        'scented': ['Vanilla scented candle', 'Fresh linen scented candle', 'Woody/amber scented candle', 'Seasonal scent candle']
+      }
     },
     {
       keywords: ['hamper', 'gift basket', 'gift hamper'],
-      suggestions: ['Food hamper', 'Wine hamper', 'Spa/pamper hamper', 'New baby hamper', 'Afternoon tea hamper']
+      suggestions: ['Food hamper', 'Wine hamper', 'Spa/pamper hamper', 'New baby hamper', 'Afternoon tea hamper'],
+      refine: {
+        'food': ['Small food hamper', 'Large/deluxe food hamper', 'Cheese and biscuits hamper', 'Sweet treats hamper'],
+        'spa': ['Spa hamper with candles', 'Spa hamper with bath products', 'Spa hamper with robe/slippers']
+      }
     },
     {
       keywords: ['balloon', 'balloons'],
-      suggestions: ['Helium balloon bouquet', 'Birthday balloons', 'Number balloons', 'Foil balloons']
+      suggestions: ['Helium balloon bouquet', 'Birthday balloons', 'Number balloons', 'Foil balloons'],
+      refine: {
+        'number': ['Single large number balloon', 'Two-digit number balloon set', 'Number balloon with bouquet']
+      }
     },
     {
       keywords: ['christmas tree'],
-      suggestions: ['4ft Christmas tree', '6ft Christmas tree', 'Artificial Christmas tree', 'Real Christmas tree', 'Pre-lit Christmas tree']
+      suggestions: ['4ft Christmas tree', '6ft Christmas tree', 'Artificial Christmas tree', 'Real Christmas tree', 'Pre-lit Christmas tree'],
+      refine: {
+        'artificial': ['Slim artificial tree', 'Pop-up artificial tree', 'Snow-tipped artificial tree', 'Pre-lit artificial tree']
+      }
     },
     {
       keywords: ['cable tie', 'cable ties', 'zip tie', 'zip ties'],
-      suggestions: ['100mm cable ties', '200mm cable ties', '300mm cable ties', 'Black cable ties', 'White cable ties', 'Assorted colour cable ties', 'Heavy duty cable ties', 'Releasable/reusable cable ties']
+      suggestions: ['100mm cable ties', '200mm cable ties', '300mm cable ties', 'Black cable ties', 'White cable ties', 'Assorted colour cable ties', 'Heavy duty cable ties', 'Releasable/reusable cable ties'],
+      refine: {
+        'heavy duty': ['4.8mm heavy duty cable ties', '7.6mm heavy duty cable ties', 'Outdoor/UV-resistant heavy duty ties'],
+        'releasable': ['100mm releasable cable ties', '200mm releasable cable ties', 'Reusable velcro cable ties']
+      }
     },
     {
       keywords: ['battery', 'batteries'],
-      suggestions: ['AA batteries', 'AAA batteries', '9V batteries', 'Rechargeable batteries', 'Lithium batteries', 'Button/coin batteries']
+      suggestions: ['AA batteries', 'AAA batteries', '9V batteries', 'Rechargeable batteries', 'Lithium batteries', 'Button/coin batteries'],
+      refine: {
+        'aa': ['4-pack AA batteries', '8-pack AA batteries', 'Bulk pack AA batteries', 'Rechargeable AA batteries'],
+        'aaa': ['4-pack AAA batteries', '8-pack AAA batteries', 'Rechargeable AAA batteries']
+      }
     },
     {
       keywords: ['light bulb', 'light bulbs', 'lightbulb', 'lightbulbs'],
-      suggestions: ['LED bulb', 'Bayonet fitting bulb', 'Screw/Edison fitting bulb', 'Warm white bulb', 'Cool white bulb', 'Dimmable bulb']
+      suggestions: ['LED bulb', 'Bayonet fitting bulb', 'Screw/Edison fitting bulb', 'Warm white bulb', 'Cool white bulb', 'Dimmable bulb'],
+      refine: {
+        'led': ['LED bulb (low wattage, ~5W)', 'LED bulb (medium wattage, ~9W)', 'LED bulb (high brightness, ~13W+)', 'Smart/app-controlled LED bulb']
+      }
     },
     {
       keywords: ['phone charger', 'charging cable', 'charger cable', 'usb cable'],
-      suggestions: ['USB-C charger cable', 'Lightning charger cable', 'Micro USB cable', 'Fast charger plug', '1m cable', '2m cable']
+      suggestions: ['USB-C charger cable', 'Lightning charger cable', 'Micro USB cable', 'Fast charger plug', '1m cable', '2m cable'],
+      refine: {
+        'fast charger': ['20W fast charger plug', '30W fast charger plug', '65W multi-device fast charger'],
+        'usb-c': ['1m USB-C cable', '2m USB-C cable', 'Braided/durable USB-C cable']
+      }
     },
     {
       keywords: ['extension lead', 'extension cable', 'extension cord'],
-      suggestions: ['2m extension lead', '5m extension lead', '10m extension lead', '4-socket extension lead', 'Surge-protected extension lead']
+      suggestions: ['2m extension lead', '5m extension lead', '10m extension lead', '4-socket extension lead', 'Surge-protected extension lead'],
+      refine: {
+        'surge': ['4-socket surge-protected lead', '6-socket surge-protected lead', 'Surge-protected lead with USB ports']
+      }
     },
     {
       keywords: ['tape', 'duct tape', 'masking tape'],
-      suggestions: ['Duct tape', 'Masking tape', 'Double-sided tape', 'Packing tape', 'Electrical tape']
+      suggestions: ['Duct tape', 'Masking tape', 'Double-sided tape', 'Packing tape', 'Electrical tape'],
+      refine: {
+        'duct': ['Standard grey duct tape', 'Black duct tape', 'Heavy-duty duct tape', 'Waterproof duct tape'],
+        'packing': ['Clear packing tape', 'Brown packing tape', 'Fragile-print packing tape']
+      }
     },
     {
       keywords: ['paint'],
-      suggestions: ['White paint', 'Magnolia paint', 'Matt finish paint', 'Gloss finish paint', 'Satin finish paint', 'Sample/tester pot']
+      suggestions: ['White paint', 'Magnolia paint', 'Matt finish paint', 'Gloss finish paint', 'Satin finish paint', 'Sample/tester pot'],
+      refine: {
+        'matt': ['1L matt paint', '2.5L matt paint', '5L matt paint'],
+        'gloss': ['1L gloss paint', '2.5L gloss paint']
+      }
     },
     {
       keywords: ['bin bag', 'bin bags', 'rubbish bag', 'rubbish bags'],
-      suggestions: ['Small bin bags', 'Large bin bags', 'Heavy duty bin bags', 'Biodegradable bin bags']
+      suggestions: ['Small bin bags', 'Large bin bags', 'Heavy duty bin bags', 'Biodegradable bin bags'],
+      refine: {
+        'large': ['60L bin bags', '90L bin bags', '120L bin bags']
+      }
     },
     {
       keywords: ['umbrella'],
-      suggestions: ['Compact travel umbrella', 'Large golf umbrella', 'Windproof umbrella', 'Black umbrella', "Women's umbrella", "Men's umbrella"]
+      suggestions: ['Compact travel umbrella', 'Large golf umbrella', 'Windproof umbrella', 'Black umbrella', "Women's umbrella", "Men's umbrella"],
+      refine: {
+        'windproof': ['Windproof compact umbrella', 'Windproof golf umbrella', 'Windproof umbrella (auto open/close)']
+      }
     },
     {
       keywords: ['phone case'],
-      suggestions: ['Clear phone case', 'Rugged/protective phone case', 'Wallet phone case', 'Black phone case']
+      suggestions: ['Clear phone case', 'Rugged/protective phone case', 'Wallet phone case', 'Black phone case'],
+      refine: {
+        'rugged': ['Rugged case with screen protector', 'Rugged case with kickstand', 'Waterproof rugged case']
+      }
     },
     {
       keywords: ['notebook', 'notepad'],
-      suggestions: ['A4 notebook', 'A5 notebook', 'Ruled notebook', 'Plain/blank notebook', 'Hardback notebook']
+      suggestions: ['A4 notebook', 'A5 notebook', 'Ruled notebook', 'Plain/blank notebook', 'Hardback notebook'],
+      refine: {
+        'a5': ['A5 ruled notebook (~80 pages)', 'A5 dotted notebook', 'A5 hardback notebook']
+      }
     },
     {
       keywords: ['printer paper', 'a4 paper'],
-      suggestions: ['A4 printer paper', 'A3 printer paper', '80gsm paper', '100gsm paper']
+      suggestions: ['A4 printer paper', 'A3 printer paper', '80gsm paper', '100gsm paper'],
+      refine: {
+        '80gsm': ['Single ream (500 sheets), 80gsm', 'Multi-pack (5 reams), 80gsm']
+      }
     },
     {
       keywords: ['torch', 'flashlight'],
-      suggestions: ['Rechargeable torch', 'Compact keyring torch', 'Heavy-duty torch', 'Head torch']
+      suggestions: ['Rechargeable torch', 'Compact keyring torch', 'Heavy-duty torch', 'Head torch'],
+      refine: {
+        'rechargeable': ['USB-rechargeable torch', 'High-lumen rechargeable torch', 'Rechargeable torch with power bank function']
+      }
     },
     {
       keywords: ['suitcase', 'luggage'],
-      suggestions: ['Cabin-size suitcase', 'Medium suitcase', 'Large suitcase', 'Hard shell suitcase', 'Soft shell suitcase']
+      suggestions: ['Cabin-size suitcase', 'Medium suitcase', 'Large suitcase', 'Hard shell suitcase', 'Soft shell suitcase'],
+      refine: {
+        'hard shell': ['4-wheel spinner hard shell', 'Expandable hard shell', 'Hard shell with TSA lock']
+      }
     },
     {
       keywords: ['garden hose', 'hosepipe'],
-      suggestions: ['10m garden hose', '20m garden hose', '30m garden hose', 'Expandable garden hose']
+      suggestions: ['10m garden hose', '20m garden hose', '30m garden hose', 'Expandable garden hose'],
+      refine: {
+        'expandable': ['15m expandable hose', '25m expandable hose', 'Expandable hose with spray gun']
+      }
     },
     {
       keywords: ['first aid kit'],
-      suggestions: ['Compact travel first aid kit', 'Home first aid kit', 'Car first aid kit']
+      suggestions: ['Compact travel first aid kit', 'Home first aid kit', 'Car first aid kit'],
+      refine: {
+        'home': ['Basic home first aid kit', 'Comprehensive/family home first aid kit']
+      }
     },
     {
       keywords: ['dog lead', 'dog collar'],
-      suggestions: ['Dog lead', 'Dog collar', 'Retractable dog lead', 'Reflective dog lead/collar']
+      suggestions: ['Dog lead', 'Dog collar', 'Retractable dog lead', 'Reflective dog lead/collar'],
+      refine: {
+        'lead': ['Small dog lead', 'Medium dog lead', 'Large dog lead', 'Padded-handle dog lead']
+      }
     },
     {
       keywords: ['pet food', 'dog food', 'cat food'],
-      suggestions: ['Dry dog food', 'Wet dog food', 'Dry cat food', 'Wet cat food', 'Small bag', 'Large bag']
+      suggestions: ['Dry dog food', 'Wet dog food', 'Dry cat food', 'Wet cat food', 'Small bag', 'Large bag'],
+      refine: {
+        'dry dog': ['Puppy dry dog food', 'Adult dry dog food', 'Senior dry dog food', 'Grain-free dry dog food'],
+        'dry cat': ['Kitten dry cat food', 'Adult dry cat food', 'Senior dry cat food']
+      }
     },
     {
       keywords: ['screwdriver', 'screws', 'wall plug', 'picture hook'],
-      suggestions: ['Screwdriver set', 'Assorted screws', 'Wall plugs/rawl plugs', 'Picture hooks']
+      suggestions: ['Screwdriver set', 'Assorted screws', 'Wall plugs/rawl plugs', 'Picture hooks'],
+      refine: {
+        'assorted screws': ['Wood screw set', 'Machine screw set', 'Multi-size assorted screw box']
+      }
     },
     {
       keywords: ['kitchen roll', 'toilet roll', 'toilet paper'],
-      suggestions: ['Kitchen roll (multipack)', 'Toilet roll (multipack)', 'Recycled/eco option']
+      suggestions: ['Kitchen roll (multipack)', 'Toilet roll (multipack)', 'Recycled/eco option'],
+      refine: {
+        'toilet roll': ['4-pack toilet roll', '9-pack toilet roll', '12-pack toilet roll', 'Recycled toilet roll']
+      }
     },
     {
       keywords: ['backpack', 'rucksack'],
-      suggestions: ['Everyday backpack', 'Laptop backpack', "Kids' backpack", 'Hiking backpack']
+      suggestions: ['Everyday backpack', 'Laptop backpack', "Kids' backpack", 'Hiking backpack'],
+      refine: {
+        'laptop': ['13-inch laptop backpack', '15-inch laptop backpack', 'Laptop backpack with USB charging port']
+      }
     },
     {
       keywords: ['sd card', 'usb stick', 'memory stick', 'flash drive'],
-      suggestions: ['32GB USB stick', '64GB USB stick', '128GB SD card', '256GB SD card']
+      suggestions: ['32GB USB stick', '64GB USB stick', '128GB SD card', '256GB SD card'],
+      refine: {
+        'sd card': ['128GB SD card (Class 10)', '256GB SD card (high speed/video)', '64GB microSD card']
+      }
     },
     {
       keywords: ['hdmi cable'],
-      suggestions: ['1m HDMI cable', '2m HDMI cable', '5m HDMI cable']
+      suggestions: ['1m HDMI cable', '2m HDMI cable', '5m HDMI cable'],
+      refine: {
+        '2m': ['2m HDMI 2.0 cable (4K 60Hz)', '2m HDMI 2.1 cable (4K 120Hz/8K)']
+      }
     }
   ];
-
-  // Shown when the input is long enough to search but no specific category
-  // matched — keeps the tool from going completely silent on genuinely
-  // uncommon items, and nudges the buyer toward the kind of detail that
-  // actually helps staff source the right thing (this list can't be truly
-  // exhaustive; an AI-powered version would be the way to cover everything).
   var GENERIC_SUGGESTION_HINT = 'No exact match yet — try adding detail like colour, size, length, or quantity for a better match.';
 
   function renderItemSuggestions() {
