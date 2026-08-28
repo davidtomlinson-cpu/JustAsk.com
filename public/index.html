@@ -328,6 +328,26 @@
     outline: 2px solid var(--series-blue);
     outline-offset: 1px;
   }
+  .item-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    animation: sourceCardIn .18s ease;
+  }
+  .item-suggestion-chip {
+    background: var(--gold-tint);
+    border: 1px solid rgba(212,175,55,0.35);
+    color: var(--gold-text);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform .1s ease;
+  }
+  .item-suggestion-chip:active { transform: scale(.96); }
   .field input[readonly] { background: var(--page-plane); color: var(--text-secondary); cursor: not-allowed; }
   .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
@@ -1332,7 +1352,8 @@
         <h3 class="item-form-title">Add an item</h3>
         <div class="field">
           <label for="f-item">What should be purchased? *</label>
-          <input id="f-item" type="text" placeholder="e.g. 6ft Christmas tree" required />
+          <input id="f-item" type="text" placeholder="e.g. 6ft Christmas tree" required autocomplete="off" />
+          <div class="item-suggestions" id="itemSuggestions" style="display:none;"></div>
         </div>
         <div class="field">
           <label for="f-link">Link or product details <span class="hint">(optional)</span></label>
@@ -2264,6 +2285,127 @@
     addressResultsEl.innerHTML = '';
     setLookupStatus('', false);
   }
+
+  // ---------- item description suggestions ----------
+  // Static, built-in dictionary — instant and free, no external calls. Each
+  // category matches on simple keyword containment; "refine" sets show more
+  // specific follow-up suggestions once the input already contains one of
+  // the level-1 words, giving the "gets more specific as you type" effect
+  // without needing an AI call on every keystroke on a public, unauthenticated
+  // form. Easy to extend with more categories over time.
+  var ITEM_SUGGESTIONS = [
+    {
+      keywords: ['headphone', 'headphones', 'earphone', 'earphones', 'earbud', 'earbuds'],
+      suggestions: ['Wireless headphones', 'Over-ear headphones', 'In-ear headphones', 'Noise cancelling headphones', 'Bluetooth headphones', 'Gaming headset', 'Sports headphones'],
+      refine: {
+        'wireless': ['True wireless earbuds', 'Wireless over-ear headphones', 'Wireless noise cancelling headphones', 'Wireless sports earbuds'],
+        'noise cancelling': ['Active noise cancelling over-ear headphones', 'Noise cancelling earbuds', 'Noise cancelling travel headphones'],
+        'gaming': ['Wired gaming headset', 'Wireless gaming headset', 'Gaming headset with mic'],
+        'sports': ['Sweatproof sports earbuds', 'Bone conduction sports headphones', 'Wireless running earbuds']
+      }
+    },
+    {
+      keywords: ['flower', 'flowers', 'bouquet'],
+      suggestions: ['Red roses', 'Mixed seasonal bouquet', 'Tulips', 'Lilies', 'Sunflowers', 'Orchids', 'Pastel bouquet'],
+      refine: {
+        'rose': ['Dozen red roses', 'Mixed colour roses', 'White roses', 'Long-stem red roses'],
+        'mixed': ['Bright mixed bouquet', 'Pastel mixed bouquet', 'Seasonal mixed bouquet with foliage']
+      }
+    },
+    {
+      keywords: ['chocolate', 'chocolates', 'sweets'],
+      suggestions: ['Luxury chocolate box', 'Dark chocolate selection', 'Milk chocolate selection', 'Chocolate hamper', 'Personalised chocolates', 'Vegan chocolates']
+    },
+    {
+      keywords: ['wine', 'champagne', 'prosecco'],
+      suggestions: ['Red wine', 'White wine', 'Champagne', 'Prosecco', 'Rosé wine', 'Wine gift set', 'Non-alcoholic sparkling'],
+      refine: {
+        'red wine': ['Red wine gift box', 'Fine red wine', 'Red wine and glasses set'],
+        'champagne': ['Champagne and flutes gift set', 'Vintage champagne', 'Half-bottle champagne']
+      }
+    },
+    {
+      keywords: ['cake', 'birthday cake'],
+      suggestions: ['Birthday cake', 'Celebration cake', 'Cupcakes', 'Personalised cake', 'Gluten-free cake', 'Vegan cake']
+    },
+    {
+      keywords: ['plant', 'plants', 'houseplant'],
+      suggestions: ['Houseplant', 'Succulent', 'Orchid plant', 'Bonsai', 'Flowering plant', 'Low-maintenance plant']
+    },
+    {
+      keywords: ['perfume', 'fragrance', 'cologne'],
+      suggestions: ["Women's perfume", "Men's cologne", 'Unisex fragrance', 'Perfume gift set', 'Travel-size fragrance']
+    },
+    {
+      keywords: ['jewelry', 'jewellery', 'necklace', 'bracelet', 'earrings', 'ring'],
+      suggestions: ['Necklace', 'Bracelet', 'Earrings', 'Ring', 'Personalised jewellery', 'Silver jewellery', 'Gold jewellery']
+    },
+    {
+      keywords: ['book', 'books'],
+      suggestions: ['Fiction book', 'Non-fiction book', "Children's book", 'Cookbook', 'Biography', 'Personalised book']
+    },
+    {
+      keywords: ['toy', 'toys'],
+      suggestions: ['Educational toy', 'Soft toy', 'Board game', 'Building blocks set', 'Jigsaw puzzle', 'Outdoor toy']
+    },
+    {
+      keywords: ['shoe', 'shoes', 'trainer', 'trainers', 'sneaker', 'sneakers'],
+      suggestions: ['Trainers', 'Running shoes', 'Formal shoes', 'Boots', 'Sandals', "Kids' shoes"]
+    },
+    {
+      keywords: ['watch', 'watches'],
+      suggestions: ['Smartwatch', 'Analogue watch', 'Sports watch', 'Luxury watch', "Women's watch", "Men's watch"]
+    },
+    {
+      keywords: ['candle', 'candles'],
+      suggestions: ['Scented candle', 'Luxury candle', 'Candle gift set', 'Soy candle', 'Personalised candle']
+    },
+    {
+      keywords: ['hamper', 'gift basket', 'gift hamper'],
+      suggestions: ['Food hamper', 'Wine hamper', 'Spa/pamper hamper', 'New baby hamper', 'Afternoon tea hamper']
+    },
+    {
+      keywords: ['balloon', 'balloons'],
+      suggestions: ['Helium balloon bouquet', 'Birthday balloons', 'Number balloons', 'Foil balloons']
+    },
+    {
+      keywords: ['christmas tree'],
+      suggestions: ['4ft Christmas tree', '6ft Christmas tree', 'Artificial Christmas tree', 'Real Christmas tree', 'Pre-lit Christmas tree']
+    }
+  ];
+
+  function renderItemSuggestions() {
+    var input = document.getElementById('f-item');
+    var panel = document.getElementById('itemSuggestions');
+    var value = input.value.trim().toLowerCase();
+    if (value.length < 3) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+
+    var match = ITEM_SUGGESTIONS.find(function (cat) {
+      return cat.keywords.some(function (kw) { return value.indexOf(kw) !== -1; });
+    });
+    if (!match) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+
+    // If the input already contains one of this category's refine trigger
+    // words, show the more specific follow-up set instead of the general one.
+    var list = match.suggestions;
+    if (match.refine) {
+      var refineKey = Object.keys(match.refine).find(function (k) { return value.indexOf(k) !== -1; });
+      if (refineKey) list = match.refine[refineKey];
+    }
+
+    panel.innerHTML = list.map(function (s) {
+      return '<button type="button" class="item-suggestion-chip">' + escapeHtml(s) + '</button>';
+    }).join('');
+    panel.style.display = 'flex';
+    panel.querySelectorAll('.item-suggestion-chip').forEach(function (chip, i) {
+      chip.addEventListener('click', function () {
+        input.value = list[i];
+        renderItemSuggestions(); // re-check for a more specific refine set now that the text changed
+        input.focus();
+      });
+    });
+  }
+  document.getElementById('f-item').addEventListener('input', renderItemSuggestions);
 
   document.getElementById('itemForm').addEventListener('submit', function (e) {
     e.preventDefault();
