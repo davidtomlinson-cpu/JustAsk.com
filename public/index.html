@@ -1535,6 +1535,10 @@
                   <option value="">— Select a request —</option>
                 </select>
               </div>
+              <div class="field" id="standaloneSearchItemPickerWrap" style="display:none;">
+                <label>Which item in this basket?</label>
+                <div class="pill-group" id="standaloneSearchItemPicker"></div>
+              </div>
               <div class="field"><label for="standaloneSearchDesc">Item description</label><input type="text" id="standaloneSearchDesc" placeholder="e.g. bouquet of red roses"></div>
               <div class="field"><label for="standaloneSearchDate">Delivery date</label><input type="date" id="standaloneSearchDate"></div>
               <div class="field"><label for="standaloneSearchPostcode">Postcode</label><input type="text" id="standaloneSearchPostcode" placeholder="e.g. NW1 6XE"></div>
@@ -1977,15 +1981,45 @@
     }
   }
 
+  function fillStandaloneSearchFromItem(item) {
+    document.getElementById('standaloneSearchDesc').value = item.item || '';
+    document.getElementById('standaloneSearchDate').value = item.neededBy || '';
+    document.getElementById('standaloneSearchPostcode').value = item.postcode || '';
+    document.getElementById('standaloneSearchLink').value = item.link || '';
+  }
+
+  function renderStandaloneItemPicker(req) {
+    var wrap = document.getElementById('standaloneSearchItemPickerWrap');
+    var picker = document.getElementById('standaloneSearchItemPicker');
+    var items = (req && req.items) || [];
+    if (items.length <= 1) {
+      wrap.style.display = 'none';
+      picker.innerHTML = '';
+      return;
+    }
+    wrap.style.display = 'block';
+    picker.innerHTML = items.map(function (it, idx) {
+      return '<button type="button" class="pill-option' + (idx === 0 ? ' is-selected' : '') + '" data-idx="' + idx + '">' + (idx + 1) + '. ' + escapeHtml(it.item) + '</button>';
+    }).join('');
+    picker.querySelectorAll('.pill-option').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        picker.querySelectorAll('.pill-option').forEach(function (b) { b.classList.remove('is-selected'); });
+        btn.classList.add('is-selected');
+        fillStandaloneSearchFromItem(items[parseInt(btn.getAttribute('data-idx'), 10)]);
+      });
+    });
+  }
+
   document.getElementById('standaloneSearchRequest').addEventListener('change', function () {
     var reqId = this.value;
     var req = requests.find(function (r) { return r.id === reqId; });
-    if (!req) return;
+    if (!req) {
+      document.getElementById('standaloneSearchItemPickerWrap').style.display = 'none';
+      return;
+    }
+    renderStandaloneItemPicker(req);
     var firstItem = (req.items && req.items[0]) || req;
-    document.getElementById('standaloneSearchDesc').value = firstItem.item || '';
-    document.getElementById('standaloneSearchDate').value = firstItem.neededBy || '';
-    document.getElementById('standaloneSearchPostcode').value = firstItem.postcode || '';
-    document.getElementById('standaloneSearchLink').value = firstItem.link || '';
+    fillStandaloneSearchFromItem(firstItem);
   });
 
   function tierResultTileHtml(tier, opt) {
