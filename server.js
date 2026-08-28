@@ -952,7 +952,8 @@ app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const prompt = 'You are helping a personal-concierge purchasing team source a specific item for a customer.\n\n' +
+  const prompt = 'You are helping a personal-concierge purchasing team source a specific item for a customer, ' +
+    'and sort what you find into three budget tiers they can quote directly.\n\n' +
     'Item requested: ' + itemDescription + '\n' +
     (isNonEmptyString(link) ? 'Reference link the customer provided: ' + link + '\n' : '') +
     'Delivery postcode: ' + deliveryAddress + '\n' +
@@ -960,11 +961,18 @@ app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
     'Search the web for real, currently available places to buy this exact item (or the closest sensible match). ' +
     'Consider the full range of sources — small local/independent shops near the delivery postcode (e.g. a local florist, ' +
     'butcher, hardware shop) as well as major online retailers (e.g. Amazon, John Lewis, Argos) — whichever genuinely ' +
-    'fits the item and the delivery date above. Find between 3 and 6 concrete options. For each, note whether delivery ' +
-    'or collection by that date looks realistic based on what the source page says.\n\n' +
+    'fits the item and the delivery date above.\n\n' +
+    'Find and pick ONE real option for each of three tiers:\n' +
+    '- Basic: the cheapest genuinely suitable option\n' +
+    '- Standard: a solid mid-range option, better quality or presentation than Basic\n' +
+    '- Premium: a higher-end option — better brand, quality, or presentation than Standard\n\n' +
+    'Each tier should be a real, findable product with a real price — do not invent prices. If you genuinely cannot ' +
+    'find a distinct option for a tier, reuse the closest tier\'s option rather than inventing one. For each, note ' +
+    'whether delivery or collection by the date above looks realistic based on what the source page says.\n\n' +
     'Respond with ONLY valid JSON (no markdown fences, no commentary) in exactly this shape:\n' +
-    '{"options":[{"retailer":string,"productName":string,"price":number|null,"currency":"GBP",' +
-    '"url":string,"isLocal":boolean,"deliveryFeasible":boolean,"deliveryNote":string}]}';
+    '{"tiers":{"Basic":{"retailer":string,"productName":string,"price":number|null,"currency":"GBP",' +
+    '"url":string,"isLocal":boolean,"deliveryFeasible":boolean,"deliveryNote":string},' +
+    '"Standard":{...same shape...},"Premium":{...same shape...}}}';
 
   try {
     const controller = new AbortController();
@@ -1011,8 +1019,8 @@ app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
       return res.status(502).json({ error: 'Got a response back but could not read it as search results. Try again.' });
     }
 
-    const options = Array.isArray(parsed.options) ? parsed.options : [];
-    res.json({ options: options, deliveryDate: deliveryDate });
+    const tiers = (parsed && typeof parsed.tiers === 'object' && parsed.tiers) ? parsed.tiers : {};
+    res.json({ tiers: tiers, deliveryDate: deliveryDate });
   } catch (err) {
     console.error('source-item error', err);
     if (err.name === 'AbortError') {

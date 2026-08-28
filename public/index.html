@@ -1031,9 +1031,11 @@
     box-shadow: 0 2px 10px rgba(11,37,69,0.06);
   }
   .item-search-standalone .field { margin-bottom: 12px; }
+  .source-search-btn-row { display: flex; gap: 10px; }
+  .source-search-btn-row .btn-add-basket { flex: 2; }
+  .source-search-btn-row .btn-secondary { flex: 1; }
   .source-status { font-size: 12.5px; color: var(--text-secondary); margin: 8px 0; }
   .source-status.is-error { color: var(--status-critical); }
-  .source-results { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
   .source-option-card {
     background: var(--surface-1);
     border: 1px solid var(--border);
@@ -1048,6 +1050,22 @@
   .source-option-note { font-size: 11.5px; margin-top: 6px; display: flex; align-items: center; gap: 5px; }
   .source-option-note.is-feasible { color: var(--jewel-emerald); }
   .source-option-note.is-tight { color: var(--jewel-coral); }
+
+  .source-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .tier-result-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: sourceCardIn .22s ease;
+  }
+  .tier-result-label { font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
+  .tier-result-price { font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 2px 0; }
+  .tier-result-save-btn { margin-top: 8px; font-size: 12.5px; padding: 10px; }
+  @media (min-width: 600px) { .source-results { grid-template-columns: repeat(3, 1fr); } }
   .source-option-link { font-size: 12px; margin-top: 6px; display: inline-block; color: var(--jewel-teal); font-weight: 600; }
 
   .source-loading { display: flex; align-items: center; gap: 10px; }
@@ -1407,11 +1425,19 @@
         <div class="item-search-standalone" id="itemSearchStandalone" style="display:none;">
           <h4 class="section-title">Search for sourcing options</h4>
           <p class="view-sub" style="margin:-4px 0 12px;">Search the web via Claude for a specific item — anything from a local shop to a major retailer.</p>
+          <div class="field"><label for="standaloneSearchRequest">Which request is this for?</label>
+            <select id="standaloneSearchRequest">
+              <option value="">— Select a request —</option>
+            </select>
+          </div>
           <div class="field"><label for="standaloneSearchDesc">Item description</label><input type="text" id="standaloneSearchDesc" placeholder="e.g. bouquet of red roses"></div>
           <div class="field"><label for="standaloneSearchDate">Delivery date</label><input type="date" id="standaloneSearchDate"></div>
           <div class="field"><label for="standaloneSearchPostcode">Postcode</label><input type="text" id="standaloneSearchPostcode" placeholder="e.g. NW1 6XE"></div>
           <div class="field"><label for="standaloneSearchLink">Product link <span class="hint">(optional)</span></label><input type="text" id="standaloneSearchLink" placeholder="Paste a link if you have one"></div>
-          <button type="button" class="btn-add-basket" id="standaloneSearchBtn">Search for options</button>
+          <div class="source-search-btn-row">
+            <button type="button" class="btn-add-basket" id="standaloneSearchBtn">Search for options</button>
+            <button type="button" class="btn-secondary" id="standaloneSearchClearBtn">Clear</button>
+          </div>
           <div class="source-status" id="standaloneSearchStatus"></div>
           <div class="source-results" id="standaloneSearchResults"></div>
         </div>
@@ -1812,6 +1838,94 @@
   });
 
   // ---------- standalone item sourcing search (Manage dashboard) ----------
+  // Populates the "Which request is this for?" dropdown from whatever's
+  // currently loaded, restricted to requests that can actually still be
+  // quoted (Processing or Quoted) — matches the same window the request
+  // detail view itself allows cost entry in.
+  function renderStandaloneSearchRequestPicker() {
+    var select = document.getElementById('standaloneSearchRequest');
+    if (!select) return;
+    var previousValue = select.value;
+    var quotable = requests.filter(function (r) { return r.status === 'Processing' || r.status === 'Quoted'; });
+    select.innerHTML = '<option value="">— Select a request —</option>' +
+      quotable.map(function (r) {
+        return '<option value="' + escapeHtml(r.id) + '">' + escapeHtml(r.item) + ' — ' + escapeHtml(r.requester) + ' (' + escapeHtml(r.status) + ')</option>';
+      }).join('');
+    if (quotable.some(function (r) { return r.id === previousValue; })) {
+      select.value = previousValue;
+    }
+  }
+
+  document.getElementById('standaloneSearchRequest').addEventListener('change', function () {
+    var reqId = this.value;
+    var req = requests.find(function (r) { return r.id === reqId; });
+    if (!req) return;
+    var firstItem = (req.items && req.items[0]) || req;
+    document.getElementById('standaloneSearchDesc').value = firstItem.item || '';
+    document.getElementById('standaloneSearchDate').value = firstItem.neededBy || '';
+    document.getElementById('standaloneSearchPostcode').value = firstItem.postcode || '';
+    document.getElementById('standaloneSearchLink').value = firstItem.link || '';
+  });
+
+  function tierResultTileHtml(tier, opt) {
+    var priceHtml = (opt.price != null && !isNaN(parseFloat(opt.price))) ? '£' + Number(opt.price).toFixed(2) : 'Price unknown';
+    var feasible = opt.deliveryFeasible !== false;
+    var tierColorVar = { Basic: 'var(--gold-text)', Standard: 'var(--jewel-emerald)', Premium: 'var(--jewel-coral)' }[tier] || 'var(--jewel-teal)';
+    return '<div class="tier-result-tile">' +
+      '<div class="tier-result-label" style="color:' + tierColorVar + ';">' + tier + '</div>' +
+      '<div class="source-option-retailer">' + escapeHtml(opt.retailer || 'Unknown retailer') + (opt.isLocal ? ' · local' : '') + '</div>' +
+      '<div class="source-option-name">' + escapeHtml(opt.productName || '') + '</div>' +
+      '<div class="tier-result-price">' + priceHtml + '</div>' +
+      (opt.deliveryNote ? '<div class="source-option-note ' + (feasible ? 'is-feasible' : 'is-tight') + '">' + (feasible ? '✓' : '⚠') + ' ' + escapeHtml(opt.deliveryNote) + '</div>' : '') +
+      (opt.url ? '<a class="source-option-link" href="' + escapeHtml(opt.url) + '" target="_blank" rel="noopener noreferrer">View →</a>' : '') +
+      '<button type="button" class="btn-add-basket tier-result-save-btn" data-tier="' + tier + '">Save ' + tier + ' cost to request</button>' +
+    '</div>';
+  }
+
+  function wireStandaloneResultTiles(tiers) {
+    document.querySelectorAll('.tier-result-save-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var tier = btn.getAttribute('data-tier');
+        var opt = tiers[tier];
+        var price = Number(opt && opt.price);
+        var reqId = document.getElementById('standaloneSearchRequest').value;
+        if (!reqId) {
+          alert('Select which request this is for first, using the dropdown above.');
+          return;
+        }
+        if (isNaN(price) || price <= 0) {
+          alert('This tier has no valid price to save.');
+          return;
+        }
+        var targetReq = requests.find(function (r) { return r.id === reqId; });
+        if (!targetReq) {
+          alert('Could not find that request — try refreshing.');
+          return;
+        }
+        var directCosts = { Basic: 0, Standard: 0, Premium: 0 };
+        if (targetReq.directCosts) {
+          BUDGET_TIERS.forEach(function (t) { if (targetReq.directCosts[t] != null) directCosts[t] = targetReq.directCosts[t]; });
+        }
+        directCosts[tier] = price;
+
+        var originalLabel = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        apiPatch(reqId, { directCosts: directCosts })
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            showToast(tier + ' cost of £' + price.toFixed(2) + ' saved to "' + targetReq.item + '"');
+            btn.textContent = '✓ Saved';
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = originalLabel;
+            alert(err.message || 'Could not save this cost — try again.');
+          });
+      });
+    });
+  }
+
   (function () {
     var btn = document.getElementById('standaloneSearchBtn');
     if (!btn) return;
@@ -1853,20 +1967,15 @@
       apiSourceItem(payload)
         .then(function (data) {
           clearInterval(loadingInterval);
-          var options = (data.options || []).slice().sort(function (a, b) {
-            var aFeasible = a.deliveryFeasible !== false ? 0 : 1;
-            var bFeasible = b.deliveryFeasible !== false ? 0 : 1;
-            if (aFeasible !== bFeasible) return aFeasible - bFeasible;
-            var aPrice = (a.price != null && !isNaN(parseFloat(a.price))) ? parseFloat(a.price) : Infinity;
-            var bPrice = (b.price != null && !isNaN(parseFloat(b.price))) ? parseFloat(b.price) : Infinity;
-            return aPrice - bPrice;
-          });
+          var tiers = data.tiers || {};
+          var tierNames = ['Basic', 'Standard', 'Premium'].filter(function (t) { return tiers[t]; });
           statusEl.className = 'source-status';
-          if (!options.length) {
+          if (!tierNames.length) {
             statusEl.textContent = 'No options found — try a more specific description.';
           } else {
-            statusEl.textContent = options.length + ' option' + (options.length === 1 ? '' : 's') + ' found:';
-            resultsEl.innerHTML = options.map(function (opt, optIdx) { return sourceOptionCardHtml(opt, optIdx, optIdx === 0); }).join('');
+            statusEl.textContent = 'Tap a tile to save that cost to the selected request:';
+            resultsEl.innerHTML = tierNames.map(function (tier) { return tierResultTileHtml(tier, tiers[tier]); }).join('');
+            wireStandaloneResultTiles(tiers);
           }
         })
         .catch(function (err) {
@@ -1886,6 +1995,19 @@
         if (e.key === 'Enter') { e.preventDefault(); runStandaloneSearch(); }
       });
     });
+
+    var clearBtn = document.getElementById('standaloneSearchClearBtn');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        document.getElementById('standaloneSearchDesc').value = '';
+        document.getElementById('standaloneSearchDate').value = '';
+        document.getElementById('standaloneSearchPostcode').value = '';
+        document.getElementById('standaloneSearchLink').value = '';
+        document.getElementById('standaloneSearchStatus').className = 'source-status';
+        document.getElementById('standaloneSearchStatus').textContent = '';
+        document.getElementById('standaloneSearchResults').innerHTML = '';
+      });
+    }
   })();
 
   // ---------- nav ----------
@@ -2488,6 +2610,7 @@
     staffGateBuilt = false; // rebuild fresh if they ever sign out
     var itemSearchEl = document.getElementById('itemSearchStandalone');
     if (itemSearchEl) itemSearchEl.style.display = state.itemSearchEnabled ? 'block' : 'none';
+    renderStandaloneSearchRequestPicker();
     renderMarginTile();
     renderStatTiles();
     renderChips();
@@ -2989,24 +3112,7 @@
     '</div>';
   }
 
-  function sourceOptionCardHtml(opt, optIdx, isBest) {
-    var priceHtml = (opt.price != null && !isNaN(parseFloat(opt.price)))
-      ? '£' + Number(opt.price).toFixed(2)
-      : 'Price unknown';
-    var feasible = opt.deliveryFeasible !== false;
-    var hasPrice = opt.price != null && !isNaN(parseFloat(opt.price));
-    var showBestBadge = !!(isBest && hasPrice && feasible);
-    return '<div class="source-option-card' + (showBestBadge ? ' is-best' : '') + '" id="standaloneSourceCard-' + optIdx + '">' +
-      (showBestBadge ? '<div class="source-best-badge">✨ Best match</div>' : '') +
-      '<div class="source-option-top">' +
-        '<div><div class="source-option-retailer">' + escapeHtml(opt.retailer || 'Unknown retailer') + (opt.isLocal ? ' · local' : '') + '</div>' +
-        '<div class="source-option-name">' + escapeHtml(opt.productName || '') + '</div></div>' +
-        '<div class="source-option-price">' + priceHtml + '</div>' +
-      '</div>' +
-      (opt.deliveryNote ? '<div class="source-option-note ' + (feasible ? 'is-feasible' : 'is-tight') + '">' + (feasible ? '✓' : '⚠') + ' ' + escapeHtml(opt.deliveryNote) + '</div>' : '') +
-      (opt.url ? '<a class="source-option-link" href="' + escapeHtml(opt.url) + '" target="_blank" rel="noopener noreferrer">View →</a>' : '') +
-    '</div>';
-  }
+
 
   function openDetail(id, opts) {
     opts = opts || {};
