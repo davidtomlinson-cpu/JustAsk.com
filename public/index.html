@@ -348,6 +348,12 @@
     transition: transform .1s ease;
   }
   .item-suggestion-chip:active { transform: scale(.96); }
+  .item-suggestion-hint {
+    font-size: 12px;
+    font-style: italic;
+    color: var(--text-secondary);
+    padding: 4px 2px;
+  }
   .field input[readonly] { background: var(--page-plane); color: var(--text-secondary); cursor: not-allowed; }
   .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
@@ -2371,8 +2377,107 @@
     {
       keywords: ['christmas tree'],
       suggestions: ['4ft Christmas tree', '6ft Christmas tree', 'Artificial Christmas tree', 'Real Christmas tree', 'Pre-lit Christmas tree']
+    },
+    {
+      keywords: ['cable tie', 'cable ties', 'zip tie', 'zip ties'],
+      suggestions: ['100mm cable ties', '200mm cable ties', '300mm cable ties', 'Black cable ties', 'White cable ties', 'Assorted colour cable ties', 'Heavy duty cable ties', 'Releasable/reusable cable ties']
+    },
+    {
+      keywords: ['battery', 'batteries'],
+      suggestions: ['AA batteries', 'AAA batteries', '9V batteries', 'Rechargeable batteries', 'Lithium batteries', 'Button/coin batteries']
+    },
+    {
+      keywords: ['light bulb', 'light bulbs', 'lightbulb', 'lightbulbs'],
+      suggestions: ['LED bulb', 'Bayonet fitting bulb', 'Screw/Edison fitting bulb', 'Warm white bulb', 'Cool white bulb', 'Dimmable bulb']
+    },
+    {
+      keywords: ['phone charger', 'charging cable', 'charger cable', 'usb cable'],
+      suggestions: ['USB-C charger cable', 'Lightning charger cable', 'Micro USB cable', 'Fast charger plug', '1m cable', '2m cable']
+    },
+    {
+      keywords: ['extension lead', 'extension cable', 'extension cord'],
+      suggestions: ['2m extension lead', '5m extension lead', '10m extension lead', '4-socket extension lead', 'Surge-protected extension lead']
+    },
+    {
+      keywords: ['tape', 'duct tape', 'masking tape'],
+      suggestions: ['Duct tape', 'Masking tape', 'Double-sided tape', 'Packing tape', 'Electrical tape']
+    },
+    {
+      keywords: ['paint'],
+      suggestions: ['White paint', 'Magnolia paint', 'Matt finish paint', 'Gloss finish paint', 'Satin finish paint', 'Sample/tester pot']
+    },
+    {
+      keywords: ['bin bag', 'bin bags', 'rubbish bag', 'rubbish bags'],
+      suggestions: ['Small bin bags', 'Large bin bags', 'Heavy duty bin bags', 'Biodegradable bin bags']
+    },
+    {
+      keywords: ['umbrella'],
+      suggestions: ['Compact travel umbrella', 'Large golf umbrella', 'Windproof umbrella', 'Black umbrella', "Women's umbrella", "Men's umbrella"]
+    },
+    {
+      keywords: ['phone case'],
+      suggestions: ['Clear phone case', 'Rugged/protective phone case', 'Wallet phone case', 'Black phone case']
+    },
+    {
+      keywords: ['notebook', 'notepad'],
+      suggestions: ['A4 notebook', 'A5 notebook', 'Ruled notebook', 'Plain/blank notebook', 'Hardback notebook']
+    },
+    {
+      keywords: ['printer paper', 'a4 paper'],
+      suggestions: ['A4 printer paper', 'A3 printer paper', '80gsm paper', '100gsm paper']
+    },
+    {
+      keywords: ['torch', 'flashlight'],
+      suggestions: ['Rechargeable torch', 'Compact keyring torch', 'Heavy-duty torch', 'Head torch']
+    },
+    {
+      keywords: ['suitcase', 'luggage'],
+      suggestions: ['Cabin-size suitcase', 'Medium suitcase', 'Large suitcase', 'Hard shell suitcase', 'Soft shell suitcase']
+    },
+    {
+      keywords: ['garden hose', 'hosepipe'],
+      suggestions: ['10m garden hose', '20m garden hose', '30m garden hose', 'Expandable garden hose']
+    },
+    {
+      keywords: ['first aid kit'],
+      suggestions: ['Compact travel first aid kit', 'Home first aid kit', 'Car first aid kit']
+    },
+    {
+      keywords: ['dog lead', 'dog collar'],
+      suggestions: ['Dog lead', 'Dog collar', 'Retractable dog lead', 'Reflective dog lead/collar']
+    },
+    {
+      keywords: ['pet food', 'dog food', 'cat food'],
+      suggestions: ['Dry dog food', 'Wet dog food', 'Dry cat food', 'Wet cat food', 'Small bag', 'Large bag']
+    },
+    {
+      keywords: ['screwdriver', 'screws', 'wall plug', 'picture hook'],
+      suggestions: ['Screwdriver set', 'Assorted screws', 'Wall plugs/rawl plugs', 'Picture hooks']
+    },
+    {
+      keywords: ['kitchen roll', 'toilet roll', 'toilet paper'],
+      suggestions: ['Kitchen roll (multipack)', 'Toilet roll (multipack)', 'Recycled/eco option']
+    },
+    {
+      keywords: ['backpack', 'rucksack'],
+      suggestions: ['Everyday backpack', 'Laptop backpack', "Kids' backpack", 'Hiking backpack']
+    },
+    {
+      keywords: ['sd card', 'usb stick', 'memory stick', 'flash drive'],
+      suggestions: ['32GB USB stick', '64GB USB stick', '128GB SD card', '256GB SD card']
+    },
+    {
+      keywords: ['hdmi cable'],
+      suggestions: ['1m HDMI cable', '2m HDMI cable', '5m HDMI cable']
     }
   ];
+
+  // Shown when the input is long enough to search but no specific category
+  // matched — keeps the tool from going completely silent on genuinely
+  // uncommon items, and nudges the buyer toward the kind of detail that
+  // actually helps staff source the right thing (this list can't be truly
+  // exhaustive; an AI-powered version would be the way to cover everything).
+  var GENERIC_SUGGESTION_HINT = 'No exact match yet — try adding detail like colour, size, length, or quantity for a better match.';
 
   function renderItemSuggestions() {
     var input = document.getElementById('f-item');
@@ -2383,7 +2488,20 @@
     var match = ITEM_SUGGESTIONS.find(function (cat) {
       return cat.keywords.some(function (kw) { return value.indexOf(kw) !== -1; });
     });
-    if (!match) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+
+    if (!match) {
+      // Wait for a bit more typing before showing the "no match" hint, so it
+      // doesn't flicker on for every category while they're still mid-word
+      // (e.g. "cable" before they've finished typing "cable ties").
+      if (value.length >= 6) {
+        panel.innerHTML = '<div class="item-suggestion-hint">' + escapeHtml(GENERIC_SUGGESTION_HINT) + '</div>';
+        panel.style.display = 'flex';
+      } else {
+        panel.style.display = 'none';
+        panel.innerHTML = '';
+      }
+      return;
+    }
 
     // If the input already contains one of this category's refine trigger
     // words, show the more specific follow-up set instead of the general one.
