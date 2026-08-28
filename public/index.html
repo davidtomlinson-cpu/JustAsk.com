@@ -482,7 +482,22 @@
   }
   .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
-  .dashboard-layout { display: block; }
+  .manage-split { display: block; }
+  .manage-pane { }
+  .manage-tabs { display: none; gap: 8px; margin-bottom: 16px; }
+  .manage-tab {
+    flex: 1;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 13.5px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .manage-tab.is-active { background: #0B2545; color: #D4AF37; border-color: #0B2545; }
 
   /* filter chips + search */
   .search-row { margin-bottom: 12px; }
@@ -897,6 +912,31 @@
     color: var(--status-good);
   }
 
+  /* monthly reports */
+  .reports-summary-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .reports-summary-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+  .reports-summary-tile .mt-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+  .reports-summary-tile .mt-value { font-size: 22px; font-weight: 700; margin-top: 4px; color: var(--status-good); }
+  .reports-month-list { display: flex; flex-direction: column; gap: 8px; }
+  .reports-month-row {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .reports-month-label { font-weight: 700; font-size: 14px; }
+  .reports-month-stats { display: flex; align-items: center; gap: 14px; font-size: 12.5px; color: var(--text-secondary); }
+  .reports-month-margin { font-weight: 700; color: var(--status-good); font-size: 14px; }
+
   /* accounts / auth */
   .auth-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
   .auth-tab {
@@ -1227,8 +1267,10 @@
     .view { max-width: 720px; }
     #view-form { max-width: 1000px; }
     #view-dashboard { max-width: 1100px; }
-    .dashboard-layout { display: grid; grid-template-columns: 300px 1fr; gap: 28px; align-items: start; }
-    .dashboard-controls { position: sticky; top: 0; }
+    #view-dashboard .manage-tabs { display: none !important; }
+    .manage-split.has-search { display: grid; grid-template-columns: 1fr 400px; gap: 28px; align-items: start; }
+    .manage-split.has-search #managePaneSearch { display: block !important; position: sticky; top: 0; }
+    .manage-split.has-search #managePaneRequests { display: block !important; }
     h2.view-title { font-size: 26px; }
     .hero-band { margin: 0 0 28px; border-radius: var(--radius); padding: 40px 32px; }
     .hero-logo { max-width: 340px; }
@@ -1449,43 +1491,55 @@
       <div id="dashboardGate"></div>
 
       <div id="dashboardContent" style="display:none;">
-        <div class="item-search-standalone" id="itemSearchStandalone" style="display:none;">
-          <h4 class="section-title">Search for sourcing options</h4>
-          <p class="view-sub" style="margin:-4px 0 12px;">Search the web via Claude for a specific item — anything from a local shop to a major retailer.</p>
-          <div class="field"><label for="standaloneSearchRequest">Which request is this for?</label>
-            <select id="standaloneSearchRequest">
-              <option value="">— Select a request —</option>
-            </select>
+        <div class="manage-tabs" id="manageTabs" style="display:none;">
+          <button type="button" class="manage-tab is-active" data-pane="requests">Requests</button>
+          <button type="button" class="manage-tab" data-pane="search">Search for items</button>
+        </div>
+
+        <div class="manage-split">
+          <div class="manage-pane" id="managePaneRequests">
+            <div id="marginTile"></div>
+
+            <div class="stat-grid" id="statGrid"></div>
+
+            <div class="search-row">
+              <input type="text" id="searchInput" placeholder="Search item, recipient, requester..." />
+            </div>
+            <div class="chip-row" id="chipRow"></div>
+            <div class="card-list" id="cardList"></div>
           </div>
-          <div class="field"><label for="standaloneSearchDesc">Item description</label><input type="text" id="standaloneSearchDesc" placeholder="e.g. bouquet of red roses"></div>
-          <div class="field"><label for="standaloneSearchDate">Delivery date</label><input type="date" id="standaloneSearchDate"></div>
-          <div class="field"><label for="standaloneSearchPostcode">Postcode</label><input type="text" id="standaloneSearchPostcode" placeholder="e.g. NW1 6XE"></div>
-          <div class="field"><label for="standaloneSearchLink">Product link <span class="hint">(optional)</span></label><input type="text" id="standaloneSearchLink" placeholder="Paste a link if you have one"></div>
-          <div class="source-search-btn-row">
-            <button type="button" class="btn-add-basket" id="standaloneSearchBtn">Search for options</button>
-            <button type="button" class="btn-secondary" id="standaloneSearchClearBtn">Clear</button>
+
+          <div class="manage-pane" id="managePaneSearch" style="display:none;">
+            <div class="item-search-standalone" id="itemSearchStandalone">
+              <h4 class="section-title">Search for sourcing options</h4>
+              <p class="view-sub" style="margin:-4px 0 12px;">Search the web via Claude for a specific item — anything from a local shop to a major retailer.</p>
+              <div class="field"><label for="standaloneSearchRequest">Which request is this for?</label>
+                <select id="standaloneSearchRequest">
+                  <option value="">— Select a request —</option>
+                </select>
+              </div>
+              <div class="field"><label for="standaloneSearchDesc">Item description</label><input type="text" id="standaloneSearchDesc" placeholder="e.g. bouquet of red roses"></div>
+              <div class="field"><label for="standaloneSearchDate">Delivery date</label><input type="date" id="standaloneSearchDate"></div>
+              <div class="field"><label for="standaloneSearchPostcode">Postcode</label><input type="text" id="standaloneSearchPostcode" placeholder="e.g. NW1 6XE"></div>
+              <div class="field"><label for="standaloneSearchLink">Product link <span class="hint">(optional)</span></label><input type="text" id="standaloneSearchLink" placeholder="Paste a link if you have one"></div>
+              <div class="source-search-btn-row">
+                <button type="button" class="btn-add-basket" id="standaloneSearchBtn">Search for options</button>
+                <button type="button" class="btn-secondary" id="standaloneSearchClearBtn">Clear</button>
+              </div>
+              <div class="source-status" id="standaloneSearchStatus"></div>
+              <div class="source-results" id="standaloneSearchResults"></div>
+            </div>
           </div>
-          <div class="source-status" id="standaloneSearchStatus"></div>
-          <div class="source-results" id="standaloneSearchResults"></div>
-        </div>
-
-        <div class="dashboard-layout">
-        <div class="dashboard-controls">
-        <div id="marginTile"></div>
-
-        <div class="stat-grid" id="statGrid"></div>
-
-        <div class="search-row">
-          <input type="text" id="searchInput" placeholder="Search item, recipient, requester..." />
-        </div>
-        <div class="chip-row" id="chipRow"></div>
-        </div>
-
-        <div class="dashboard-list">
-        <div class="card-list" id="cardList"></div>
-        </div>
         </div>
       </div>
+    </section>
+
+    <!-- MONTHLY REPORTS (staff only, reached from Manage) -->
+    <section class="view" id="view-reports">
+      <button type="button" class="link-btn" id="backToManageBtn">← Back to Manage</button>
+      <h2 class="view-title">Monthly reports</h2>
+      <p class="view-sub">Orders fulfilled and margin earned, by month of completion.</p>
+      <div id="reportsContent"></div>
     </section>
   </main>
 
@@ -1864,6 +1918,19 @@
     refreshRequests();
   });
 
+  document.querySelectorAll('.manage-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.manage-tab').forEach(function (t) { t.classList.remove('is-active'); });
+      tab.classList.add('is-active');
+      var pane = tab.getAttribute('data-pane');
+      document.getElementById('managePaneRequests').style.display = pane === 'requests' ? 'block' : 'none';
+      document.getElementById('managePaneSearch').style.display = pane === 'search' ? 'block' : 'none';
+    });
+  });
+  document.getElementById('backToManageBtn').addEventListener('click', function () {
+    showView('view-dashboard');
+  });
+
   // ---------- standalone item sourcing search (Manage dashboard) ----------
   // Populates the "Which request is this for?" dropdown from whatever's
   // currently loaded, restricted to requests that can actually still be
@@ -2047,6 +2114,7 @@
     navBtns.forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-view') === id); });
     if (id === 'view-dashboard') renderDashboard();
     if (id === 'view-account') renderAccountView();
+    if (id === 'view-reports') renderReportsView();
   }
 
   // ---------- toast ----------
@@ -2943,6 +3011,23 @@
   // shown on, any customer-facing screen. This tile is the one place the
   // markup the business earns is surfaced, as a running total rather than
   // a per-item breakdown.
+  // Shared by the margin tile and the monthly reports view, so the two
+  // never drift out of sync. Includes delivery-speed margin as well as the
+  // budget-tier margin — a request can earn margin on both dimensions since
+  // they're fully separate quotes.
+  function computeOrderMargin(r) {
+    var margin = 0;
+    if (r.quotes && r.directCosts && r.selectedTier) {
+      var q = r.quotes[r.selectedTier], c = r.directCosts[r.selectedTier];
+      if (typeof q === 'number' && typeof c === 'number') margin += (q - c);
+    }
+    if (r.speedQuotes && r.speedDirectCosts && r.selectedSpeedTier) {
+      var sq = r.speedQuotes[r.selectedSpeedTier], sc = r.speedDirectCosts[r.selectedSpeedTier];
+      if (typeof sq === 'number' && typeof sc === 'number') margin += (sq - sc);
+    }
+    return margin;
+  }
+
   function renderMarginTile() {
     var tileEl = document.getElementById('marginTile');
     if (!tileEl) return;
@@ -2953,12 +3038,8 @@
       // paymentStatus directly (rather than enumerating every post-payment
       // status) means this keeps working as the delivery pipeline evolves.
       if (r.paymentStatus === 'paid' && r.quotes && r.directCosts && r.selectedTier) {
-        var q = r.quotes[r.selectedTier];
-        var c = r.directCosts[r.selectedTier];
-        if (typeof q === 'number' && typeof c === 'number') {
-          total += (q - c);
-          count++;
-        }
+        total += computeOrderMargin(r);
+        count++;
       }
     });
     tileEl.innerHTML =
@@ -2966,6 +3047,64 @@
         '<div><div class="mt-label">' + icon('tag', 12) + ' Margin earned</div>' +
         '<div class="mt-sub">' + (count ? ('Across ' + count + ' completed order' + (count === 1 ? '' : 's')) : 'No completed orders yet') + '</div></div>' +
         '<div class="mt-value">' + fmtMoney(total) + '</div>' +
+      '</div>' +
+      '<button type="button" class="link-btn" id="viewMonthlyReportsBtn">View monthly reports →</button>';
+    var reportsBtn = document.getElementById('viewMonthlyReportsBtn');
+    if (reportsBtn) reportsBtn.addEventListener('click', function () { showView('view-reports'); });
+  }
+
+  var MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  // Orders fulfilled + margin earned, grouped by the month payment
+  // completed (paidAt) — the same "completed = paid" definition the margin
+  // tile already uses, so the two never disagree with each other.
+  function renderReportsView() {
+    var contentEl = document.getElementById('reportsContent');
+    if (!contentEl) return;
+    if (!state.authUser || state.authUser.role !== 'staff') {
+      showView('view-form');
+      return;
+    }
+
+    var byMonth = {};
+    requests.forEach(function (r) {
+      if (r.paymentStatus !== 'paid' || !r.paidAt) return;
+      var d = new Date(r.paidAt);
+      var key = d.getFullYear() + '-' + d.getMonth();
+      if (!byMonth[key]) byMonth[key] = { year: d.getFullYear(), month: d.getMonth(), count: 0, margin: 0 };
+      byMonth[key].count++;
+      byMonth[key].margin += computeOrderMargin(r);
+    });
+
+    var months = Object.keys(byMonth).map(function (k) { return byMonth[k]; }).sort(function (a, b) {
+      if (a.year !== b.year) return b.year - a.year;
+      return b.month - a.month;
+    });
+
+    if (!months.length) {
+      contentEl.innerHTML = '<div class="empty-state"><div class="emoji">📊</div><p>No completed (paid) orders yet — monthly figures will appear here once some come in.</p></div>';
+      return;
+    }
+
+    var totalCount = months.reduce(function (sum, m) { return sum + m.count; }, 0);
+    var totalMargin = months.reduce(function (sum, m) { return sum + m.margin; }, 0);
+
+    contentEl.innerHTML =
+      '<div class="reports-summary-row">' +
+        '<div class="reports-summary-tile"><div class="mt-label">Orders fulfilled (all time)</div><div class="mt-value">' + totalCount + '</div></div>' +
+        '<div class="reports-summary-tile"><div class="mt-label">Margin earned (all time)</div><div class="mt-value">' + fmtMoney(totalMargin) + '</div></div>' +
+      '</div>' +
+      '<h4 class="section-title" style="margin-top:20px;">By month</h4>' +
+      '<div class="reports-month-list">' +
+      months.map(function (m) {
+        return '<div class="reports-month-row">' +
+          '<div class="reports-month-label">' + MONTH_NAMES[m.month] + ' ' + m.year + '</div>' +
+          '<div class="reports-month-stats">' +
+            '<span>' + m.count + ' order' + (m.count === 1 ? '' : 's') + ' fulfilled</span>' +
+            '<span class="reports-month-margin">' + fmtMoney(m.margin) + '</span>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
       '</div>';
   }
 
@@ -2993,8 +3132,18 @@
       return;
     }
     staffGateBuilt = false; // rebuild fresh if they ever sign out
-    var itemSearchEl = document.getElementById('itemSearchStandalone');
-    if (itemSearchEl) itemSearchEl.style.display = state.itemSearchEnabled ? 'block' : 'none';
+    var manageTabsEl = document.getElementById('manageTabs');
+    var manageSplitEl = document.querySelector('.manage-split');
+    var managePaneSearchEl = document.getElementById('managePaneSearch');
+    if (state.itemSearchEnabled) {
+      manageTabsEl.style.display = 'flex';
+      manageSplitEl.classList.add('has-search');
+    } else {
+      manageTabsEl.style.display = 'none';
+      manageSplitEl.classList.remove('has-search');
+      managePaneSearchEl.style.display = 'none';
+      document.getElementById('managePaneRequests').style.display = 'block';
+    }
     renderStandaloneSearchRequestPicker();
     renderMarginTile();
     renderStatTiles();
