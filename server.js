@@ -192,7 +192,10 @@ db.exec(`
     ['speedDirectCosts', 'speedDirectCosts TEXT'],
     ['speedQuotes', 'speedQuotes TEXT'],
     ['selectedSpeedTier', 'selectedSpeedTier TEXT'],
-    ['selectedSpeedCost', 'selectedSpeedCost REAL']
+    ['selectedSpeedCost', 'selectedSpeedCost REAL'],
+    ['refundedAt', 'refundedAt TEXT'],
+    ['refundAmount', 'refundAmount REAL'],
+    ['refundReason', 'refundReason TEXT']
   ];
   for (const [name, ddl] of wanted) {
     if (!existingCols.includes(name)) db.exec('ALTER TABLE requests ADD COLUMN ' + ddl);
@@ -1054,6 +1057,53 @@ app.post('/api/requests/:id/mark-paid', requireAuth('staff'), (req, res) => {
   }
   markPaid(existing.id, null);
   res.json(rowToRequest(db.prepare('SELECT * FROM requests WHERE id = ?').get(existing.id)));
+});
+
+// ---- Staff: issue a refund ----
+// Handles both real Stripe payments (issues an actual refund through
+// Stripe's API) and manually-marked-as-paid orders (no card to refund —
+// just records it, since the money has to go back through whatever channel
+// the customer originally paid with, outside the app). Always a full
+// refund — partial refunds aren't supported yet.
+app.post('/api/requests/:id/refund', requireAuth('staff'), async (req, res) => {
+  const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (existing.paymentStatus === 'refunded') {
+    return res.status(400).json({ error: 'This has already been refunded.' });
+  }
+  if (existing.paymentStatus !== 'paid') {
+    return res.status(400).json({ error: "This request hasn't been paid, so there's nothing to refund." });
+  }
+
+  const refundAmount = (existing.selectedCost || 0) + (existing.selectedSpeedCost || 0);
+  const reason = isNonEmptyString((req.body || {}).reason) ? req.body.reason.trim() : null;
+  const now = new Date().toISOString();
+
+  let stripeRefunded = false;
+  if (existing.stripeSessionId && stripeClient) {
+    try {
+      const session = await stripeClient.checkout.sessions.retrieve(existing.stripeSessionId);
+      if (session.payment_intent) {
+        await stripeClient.refunds.create({ payment_intent: session.payment_intent });
+        stripeRefunded = true;
+      }
+    } catch (err) {
+      console.error('refund: Stripe refund failed', err.message);
+      return res.status(502).json({ error: 'Could not process the refund through Stripe: ' + err.message });
+    }
+  }
+
+  db.prepare(`
+    UPDATE requests
+    SET paymentStatus = 'refunded', refundedAt = ?, refundAmount = ?, refundReason = ?, updatedAt = ?
+    WHERE id = ?
+  `).run(now, refundAmount, reason, now, existing.id);
+
+  res.json(Object.assign(
+    {},
+    rowToRequest(db.prepare('SELECT * FROM requests WHERE id = ?').get(existing.id)),
+    { stripeRefunded: stripeRefunded }
+  ));
 });
 
 app.post('/api/requests/:id/cancel', (req, res) => {
