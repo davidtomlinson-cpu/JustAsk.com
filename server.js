@@ -69,6 +69,38 @@ function sendStatusEmail(toEmail, subject, bodyLines) {
   });
 }
 
+// ---- Web Push (optional) ----
+// Real push notifications, scoped per-order rather than per-account — this
+// is deliberate: it works identically for guests and signed-in buyers, and
+// matches the actual use case ("notify me about this order") rather than
+// requiring an account. Entirely optional, same silent-no-op pattern as
+// email/Stripe/Anthropic: with no VAPID keys set, subscribing and sending
+// both just quietly do nothing.
+const webpush = require('web-push');
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+const pushEnabled = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
+if (pushEnabled) {
+  webpush.setVapidDetails('mailto:support@justask.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
+
+// Fire-and-forget, same spirit as sendStatusEmail — never lets a failed
+// push break the request that triggered it. Cleans up subscriptions the
+// browser has since abandoned (expired, unsubscribed, etc.) automatically.
+function sendPushToRequest(requestId, payload) {
+  if (!pushEnabled) return;
+  const subs = db.prepare('SELECT * FROM push_subscriptions WHERE requestId = ?').all(requestId);
+  for (const sub of subs) {
+    const pushSubscription = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } };
+    webpush.sendNotification(pushSubscription, JSON.stringify(payload)).catch((err) => {
+      console.error('push send failed:', err.statusCode, err.message);
+      if (err.statusCode === 404 || err.statusCode === 410) {
+        db.prepare('DELETE FROM push_subscriptions WHERE id = ?').run(sub.id);
+      }
+    });
+  }
+}
+
 // ---- Staff login ----
 // There's no self-signup for the purchasing team — you set one login here.
 // Change these before deploying anywhere real; the fallback values below
@@ -176,6 +208,26 @@ db.exec(`
     createdAt TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_status_events_requestId ON status_events(requestId);
+
+  CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    requestId TEXT NOT NULL,
+    sender TEXT NOT NULL,
+    senderName TEXT,
+    content TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_messages_requestId ON messages(requestId);
+
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id TEXT PRIMARY KEY,
+    requestId TEXT NOT NULL,
+    endpoint TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_push_subscriptions_requestId ON push_subscriptions(requestId);
 `);
 
 // Lightweight migration for databases created before payment/account support existed.
@@ -793,6 +845,88 @@ app.post('/api/requests/:id/items/:itemId/accept-date', (req, res) => {
   res.json(rowToRequest(db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id)));
 });
 
+// ---- Per-order message thread ----
+// Either side can start it — staff reaching out about an order, or a buyer
+// asking a question about theirs. Same access rule as everything else on a
+// request: staff always, or whoever owns it (account or guest holding the id).
+app.get('/api/requests/:id/messages', (req, res) => {
+  const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (!canAccessRequest(userFromReq(req), existing)) return res.status(404).json({ error: 'Not found' });
+  const rows = db.prepare('SELECT * FROM messages WHERE requestId = ? ORDER BY createdAt ASC').all(req.params.id);
+  res.json(rows);
+});
+
+app.post('/api/requests/:id/messages', (req, res) => {
+  const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  const user = userFromReq(req);
+  if (!canAccessRequest(user, existing)) return res.status(404).json({ error: 'Not found' });
+
+  const content = isNonEmptyString((req.body || {}).content) ? req.body.content.trim() : '';
+  if (!content) return res.status(400).json({ error: 'Message cannot be empty.' });
+  if (content.length > 2000) return res.status(400).json({ error: 'Message is too long (max 2000 characters).' });
+
+  const isStaff = !!(user && user.role === 'staff');
+  const sender = isStaff ? 'staff' : 'buyer';
+  const senderName = isStaff ? (user.name || 'The team') : (existing.requester || 'Customer');
+  const now = new Date().toISOString();
+  const id = 'msg_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+
+  db.prepare('INSERT INTO messages (id, requestId, sender, senderName, content, createdAt) VALUES (?,?,?,?,?,?)')
+    .run(id, existing.id, sender, senderName, content, now);
+
+  // Notify whichever side didn't send this message.
+  if (isStaff) {
+    if (existing.buyerEmail) {
+      sendStatusEmail(
+        existing.buyerEmail,
+        'JustAsk.com: new message about your request',
+        ['Hi,', senderName + ' sent you a message about "' + existing.item + '":', '"' + content + '"', 'Reply any time from My Requests on JustAsk.com.']
+      );
+    }
+    sendPushToRequest(existing.id, {
+      title: 'New message about your order',
+      body: content.length > 100 ? content.slice(0, 97) + '...' : content,
+      requestId: existing.id
+    });
+  }
+
+  res.status(201).json(db.prepare('SELECT * FROM messages WHERE id = ?').get(id));
+});
+
+// ---- Per-order push notification subscription ----
+app.post('/api/requests/:id/push-subscribe', (req, res) => {
+  const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (!canAccessRequest(userFromReq(req), existing)) return res.status(404).json({ error: 'Not found' });
+  if (!pushEnabled) return res.status(501).json({ error: 'Push notifications are not configured on this server yet.' });
+
+  const sub = req.body || {};
+  if (!isNonEmptyString(sub.endpoint) || !sub.keys || !isNonEmptyString(sub.keys.p256dh) || !isNonEmptyString(sub.keys.auth)) {
+    return res.status(400).json({ error: 'Invalid subscription.' });
+  }
+
+  const already = db.prepare('SELECT id FROM push_subscriptions WHERE requestId = ? AND endpoint = ?').get(req.params.id, sub.endpoint);
+  if (already) return res.json({ ok: true });
+
+  const id = 'push_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  db.prepare('INSERT INTO push_subscriptions (id, requestId, endpoint, p256dh, auth, createdAt) VALUES (?,?,?,?,?,?)')
+    .run(id, req.params.id, sub.endpoint, sub.keys.p256dh, sub.keys.auth, new Date().toISOString());
+  res.json({ ok: true });
+});
+
+app.post('/api/requests/:id/push-unsubscribe', (req, res) => {
+  const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (!canAccessRequest(userFromReq(req), existing)) return res.status(404).json({ error: 'Not found' });
+  const endpoint = (req.body || {}).endpoint;
+  if (isNonEmptyString(endpoint)) {
+    db.prepare('DELETE FROM push_subscriptions WHERE requestId = ? AND endpoint = ?').run(req.params.id, endpoint);
+  }
+  res.json({ ok: true });
+});
+
 
 app.post('/api/requests/:id/pay', async (req, res) => {
   const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
@@ -928,7 +1062,15 @@ app.post('/api/requests/:id/confirm-payment', async (req, res) => {
 
 // ---- Frontend config: lets the UI know whether payment is switched on, and the markup rate ----
 app.get('/api/config', (req, res) => {
-  res.json({ paymentsEnabled: !!stripeClient, markupRate: MARKUP_RATE, itemSearchEnabled: !!process.env.ANTHROPIC_API_KEY, emailEnabled: !!mailTransport, chatEnabled: !!process.env.ANTHROPIC_API_KEY });
+  res.json({
+    paymentsEnabled: !!stripeClient,
+    markupRate: MARKUP_RATE,
+    itemSearchEnabled: !!process.env.ANTHROPIC_API_KEY,
+    emailEnabled: !!mailTransport,
+    chatEnabled: !!process.env.ANTHROPIC_API_KEY,
+    pushEnabled: pushEnabled,
+    vapidPublicKey: pushEnabled ? VAPID_PUBLIC_KEY : null
+  });
 });
 
 // ---- Staff item sourcing search ----

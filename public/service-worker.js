@@ -55,3 +55,32 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(request).then((cached) => cached || caches.match('/index.html')))
   );
 });
+
+// Real push notifications — sent per-order, e.g. when staff message a
+// customer about their request. Falls back to plain defaults if the push
+// payload can't be parsed as JSON for any reason, so a malformed payload
+// never means a silently-dropped notification.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) { /* fall through to defaults below */ }
+  const title = data.title || 'JustAsk.com';
+  const options = {
+    body: data.body || 'You have an update on your order.',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    data: { requestId: data.requestId || null }
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
+      for (const client of clientsList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow('/');
+    })
+  );
+});
