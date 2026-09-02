@@ -1197,6 +1197,91 @@
     margin-top: 6px;
   }
 
+  .chat-fab {
+    position: fixed;
+    right: 16px;
+    bottom: 76px;
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: #0B2545;
+    color: #D4AF37;
+    border: none;
+    box-shadow: 0 4px 14px rgba(11,37,69,0.35);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    z-index: 30;
+  }
+  .chat-panel {
+    position: fixed;
+    right: 16px;
+    bottom: 136px;
+    width: min(340px, calc(100vw - 32px));
+    max-height: 60vh;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.22);
+    display: flex;
+    flex-direction: column;
+    z-index: 31;
+    overflow: hidden;
+  }
+  .chat-panel-header {
+    background: #0B2545;
+    color: #ffffff;
+    padding: 12px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .chat-panel-title { font-weight: 700; font-size: 14px; }
+  .chat-panel-close { background: none; border: none; color: #ffffff; font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; }
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 220px;
+  }
+  .chat-msg {
+    max-width: 85%;
+    padding: 9px 12px;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .chat-msg-bot { align-self: flex-start; background: var(--page-plane); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .chat-msg-user { align-self: flex-end; background: #0B2545; color: #ffffff; border-bottom-right-radius: 4px; }
+  .chat-msg-error { align-self: center; font-size: 12px; color: var(--status-critical); text-align: center; }
+  .chat-msg-loading { align-self: flex-start; font-size: 12px; color: var(--text-secondary); font-style: italic; }
+  .chat-input-row { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .chat-input-row input {
+    flex: 1;
+    padding: 9px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .chat-send-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: #D4AF37;
+    color: #0B2545;
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .chat-send-btn:disabled { opacity: .5; cursor: not-allowed; }
+  @media (min-width: 900px) {
+    .chat-fab { bottom: 24px; }
+    .chat-panel { bottom: 88px; width: 360px; }
+  }
+
   /* toast */
   .toast {
     position: fixed;
@@ -1597,6 +1682,24 @@
     </div>
   </div>
 
+  <button type="button" class="chat-fab" id="chatFab" style="display:none;" aria-label="Chat with us">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v12H7l-3 3V4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/></svg>
+  </button>
+
+  <div class="chat-panel" id="chatPanel" style="display:none;">
+    <div class="chat-panel-header">
+      <div class="chat-panel-title">Chat with us</div>
+      <button type="button" class="chat-panel-close" id="chatPanelClose" aria-label="Close chat">&times;</button>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Ask a question..." autocomplete="off" />
+      <button type="button" class="chat-send-btn" id="chatSendBtn" aria-label="Send">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12l16-8-6 16-2-7-8-1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/></svg>
+      </button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 </div>
 
@@ -1974,6 +2077,105 @@
     showView('view-account');
   });
 
+  // ---------- FAQ chat widget ----------
+  async function apiChat(messages) {
+    var res = await fetch(apiUrl('/api/chat'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: messages })
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not reach chat (' + res.status + ')');
+    return data;
+  }
+
+  var chatHistory = [];
+  var chatGreeted = false;
+
+  function updateChatFabVisibility(activeViewId) {
+    var fab = document.getElementById('chatFab');
+    if (!fab) return;
+    var isStaff = !!(state.authUser && state.authUser.role === 'staff');
+    var staffOnlyView = activeViewId === 'view-dashboard' || activeViewId === 'view-reports';
+    var shouldShow = !!state.chatEnabled && !isStaff && !staffOnlyView;
+    fab.style.display = shouldShow ? 'flex' : 'none';
+    if (!shouldShow) {
+      document.getElementById('chatPanel').style.display = 'none';
+    }
+  }
+
+  function renderChatMessages() {
+    var el = document.getElementById('chatMessages');
+    if (!el) return;
+    el.innerHTML = chatHistory.map(function (m) {
+      if (m.role === 'error') return '<div class="chat-msg chat-msg-error">' + escapeHtml(m.content) + '</div>';
+      return '<div class="chat-msg ' + (m.role === 'user' ? 'chat-msg-user' : 'chat-msg-bot') + '">' + escapeHtml(m.content) + '</div>';
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function openChatPanel() {
+    var panel = document.getElementById('chatPanel');
+    panel.style.display = 'flex';
+    if (!chatGreeted) {
+      chatGreeted = true;
+      chatHistory.push({ role: 'assistant', content: "Hi! I'm here to help with any questions about JustAsk — how it works, requests, delivery, accounts, that sort of thing. What can I help with?" });
+      renderChatMessages();
+    }
+    document.getElementById('chatInput').focus();
+  }
+  function closeChatPanel() {
+    document.getElementById('chatPanel').style.display = 'none';
+  }
+
+  function sendChatMessage() {
+    var input = document.getElementById('chatInput');
+    var sendBtn = document.getElementById('chatSendBtn');
+    var text = input.value.trim();
+    if (!text) return;
+
+    chatHistory.push({ role: 'user', content: text });
+    renderChatMessages();
+    input.value = '';
+    input.disabled = true;
+    sendBtn.disabled = true;
+
+    var messagesEl = document.getElementById('chatMessages');
+    var loadingEl = document.createElement('div');
+    loadingEl.className = 'chat-msg-loading';
+    loadingEl.id = 'chatLoadingIndicator';
+    loadingEl.textContent = 'Typing…';
+    messagesEl.appendChild(loadingEl);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    // Only send role/content to the API — never any extra client-side fields.
+    var payload = chatHistory
+      .filter(function (m) { return m.role === 'user' || m.role === 'assistant'; })
+      .map(function (m) { return { role: m.role, content: m.content }; });
+
+    apiChat(payload)
+      .then(function (data) {
+        chatHistory.push({ role: 'assistant', content: data.reply });
+        renderChatMessages();
+      })
+      .catch(function (err) {
+        chatHistory.push({ role: 'error', content: err.message || "Couldn't send that — try again." });
+        renderChatMessages();
+      })
+      .finally(function () {
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+      });
+  }
+
+  document.getElementById('chatFab').addEventListener('click', openChatPanel);
+  document.getElementById('chatPanelClose').addEventListener('click', closeChatPanel);
+  document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
+  document.getElementById('chatInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
+  });
+
   // ---------- standalone item sourcing search (Manage dashboard) ----------
   // Populates the "Which request is this for?" dropdown from whatever's
   // currently loaded, restricted to requests that can actually still be
@@ -2188,6 +2390,7 @@
     if (id === 'view-dashboard') renderDashboard();
     if (id === 'view-account') renderAccountView();
     if (id === 'view-reports') renderReportsView();
+    updateChatFabVisibility(id);
   }
 
   // ---------- toast ----------
@@ -3270,6 +3473,8 @@
     saveAuth({ token: token, user: user });
     authGateBuilt = false;
     applyAuthToForm();
+    var activeViewEl = document.querySelector('.view.active');
+    updateChatFabVisibility(activeViewEl ? activeViewEl.id : 'view-form');
   }
   function clearAuth() {
     var token = state.authToken;
@@ -3281,6 +3486,8 @@
     if (token) apiLogout(token);
     var emailEl = document.getElementById('f-email');
     if (emailEl) { emailEl.readOnly = false; emailEl.value = ''; }
+    var activeViewEl2 = document.querySelector('.view.active');
+    updateChatFabVisibility(activeViewEl2 ? activeViewEl2.id : 'view-form');
   }
   function applyAuthToForm() {
     var f = document.getElementById('f-requester');
@@ -4184,10 +4391,12 @@
       var cfg = await apiConfig();
       state.paymentsEnabled = !!cfg.paymentsEnabled;
       state.itemSearchEnabled = !!cfg.itemSearchEnabled;
+      state.chatEnabled = !!cfg.chatEnabled;
       if (typeof cfg.markupRate === 'number') state.markupRate = cfg.markupRate;
     } catch (err) {
       state.paymentsEnabled = false;
       state.itemSearchEnabled = false;
+      state.chatEnabled = false;
     }
     if (state.authToken) {
       try {
@@ -4203,6 +4412,8 @@
       }
     }
     applyAuthToForm();
+    var initialActiveView = document.querySelector('.view.active');
+    updateChatFabVisibility(initialActiveView ? initialActiveView.id : 'view-form');
     await refreshRequests();
     await handlePaymentReturn();
     setInterval(function () { refreshRequests({ silent: true }); }, POLL_INTERVAL_MS);
