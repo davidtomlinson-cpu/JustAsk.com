@@ -1098,23 +1098,25 @@ app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const prompt = 'You are helping a personal-concierge purchasing team source a specific item for a customer, ' +
-    'and sort what you find into three budget tiers they can quote directly.\n\n' +
+  const prompt = 'You are helping a personal-concierge purchasing team quickly find a few real options for an item, ' +
+    'sorted into three budget tiers. Speed matters more than exhaustiveness \u2014 do at most 2 web searches total, then ' +
+    'answer with whatever real options you have found. Do not keep searching to find a "perfect" third tier if two ' +
+    "searches haven't turned one up \u2014 reuse the closest option instead.\n\n" +
     'Item requested: ' + itemDescription + '\n' +
     (isNonEmptyString(link) ? 'Reference link the customer provided: ' + link + '\n' : '') +
     'Delivery postcode: ' + deliveryAddress + '\n' +
-    'Needed by: ' + deliveryDate + ' (today\'s date is ' + today + ')\n\n' +
-    'Search the web for real, currently available places to buy this exact item (or the closest sensible match). ' +
-    'Consider the full range of sources — small local/independent shops near the delivery postcode (e.g. a local florist, ' +
-    'butcher, hardware shop) as well as major online retailers (e.g. Amazon, John Lewis, Argos) — whichever genuinely ' +
-    'fits the item and the delivery date above.\n\n' +
-    'Find and pick ONE real option for each of three tiers:\n' +
-    '- Basic: the cheapest genuinely suitable option\n' +
-    '- Standard: a solid mid-range option, better quality or presentation than Basic\n' +
-    '- Premium: a higher-end option — better brand, quality, or presentation than Standard\n\n' +
-    'Each tier should be a real, findable product with a real price — do not invent prices. If you genuinely cannot ' +
-    'find a distinct option for a tier, reuse the closest tier\'s option rather than inventing one. For each, note ' +
-    'whether delivery or collection by the date above looks realistic based on what the source page says.\n\n' +
+    "Needed by: " + deliveryDate + " (today's date is " + today + ')\n\n' +
+    'In your first search, look for this item from whichever source is most likely to have it (a major online ' +
+    'retailer, e.g. Amazon, is usually fastest \u2014 only search for a local shop instead if the item specifically calls ' +
+    'for one, e.g. flowers, a cake, or something needed same-day locally). Use a second search only if you need a ' +
+    'genuinely different option for a second or third tier.\n\n' +
+    'Sort what you find into:\n' +
+    '- Basic: the cheapest suitable option\n' +
+    '- Standard: a solid mid-range option\n' +
+    '- Premium: a higher-end option\n\n' +
+    'Use real prices only, never invented ones. If you only find one or two distinct options, reuse the closest one ' +
+    'for the remaining tier(s) rather than searching further. Note briefly whether delivery or collection by the date ' +
+    'above looks realistic based on what the source page says.\n\n' +
     'Respond with ONLY valid JSON (no markdown fences, no commentary) in exactly this shape:\n' +
     '{"tiers":{"Basic":{"retailer":string,"productName":string,"price":number|null,"currency":"GBP",' +
     '"url":string,"isLocal":boolean,"deliveryFeasible":boolean,"deliveryNote":string},' +
@@ -1122,7 +1124,7 @@ app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
     let apiRes;
     try {
       apiRes = await fetch('https://api.anthropic.com/v1/messages', {
