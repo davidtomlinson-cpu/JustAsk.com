@@ -1535,8 +1535,8 @@
           <div class="item-suggestions" id="itemSuggestions" style="display:none;"></div>
         </div>
         <div class="field">
-          <label for="f-link">Link or product details <span class="hint">(optional)</span></label>
-          <textarea id="f-link" rows="2" placeholder="Product link, size, colour, brand preference..."></textarea>
+          <label for="f-link">Product details <span class="hint">(optional)</span></label>
+          <textarea id="f-link" rows="2" placeholder="Size, colour, brand preference..."></textarea>
         </div>
         <div class="field">
           <label for="f-qty">Quantity</label>
@@ -4152,7 +4152,7 @@
           ['Preferred budget', it.budgetTier || '—'],
           ['Priority', it.priority],
           ['Needed by', it.neededBy ? fmtDate(it.neededBy) : '—'],
-          ['Link / details', it.link || '—'],
+          ['Product details', it.link || '—'],
           ['Notes', it.notes || '—']
         ];
         return '<div class="basket-detail-item">' +
