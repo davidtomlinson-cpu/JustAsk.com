@@ -1742,7 +1742,16 @@
   // that's correct when the backend serves this file itself (the normal
   // setup). Override with ?api=https://your-api-host if you ever host the
   // frontend and backend separately.
-  var API_BASE = new URLSearchParams(location.search).get('api') || '';
+  // Inside the native app (Capacitor), the web assets are bundled locally
+  // rather than served from justask-com.onrender.com, so relative API calls
+  // would have nowhere to go — point them at the live server instead. On
+  // the normal web, window.Capacitor doesn't exist, so this falls through
+  // to relative URLs exactly as before. The ?api= override still works too
+  // (e.g. for local testing).
+  var API_BASE = new URLSearchParams(location.search).get('api')
+    || ((window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+      ? 'https://justask-com.onrender.com'
+      : '');
 
   // ---- getAddress.io configuration ----
   // Sign up for a key at https://getaddress.io (they have a free/trial tier),

@@ -4,3 +4,23 @@ data/*.db-shm
 data/*.db-wal
 .DS_Store
 npm-debug.log*
+
+# Native app build artifacts (android/ and ios/ project source IS committed —
+# only generated build output, dependency caches, and local signing files below)
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/*.iml
+android/.idea/
+ios/App/Pods/
+ios/App/build/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+GoogleService-Info.plist
+google-services.json
