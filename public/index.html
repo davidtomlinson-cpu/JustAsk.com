@@ -899,6 +899,25 @@
     font-weight: 700;
     margin: 18px 0 10px;
   }
+  .per-item-cost-block {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .per-item-cost-label { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+  .per-item-speed-toggle { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin: 12px 0 8px; }
+  .per-item-speed-toggle .hint { font-weight: 400; }
+  .per-item-total-box {
+    background: var(--gold-tint);
+    border: 1px solid rgba(212,175,55,0.3);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin: 4px 0 14px;
+  }
+  .per-item-total-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+
   .quote-row {
     display: flex;
     align-items: center;
@@ -1903,6 +1922,18 @@
     if (!res.ok) {
       var err = await res.json().catch(function () { return {}; });
       throw new Error(err.error || 'Could not save the change (' + res.status + ')');
+    }
+    return res.json();
+  }
+  async function apiSaveItemCosts(id, items, sendQuote) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id) + '/item-costs'), {
+      method: 'PATCH',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ items: items, sendQuote: !!sendQuote })
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      throw new Error(err.error || 'Could not save item costs (' + res.status + ')');
     }
     return res.json();
   }
@@ -3867,6 +3898,50 @@
     return '£' + Number(n).toFixed(2);
   }
 
+  // A basket with more than one item gets its own per-item pricing form —
+  // one blended guess for a whole basket of different products was never
+  // accurate. Each item's Basic/Standard/Premium (and optional delivery
+  // speed) is entered separately; the totals shown here are just the sum,
+  // computed live as staff type, matching exactly what the server will
+  // compute when the quote is actually sent.
+  function perItemCostEntryHtml(r) {
+    var items = r.items;
+    var html = '<h4 class="section-title">Cost options — priced per item</h4>' +
+      '<p style="margin:-4px 0 14px;font-size:12px;color:var(--text-secondary);">This basket has ' + items.length + ' items — price each one separately below; the requester\'s total is worked out automatically by adding them up.</p>';
+
+    items.forEach(function (it, idx) {
+      var directCosts = it.directCosts || {};
+      var speedDirectCosts = it.speedDirectCosts || {};
+      html += '<div class="per-item-cost-block">' +
+        '<div class="per-item-cost-label">' + (idx + 1) + '. ' + escapeHtml(it.item) + '</div>' +
+        BUDGET_TIERS.map(function (tier) {
+          var cost = directCosts[tier] != null ? directCosts[tier] : '';
+          return '<div class="quote-row"><label>' + tier + '</label>' +
+            '<div class="quote-input-wrap"><span class="prefix">£</span>' +
+            '<input type="number" min="0" step="0.01" class="per-item-cost-input" data-item-id="' + escapeHtml(it.id) + '" data-tier="' + escapeHtml(tier) + '" value="' + cost + '" placeholder="0.00" /></div></div>';
+        }).join('') +
+        '<div class="per-item-speed-toggle">Delivery speed for this item <span class="hint">(optional — leave all blank to skip)</span></div>' +
+        SPEED_TIERS.map(function (tier) {
+          var cost = speedDirectCosts[tier] != null ? speedDirectCosts[tier] : '';
+          return '<div class="quote-row"><label>' + tier + '</label>' +
+            '<div class="quote-input-wrap"><span class="prefix">£</span>' +
+            '<input type="number" min="0" step="0.01" class="per-item-speed-input" data-item-id="' + escapeHtml(it.id) + '" data-speed-tier="' + escapeHtml(tier) + '" value="' + cost + '" placeholder="0.00" /></div></div>';
+        }).join('') +
+      '</div>';
+    });
+
+    html += '<div class="per-item-total-box" id="perItemTotalBox">' +
+      '<div class="per-item-total-title">Basket total</div>' +
+      BUDGET_TIERS.map(function (tier) {
+        return '<div class="quote-summary-row"><span>' + tier + '</span><span id="perItemTotal-' + tier + '">£0.00</span></div>';
+      }).join('') +
+      '</div>' +
+      '<div class="lookup-status is-error" id="perItemCostError"></div>' +
+      '<button type="button" class="btn-quote" id="sendItemQuoteBtn">' + (r.quotes ? 'Save quote' : 'Send quote to requester') + '</button>';
+
+    return html;
+  }
+
   function quoteSectionHtml(r, opts) {
     var editMode = !!(opts && opts.editQuote);
     var reconsider = !!(opts && opts.reconsider);
@@ -3888,6 +3963,9 @@
     }
 
     if (showEntryForm) {
+      if (r.items && r.items.length > 1) {
+        return perItemCostEntryHtml(r);
+      }
       return '<h4 class="section-title">Cost options</h4>' +
         '<p style="margin:-4px 0 10px;font-size:12px;color:var(--text-secondary);">Enter the direct cost for each tier. Pricing for the requester is worked out automatically and never shows this figure.</p>' +
         BUDGET_TIERS.map(function (tier) {
@@ -4426,6 +4504,91 @@
             sendQuoteBtn.disabled = false;
             sendQuoteBtn.textContent = r.quotes ? 'Save quote' : 'Send quote to requester';
             alert(err.message || "Couldn't save the quote — check your connection and try again.");
+          });
+      });
+    }
+
+    function recomputePerItemTotals() {
+      var totals = { Basic: 0, Standard: 0, Premium: 0 };
+      sheet.querySelectorAll('.per-item-cost-block').forEach(function (block) {
+        BUDGET_TIERS.forEach(function (tier) {
+          var input = block.querySelector('.per-item-cost-input[data-tier="' + tier + '"]');
+          var v = input ? parseFloat(input.value) : NaN;
+          if (!isNaN(v) && v >= 0) totals[tier] += v;
+        });
+      });
+      BUDGET_TIERS.forEach(function (tier) {
+        var el = document.getElementById('perItemTotal-' + tier);
+        if (el) el.textContent = fmtMoney(totals[tier]);
+      });
+    }
+    if (sheet.querySelector('.per-item-cost-block')) {
+      sheet.querySelectorAll('.per-item-cost-input').forEach(function (input) {
+        input.addEventListener('input', recomputePerItemTotals);
+      });
+      recomputePerItemTotals();
+    }
+
+    var sendItemQuoteBtn = sheet.querySelector('#sendItemQuoteBtn');
+    if (sendItemQuoteBtn) {
+      sendItemQuoteBtn.addEventListener('click', function () {
+        var errorEl = document.getElementById('perItemCostError');
+        errorEl.textContent = '';
+        var itemsPayload = [];
+        var ok = true;
+
+        sheet.querySelectorAll('.per-item-cost-block').forEach(function (block) {
+          var firstCostInput = block.querySelector('.per-item-cost-input');
+          var itemId = firstCostInput.getAttribute('data-item-id');
+          var directCosts = {};
+          BUDGET_TIERS.forEach(function (tier) {
+            var input = block.querySelector('.per-item-cost-input[data-tier="' + tier + '"]');
+            var v = parseFloat(input.value);
+            if (isNaN(v) || v < 0) ok = false;
+            directCosts[tier] = v;
+          });
+
+          var speedInputs = block.querySelectorAll('.per-item-speed-input');
+          var filledCount = 0;
+          var speedDirectCosts = {};
+          var speedOk = true;
+          speedInputs.forEach(function (input) {
+            if (input.value.trim() !== '') filledCount++;
+            var v = parseFloat(input.value);
+            if (isNaN(v) || v < 0) speedOk = false;
+            speedDirectCosts[input.getAttribute('data-speed-tier')] = v;
+          });
+          var speedAllBlank = filledCount === 0;
+          if (!speedAllBlank && (filledCount < speedInputs.length || !speedOk)) {
+            ok = false;
+            errorEl.textContent = 'For each item, either fill in all three delivery speeds (valid, non-negative) or leave them all blank.';
+          }
+
+          itemsPayload.push({
+            itemId: itemId,
+            directCosts: directCosts,
+            speedDirectCosts: speedAllBlank ? null : speedDirectCosts
+          });
+        });
+
+        if (!ok) {
+          if (!errorEl.textContent) errorEl.textContent = 'Enter a valid, non-negative cost for every Basic/Standard/Premium field.';
+          return;
+        }
+
+        var originalLabel = sendItemQuoteBtn.textContent;
+        sendItemQuoteBtn.disabled = true;
+        sendItemQuoteBtn.textContent = 'Saving…';
+        apiSaveItemCosts(r.id, itemsPayload, true)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Quote sent — waiting for the requester to choose.');
+          })
+          .catch(function (err) {
+            sendItemQuoteBtn.disabled = false;
+            sendItemQuoteBtn.textContent = originalLabel;
+            errorEl.textContent = err.message || "Couldn't save the quote — check your connection and try again.";
           });
       });
     }

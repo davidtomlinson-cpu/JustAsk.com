@@ -262,7 +262,11 @@ db.exec(`
   const existingCols = db.prepare('PRAGMA table_info(order_items)').all().map((c) => c.name);
   const wanted = [
     ['proposedDate', 'proposedDate TEXT'],
-    ['proposedNote', 'proposedNote TEXT']
+    ['proposedNote', 'proposedNote TEXT'],
+    ['directCosts', 'directCosts TEXT'],
+    ['quotes', 'quotes TEXT'],
+    ['speedDirectCosts', 'speedDirectCosts TEXT'],
+    ['speedQuotes', 'speedQuotes TEXT']
   ];
   for (const [name, ddl] of wanted) {
     if (!existingCols.includes(name)) db.exec('ALTER TABLE order_items ADD COLUMN ' + ddl);
@@ -517,7 +521,13 @@ function handleStripeWebhook(req, res) {
 // covering one or more products underneath it (order_items). This lets a
 // buyer put several different products in one basket and check out once.
 function itemsForRequest(id) {
-  return db.prepare('SELECT * FROM order_items WHERE requestId = ? ORDER BY createdAt ASC').all(id);
+  const rows = db.prepare('SELECT * FROM order_items WHERE requestId = ? ORDER BY createdAt ASC').all(id);
+  return rows.map((row) => Object.assign({}, row, {
+    directCosts: row.directCosts ? JSON.parse(row.directCosts) : null,
+    quotes: row.quotes ? JSON.parse(row.quotes) : null,
+    speedDirectCosts: row.speedDirectCosts ? JSON.parse(row.speedDirectCosts) : null,
+    speedQuotes: row.speedQuotes ? JSON.parse(row.speedQuotes) : null
+  }));
 }
 function rowToRequest(row) {
   if (!row) return null;
@@ -818,6 +828,112 @@ app.patch('/api/requests/:id/items/:itemId', requireAuth('staff'), (req, res) =>
 
   db.prepare('UPDATE order_items SET proposedDate = ?, proposedNote = ? WHERE id = ?')
     .run(proposedDate, proposedNote, req.params.itemId);
+
+  res.json(rowToRequest(db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id)));
+});
+
+// ---- Staff: price each basket item individually, summed into the request total ----
+// A basket can hold several different products for different people — one
+// blended Basic/Standard/Premium guess for the whole thing was never
+// accurate. This lets staff cost each item on its own (both budget tiers and
+// delivery speed), then automatically sums those into the request-level
+// totals that the buyer's existing choose-and-pay flow already uses —
+// nothing downstream of quoting changes at all.
+app.patch('/api/requests/:id/item-costs', requireAuth('staff'), (req, res) => {
+  const existing = db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+
+  const body = req.body || {};
+  const itemUpdates = Array.isArray(body.items) ? body.items : [];
+  const allItems = db.prepare('SELECT * FROM order_items WHERE requestId = ?').all(req.params.id);
+  const allItemIds = new Set(allItems.map((it) => it.id));
+
+  function validateTierCosts(costs, tiers, label) {
+    if (costs === null) return { value: null, error: null };
+    if (typeof costs !== 'object') return { value: null, error: label + ' must be an object of tier costs.' };
+    const computed = {};
+    for (const tier of tiers) {
+      const v = costs[tier];
+      if (typeof v !== 'number' || isNaN(v) || v < 0) {
+        return { value: null, error: label + ' needs a non-negative number for: ' + tier };
+      }
+      computed[tier] = v;
+    }
+    return { value: computed, error: null };
+  }
+
+  for (const update of itemUpdates) {
+    if (!update || !allItemIds.has(update.itemId)) {
+      return res.status(400).json({ error: 'Unknown item on this request.' });
+    }
+    const directResult = validateTierCosts(update.directCosts === undefined ? null : update.directCosts, VALID_TIERS, 'Item costs');
+    if (directResult.error) return res.status(400).json({ error: directResult.error });
+    const speedResult = validateTierCosts(update.speedDirectCosts === undefined ? null : update.speedDirectCosts, VALID_SPEED_TIERS, 'Item delivery-speed costs');
+    if (speedResult.error) return res.status(400).json({ error: speedResult.error });
+
+    const directCosts = directResult.value;
+    const quotes = directCosts ? Object.fromEntries(VALID_TIERS.map((t) => [t, applyMarkup(directCosts[t])])) : null;
+    const speedDirectCosts = speedResult.value;
+    const speedQuotes = speedDirectCosts ? Object.fromEntries(VALID_SPEED_TIERS.map((t) => [t, applyMarkup(speedDirectCosts[t])])) : null;
+
+    db.prepare('UPDATE order_items SET directCosts = ?, quotes = ?, speedDirectCosts = ?, speedQuotes = ? WHERE id = ?')
+      .run(
+        directCosts ? JSON.stringify(directCosts) : null,
+        quotes ? JSON.stringify(quotes) : null,
+        speedDirectCosts ? JSON.stringify(speedDirectCosts) : null,
+        speedQuotes ? JSON.stringify(speedQuotes) : null,
+        update.itemId
+      );
+  }
+
+  // Re-fetch the canonical current state (including items untouched by this
+  // call) to compute the request-level totals — sum whatever's priced so
+  // far; an uncosted item just contributes nothing yet.
+  const freshItems = itemsForRequest(req.params.id);
+  const allCosted = freshItems.length > 0 && freshItems.every((it) => it.directCosts);
+  const anySpeedCosted = freshItems.some((it) => it.speedDirectCosts);
+  const allSpeedCosted = anySpeedCosted && freshItems.every((it) => it.speedDirectCosts);
+
+  if (body.sendQuote && !allCosted) {
+    return res.status(400).json({ error: 'Every item in this basket needs Basic/Standard/Premium costs before a quote can be sent.' });
+  }
+  if (body.sendQuote && anySpeedCosted && !allSpeedCosted) {
+    return res.status(400).json({ error: 'Some items have delivery-speed costs and some don\'t — price delivery speed for every item, or clear it from all of them, before sending.' });
+  }
+
+  const summedDirectCosts = {};
+  const summedQuotes = {};
+  for (const tier of VALID_TIERS) {
+    summedDirectCosts[tier] = Math.round(freshItems.reduce((sum, it) => sum + (it.directCosts ? it.directCosts[tier] : 0), 0) * 100) / 100;
+    summedQuotes[tier] = Math.round(freshItems.reduce((sum, it) => sum + (it.quotes ? it.quotes[tier] : 0), 0) * 100) / 100;
+  }
+  let summedSpeedDirectCosts = null;
+  let summedSpeedQuotes = null;
+  if (anySpeedCosted) {
+    summedSpeedDirectCosts = {};
+    summedSpeedQuotes = {};
+    for (const tier of VALID_SPEED_TIERS) {
+      summedSpeedDirectCosts[tier] = Math.round(freshItems.reduce((sum, it) => sum + (it.speedDirectCosts ? it.speedDirectCosts[tier] : 0), 0) * 100) / 100;
+      summedSpeedQuotes[tier] = Math.round(freshItems.reduce((sum, it) => sum + (it.speedQuotes ? it.speedQuotes[tier] : 0), 0) * 100) / 100;
+    }
+  }
+
+  const next = {
+    directCosts: allCosted ? JSON.stringify(summedDirectCosts) : existing.directCosts,
+    quotes: allCosted ? JSON.stringify(summedQuotes) : existing.quotes,
+    speedDirectCosts: summedSpeedDirectCosts ? JSON.stringify(summedSpeedDirectCosts) : existing.speedDirectCosts,
+    speedQuotes: summedSpeedQuotes ? JSON.stringify(summedSpeedQuotes) : existing.speedQuotes,
+    status: (body.sendQuote && existing.status === 'Processing') ? 'Quoted' : existing.status,
+    updatedAt: new Date().toISOString(),
+    id: existing.id
+  };
+  db.prepare(`
+    UPDATE requests
+    SET directCosts = @directCosts, quotes = @quotes, speedDirectCosts = @speedDirectCosts,
+        speedQuotes = @speedQuotes, status = @status, updatedAt = @updatedAt
+    WHERE id = @id
+  `).run(next);
+  if (body.sendQuote && existing.status !== next.status) recordStatusEvent(existing.id, next.status, next.updatedAt);
 
   res.json(rowToRequest(db.prepare('SELECT * FROM requests WHERE id = ?').get(req.params.id)));
 });
