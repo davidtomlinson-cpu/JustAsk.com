@@ -2408,19 +2408,47 @@
           alert('Could not find that request — try refreshing.');
           return;
         }
-        var directCosts = { Basic: 0, Standard: 0, Premium: 0 };
-        if (targetReq.directCosts) {
-          BUDGET_TIERS.forEach(function (t) { if (targetReq.directCosts[t] != null) directCosts[t] = targetReq.directCosts[t]; });
-        }
-        directCosts[tier] = price;
 
         var originalLabel = btn.textContent;
         btn.disabled = true;
         btn.textContent = 'Saving…';
-        apiPatch(reqId, { directCosts: directCosts })
+
+        // A multi-item basket prices each item separately now — save to
+        // whichever item is currently selected in the picker above, not the
+        // old whole-request total the per-item form no longer reads from.
+        var isMultiItem = targetReq.items && targetReq.items.length > 1;
+        var selectedPill = isMultiItem ? document.querySelector('#standaloneSearchItemPicker .pill-option.is-selected') : null;
+
+        var savePromise;
+        var savedWhat;
+        if (isMultiItem && selectedPill) {
+          var idx = parseInt(selectedPill.getAttribute('data-idx'), 10);
+          var targetItem = targetReq.items[idx];
+          var directCosts = { Basic: 0, Standard: 0, Premium: 0 };
+          if (targetItem.directCosts) {
+            BUDGET_TIERS.forEach(function (t) { if (targetItem.directCosts[t] != null) directCosts[t] = targetItem.directCosts[t]; });
+          }
+          directCosts[tier] = price;
+          savedWhat = targetItem.item;
+          savePromise = apiSaveItemCosts(reqId, [{
+            itemId: targetItem.id,
+            directCosts: directCosts,
+            speedDirectCosts: targetItem.speedDirectCosts || null
+          }], false);
+        } else {
+          var reqDirectCosts = { Basic: 0, Standard: 0, Premium: 0 };
+          if (targetReq.directCosts) {
+            BUDGET_TIERS.forEach(function (t) { if (targetReq.directCosts[t] != null) reqDirectCosts[t] = targetReq.directCosts[t]; });
+          }
+          reqDirectCosts[tier] = price;
+          savedWhat = targetReq.item;
+          savePromise = apiPatch(reqId, { directCosts: reqDirectCosts });
+        }
+
+        savePromise
           .then(function () { return refreshRequests(); })
           .then(function () {
-            showToast(tier + ' cost of £' + price.toFixed(2) + ' saved to "' + targetReq.item + '"');
+            showToast(tier + ' cost of £' + price.toFixed(2) + ' saved to "' + savedWhat + '"');
             btn.textContent = '✓ Saved';
           })
           .catch(function (err) {
