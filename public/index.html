@@ -357,6 +357,17 @@
   .field input[readonly] { background: var(--page-plane); color: var(--text-secondary); cursor: not-allowed; }
   .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+  .legal-footer {
+    text-align: center;
+    padding: 20px 10px 90px;
+    font-size: 12px;
+  }
+  .legal-footer a { color: var(--text-secondary); text-decoration: underline; }
+  .legal-footer span { color: var(--text-muted); margin: 0 6px; }
+  @media (min-width: 900px) {
+    .legal-footer { padding-bottom: 20px; }
+  }
+
   .home-account-prompt {
     font-size: 12.5px;
     line-height: 1.6;
@@ -1605,6 +1616,12 @@
       </aside>
 
       </div>
+
+      <div class="legal-footer">
+        <a href="/terms.html" target="_blank" rel="noopener">Terms and Conditions</a>
+        <span>·</span>
+        <a href="/refund-policy.html" target="_blank" rel="noopener">Refund &amp; Cancellation Policy</a>
+      </div>
     </section>
 
     <!-- MY REQUESTS VIEW (buyer / guest) -->
@@ -1612,6 +1629,11 @@
       <h2 class="view-title">My requests</h2>
       <p class="view-sub">Sign in to track your requests across devices, or continue as a guest.</p>
       <div id="accountContent"></div>
+      <div class="legal-footer">
+        <a href="/terms.html" target="_blank" rel="noopener">Terms and Conditions</a>
+        <span>·</span>
+        <a href="/refund-policy.html" target="_blank" rel="noopener">Refund &amp; Cancellation Policy</a>
+      </div>
     </section>
 
     <!-- MANAGE VIEW (staff / purchasing team) -->
