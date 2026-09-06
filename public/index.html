@@ -271,6 +271,19 @@
     gap: 14px;
     margin: 0 0 26px;
   }
+  .start-request-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: var(--series-blue);
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    margin-bottom: 30px;
+  }
   .how-step { display: flex; align-items: flex-start; gap: 12px; }
   .how-icon {
     flex-shrink: 0;
@@ -1468,6 +1481,7 @@
   <main>
     <!-- NEW REQUEST VIEW -->
     <section class="view active" id="view-form">
+      <div id="newRequestLanding">
       <div class="hero-band">
         <svg class="hero-logo" viewBox="0 0 760 220" role="img" aria-label="JustAsk.com – Your Personal Concierge">
           <g transform="translate(30,50)">
@@ -1510,6 +1524,11 @@
         </div>
       </div>
 
+      <button type="button" class="btn-primary start-request-btn" id="startRequestBtn">Start a request</button>
+      </div>
+
+      <div id="newRequestFormArea" style="display:none;">
+      <button type="button" class="link-btn" id="backToLandingBtn">← Back</button>
       <h2 class="view-title">New request</h2>
       <p class="view-sub">Add one or more items to your basket, then submit them together — each item can go to a different person and address.</p>
 
@@ -1614,6 +1633,8 @@
           <div class="basket-list" id="basketSidebarList"></div>
         </div>
       </aside>
+
+      </div>
 
       </div>
 
@@ -2011,7 +2032,8 @@
     authToken: storedAuth ? storedAuth.token : null,
     authUser: storedAuth ? storedAuth.user : null,
     guestMode: localStorage.getItem(GUEST_MODE_KEY) === '1',
-    authTab: 'signin'
+    authTab: 'signin',
+    newRequestStarted: false
   };
   var POLL_INTERVAL_MS = 8000;
 
@@ -2110,6 +2132,17 @@
   });
   document.getElementById('refreshBtn').addEventListener('click', function () {
     refreshRequests();
+  });
+
+  document.getElementById('startRequestBtn').addEventListener('click', function () {
+    state.newRequestStarted = true;
+    updateNewRequestFlow();
+    window.scrollTo(0, 0);
+  });
+  document.getElementById('backToLandingBtn').addEventListener('click', function () {
+    state.newRequestStarted = false;
+    updateNewRequestFlow();
+    window.scrollTo(0, 0);
   });
 
   document.querySelectorAll('.manage-tab').forEach(function (tab) {
@@ -2442,12 +2475,29 @@
   navBtns.forEach(function (btn) {
     btn.addEventListener('click', function () { showView(btn.getAttribute('data-view')); });
   });
+  // Landing -> form flow for New Request, so a first-time visitor sees a
+  // short "here's how it works, start a request" view rather than the full
+  // form immediately — but skip straight to the form for anyone already
+  // mid-task (basket has items, or they've already clicked Start this
+  // session), since showing them the landing again would just be a
+  // regression, not a nicer experience.
+  function updateNewRequestFlow() {
+    var landing = document.getElementById('newRequestLanding');
+    var formArea = document.getElementById('newRequestFormArea');
+    if (!landing || !formArea) return;
+    var hasBasketItems = loadBasket().length > 0;
+    var showForm = state.newRequestStarted || hasBasketItems;
+    landing.style.display = showForm ? 'none' : 'block';
+    formArea.style.display = showForm ? 'block' : 'none';
+  }
+
   function showView(id) {
     document.querySelectorAll('.view').forEach(function (v) { v.classList.toggle('active', v.id === id); });
     navBtns.forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-view') === id); });
     if (id === 'view-dashboard') renderDashboard();
     if (id === 'view-account') renderAccountView();
     if (id === 'view-reports') renderReportsView();
+    if (id === 'view-form') updateNewRequestFlow();
     updateChatFabVisibility(id);
   }
 
@@ -4606,6 +4656,7 @@
     applyAuthToForm();
     var initialActiveView = document.querySelector('.view.active');
     updateChatFabVisibility(initialActiveView ? initialActiveView.id : 'view-form');
+    updateNewRequestFlow();
     await refreshRequests();
     await handlePaymentReturn();
     setInterval(function () { refreshRequests({ silent: true }); }, POLL_INTERVAL_MS);
