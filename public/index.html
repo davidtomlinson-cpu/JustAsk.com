@@ -1058,6 +1058,15 @@
     font-weight: 700;
     font-size: 14px;
   }
+  .item-breakdown-box {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin: -4px 0 12px;
+  }
+  .item-breakdown-title { font-size: 11.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .3px; }
+  .item-breakdown-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
   .choice-tile {
     display: flex;
     align-items: center;
@@ -3926,6 +3935,23 @@
     return '£' + Number(n).toFixed(2);
   }
 
+  // Shown to the buyer for genuine multi-item baskets so they can see what
+  // makes up the total, not just the combined figure — only renders
+  // anything if the basket actually has per-item pricing set (older
+  // requests quoted the whole-basket way just won't have it, and that's
+  // fine, nothing to show).
+  function perItemBreakdownHtml(r, tier, speedTier) {
+    if (!r.items || r.items.length <= 1 || !tier) return '';
+    var hasAnyItemQuotes = r.items.some(function (it) { return it.quotes; });
+    if (!hasAnyItemQuotes) return '';
+    var rows = r.items.map(function (it) {
+      var itemPrice = (it.quotes && it.quotes[tier] != null) ? it.quotes[tier] : 0;
+      var itemSpeedPrice = (speedTier && it.speedQuotes && it.speedQuotes[speedTier] != null) ? it.speedQuotes[speedTier] : 0;
+      return '<div class="item-breakdown-row"><span>' + escapeHtml(it.item) + '</span><span>' + fmtMoney(itemPrice + itemSpeedPrice) + '</span></div>';
+    }).join('');
+    return '<div class="item-breakdown-box"><div class="item-breakdown-title">Price breakdown</div>' + rows + '</div>';
+  }
+
   // A basket with more than one item gets its own per-item pricing form —
   // one blended guess for a whole basket of different products was never
   // accurate. Each item's Basic/Standard/Premium (and optional delivery
@@ -4056,6 +4082,7 @@
         }).join('') +
         '</div>' +
         '<div class="choice-total-row" id="choiceTotalRow" style="display:none;"><span>Total</span><span id="choiceTotalValue"></span></div>' +
+        '<div id="choiceItemBreakdown"></div>' +
         '<button type="button" class="btn-quote" id="payWithBothBtn" disabled>Choose both an option and a delivery speed</button>' +
         (isStaff ? '<button type="button" class="link-btn" id="editQuoteBtn">Edit costs</button>' : '');
     }
@@ -4068,6 +4095,7 @@
         ? '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedSpeedTier) + '</span><span>' + fmtMoney(speedCost) + '</span></div>'
         : '';
       var totalLine = r.selectedSpeedTier ? '<div class="quote-summary-row" style="font-weight:700;"><span>Total</span><span>' + fmtMoney(totalCost) + '</span></div>' : '';
+      var itemBreakdown = perItemBreakdownHtml(r, r.selectedTier, r.selectedSpeedTier);
 
       if (isStaff) {
         // Staff took payment outside Stripe (bank transfer, card over the
@@ -4077,7 +4105,7 @@
         // paymentStatus at 'unpaid' forever.
         return '<h4 class="section-title">Awaiting payment</h4>' +
           '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedTier || '') + '</span><span>' + fmtMoney(cost) + '</span></div>' +
-          speedLine + totalLine +
+          speedLine + totalLine + itemBreakdown +
           '<p style="margin:10px 0;font-size:12px;color:var(--text-secondary);">' +
           (state.paymentsEnabled
             ? 'The requester is completing payment online. If they\'ve paid another way instead, mark it below to move things along.'
@@ -4089,14 +4117,14 @@
       if (!state.paymentsEnabled) {
         return '<h4 class="section-title">Choice recorded</h4>' +
           '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedTier || '') + '</span><span>' + fmtMoney(cost) + '</span></div>' +
-          speedLine + totalLine +
+          speedLine + totalLine + itemBreakdown +
           '<p style="margin:10px 0;font-size:12px;color:var(--text-secondary);">Online payment isn\'t switched on for this app yet, so the team will follow up separately to arrange payment.</p>' +
           '<button type="button" class="link-btn" id="reconsiderBtn">Choose a different option instead</button>';
       }
 
       return '<h4 class="section-title">Payment</h4>' +
         '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedTier || '') + '</span><span>' + fmtMoney(cost) + '</span></div>' +
-        speedLine + totalLine +
+        speedLine + totalLine + itemBreakdown +
         '<p style="margin:10px 0;font-size:12px;color:var(--text-secondary);">Waiting for payment to complete. If the payment page was closed before finishing, pick up where it left off below.</p>' +
         '<button type="button" class="btn-quote" id="completePaymentBtn" data-tier="' + escapeHtml(r.selectedTier || '') + '" data-speed-tier="' + escapeHtml(r.selectedSpeedTier || '') + '">Complete payment (' + fmtMoney(totalCost) + ')</button>' +
         '<button type="button" class="link-btn" id="reconsiderBtn">Choose a different option instead</button>';
@@ -4125,6 +4153,7 @@
       var refundBtnHtml = (isStaff && r.paymentStatus === 'paid')
         ? '<button type="button" class="danger-btn" id="refundBtn" style="margin-top:12px;">Issue refund</button>'
         : '';
+      var itemBreakdown = perItemBreakdownHtml(r, r.selectedTier, r.selectedSpeedTier);
       return '<h4 class="section-title">Cost options</h4>' +
         BUDGET_TIERS.map(function (tier) {
           var price = r.quotes[tier];
@@ -4134,6 +4163,7 @@
         }).join('') +
         speedSummaryLines +
         totalLine +
+        itemBreakdown +
         paidLine +
         refundBtnHtml;
     }
@@ -4736,16 +4766,19 @@
         speedChoiceGrid.querySelectorAll('.choice-tile').forEach(function (b) {
           b.classList.toggle('is-selected-tile', b.getAttribute('data-speed-tier') === chosenSpeedTier);
         });
+        var breakdownEl = document.getElementById('choiceItemBreakdown');
         if (chosenTier && chosenSpeedTier) {
           var total = r.quotes[chosenTier] + r.speedQuotes[chosenSpeedTier];
           choiceTotalRow.style.display = 'flex';
           choiceTotalValueEl.textContent = fmtMoney(total);
           payWithBothBtn.disabled = false;
           payWithBothBtn.textContent = 'Pay now (' + fmtMoney(total) + ')';
+          if (breakdownEl) breakdownEl.innerHTML = perItemBreakdownHtml(r, chosenTier, chosenSpeedTier);
         } else {
           choiceTotalRow.style.display = 'none';
           payWithBothBtn.disabled = true;
           payWithBothBtn.textContent = 'Choose both an option and a delivery speed';
+          if (breakdownEl) breakdownEl.innerHTML = '';
         }
       }
 
