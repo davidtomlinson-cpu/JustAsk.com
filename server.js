@@ -942,7 +942,7 @@ app.post('/api/requests/:id/pay', async (req, res) => {
 
   const quotes = existing.quotes ? JSON.parse(existing.quotes) : null;
   const price = quotes && quotes[tier];
-  if (typeof price !== 'number' || isNaN(price) || price <= 0) {
+  if (typeof price !== 'number' || isNaN(price) || price < 0) {
     return res.status(400).json({ error: 'No valid quoted price for that tier yet.' });
   }
 
@@ -958,7 +958,10 @@ app.post('/api/requests/:id/pay', async (req, res) => {
       return res.status(400).json({ error: 'Choose a delivery speed option too.' });
     }
     speedPrice = speedQuotes[speedTier];
-    if (typeof speedPrice !== 'number' || isNaN(speedPrice) || speedPrice <= 0) {
+    // < 0, not <= 0 — a speed tier staff have genuinely quoted as free
+    // (e.g. "no extra charge for Next Day") is valid and payable; it's
+    // only missing/negative/non-numeric values that mean "never quoted".
+    if (typeof speedPrice !== 'number' || isNaN(speedPrice) || speedPrice < 0) {
       return res.status(400).json({ error: 'No valid quoted price for that delivery speed yet.' });
     }
   }
@@ -974,7 +977,7 @@ app.post('/api/requests/:id/pay', async (req, res) => {
     SET status = 'Awaiting Payment', selectedTier = ?, selectedCost = ?,
         selectedSpeedTier = ?, selectedSpeedCost = ?, updatedAt = ?
     WHERE id = ?
-  `).run(tier, price, speedTier, speedPrice > 0 ? speedPrice : null, payNow, existing.id);
+  `).run(tier, price, speedTier, speedTier ? speedPrice : null, payNow, existing.id);
   if (existing.status !== 'Awaiting Payment') recordStatusEvent(existing.id, 'Awaiting Payment', payNow);
 
   if (!stripeClient) {
