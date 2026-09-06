@@ -1525,6 +1525,11 @@
       </div>
 
       <button type="button" class="btn-primary start-request-btn" id="startRequestBtn">Start a request</button>
+
+      <div class="home-account-prompt" id="landingAccountPrompt">
+        Have an account? <button type="button" class="link-btn" id="landingSignInBtn" style="margin:0;display:inline;">Sign in</button>
+        or <button type="button" class="link-btn" id="landingCreateAccountBtn" style="margin:0;display:inline;">create one</button> to track your requests from anywhere.
+      </div>
       </div>
 
       <div id="newRequestFormArea" style="display:none;">
@@ -2163,6 +2168,16 @@
     showView('view-account');
   });
   document.getElementById('homeCreateAccountBtn').addEventListener('click', function () {
+    state.authTab = 'signup';
+    authGateBuilt = false;
+    showView('view-account');
+  });
+  document.getElementById('landingSignInBtn').addEventListener('click', function () {
+    state.authTab = 'signin';
+    authGateBuilt = false;
+    showView('view-account');
+  });
+  document.getElementById('landingCreateAccountBtn').addEventListener('click', function () {
     state.authTab = 'signup';
     authGateBuilt = false;
     showView('view-account');
@@ -3608,10 +3623,10 @@
       emailEl.readOnly = false;
     }
     var promptEl = document.getElementById('homeAccountPrompt');
-    if (promptEl) {
-      var isSignedInBuyer = !!(state.authUser && state.authUser.role === 'buyer');
-      promptEl.style.display = isSignedInBuyer ? 'none' : 'block';
-    }
+    var landingPromptEl = document.getElementById('landingAccountPrompt');
+    var isSignedInBuyer = !!(state.authUser && state.authUser.role === 'buyer');
+    if (promptEl) promptEl.style.display = isSignedInBuyer ? 'none' : 'block';
+    if (landingPromptEl) landingPromptEl.style.display = isSignedInBuyer ? 'none' : 'block';
   }
 
   function renderAccountView() {
