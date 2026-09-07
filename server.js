@@ -184,6 +184,14 @@ db.exec(`
     createdAt TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS password_resets (
+    token TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    expiresAt TEXT NOT NULL,
+    usedAt TEXT,
+    createdAt TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS order_items (
     id TEXT PRIMARY KEY,
     requestId TEXT NOT NULL,
@@ -387,6 +395,58 @@ app.post('/api/auth/login', (req, res) => {
   }
   const token = createSession(row.id);
   res.json({ token, user: { id: row.id, name: row.name, email: row.email, role: row.role } });
+});
+
+// Time-limited, single-use reset token, emailed to the account's address.
+// Works the same for buyer and staff accounts, since they share one users
+// table. Same response whether or not the email matches an account, so this
+// can't be used to check who has one.
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
+
+app.post('/api/auth/forgot-password', (req, res) => {
+  const email = ((req.body || {}).email || '').toLowerCase().trim();
+  if (!isNonEmptyString(email)) return res.status(400).json({ error: 'Email is required' });
+
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (user) {
+    const now = new Date();
+    // Reuse a still-valid token rather than minting a new one on every
+    // click, so retrying doesn't spam the inbox or invalidate a link the
+    // user already has open.
+    const existing = db.prepare(
+      'SELECT * FROM password_resets WHERE userId = ? AND usedAt IS NULL AND expiresAt > ? ORDER BY createdAt DESC LIMIT 1'
+    ).get(user.id, now.toISOString());
+    const token = existing ? existing.token : crypto.randomBytes(32).toString('hex');
+    if (!existing) {
+      db.prepare('INSERT INTO password_resets (token, userId, expiresAt, createdAt) VALUES (?,?,?,?)')
+        .run(token, user.id, new Date(now.getTime() + PASSWORD_RESET_TTL_MS).toISOString(), now.toISOString());
+    }
+    const resetUrl = baseUrlFromReq(req) + '/?resetToken=' + token;
+    sendStatusEmail(user.email, 'Reset your JustAsk.com password', [
+      'We received a request to reset your password.',
+      'Reset it here: ' + resetUrl,
+      "This link expires in 1 hour. If you didn't request this, you can ignore this email."
+    ]);
+  }
+  res.json({ ok: true });
+});
+
+app.post('/api/auth/reset-password', (req, res) => {
+  const b = req.body || {};
+  const token = b.token;
+  const password = b.password || '';
+  if (!isNonEmptyString(token) || password.length < 6) {
+    return res.status(400).json({ error: 'A reset link and a password of at least 6 characters are required' });
+  }
+  const row = db.prepare('SELECT * FROM password_resets WHERE token = ?').get(token);
+  if (!row || row.usedAt || new Date(row.expiresAt) < new Date()) {
+    return res.status(400).json({ error: 'This reset link is invalid or has expired — request a new one.' });
+  }
+  db.prepare('UPDATE users SET passwordHash = ? WHERE id = ?').run(hashPassword(password), row.userId);
+  db.prepare('UPDATE password_resets SET usedAt = ? WHERE token = ?').run(new Date().toISOString(), token);
+  // A reset should also sign out any session still open with the old password.
+  db.prepare('DELETE FROM sessions WHERE userId = ?').run(row.userId);
+  res.json({ ok: true });
 });
 
 app.post('/api/auth/logout', requireAuth(), (req, res) => {
