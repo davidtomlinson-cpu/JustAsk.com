@@ -19,1459 +19,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="JustAsk" />
 <meta name="mobile-web-app-capable" content="yes" />
-<style>
-  :root {
-    color-scheme: light;
-    --surface-1:      #ffffff;
-    --page-plane:      #eef0ef;
-    --text-primary:   #0b0b0b;
-    --text-secondary: #52514e;
-    --text-muted:     #898781;
-    --gridline:       #e1e0d9;
-    --border:         rgba(11,11,11,0.14);
-    --series-blue:    #2a78d6;
-    --series-blue-tint: #eaf2fc;
-    --status-good:     #0ca30c;
-    --status-good-tint: #e8f7e6;
-    --status-warning:  #fab219;
-    --status-warning-tint: #fef3dc;
-    --status-serious:  #ec835a;
-    --status-serious-tint: #fdeae1;
-    --status-critical: #d03b3b;
-    --status-critical-tint: #fbe6e6;
-    --status-quoted:   #eb6834;
-    --status-quoted-tint: #fdeadf;
-    --series-teal:     #1f9e8b;
-    --series-teal-tint: #e3f5f1;
-    --series-purple:   #7c5cd6;
-    --series-purple-tint: #efe9fb;
-    --series-orange:   #e08a2e;
-    --series-orange-tint: #fcefdc;
-    --gold:            #D4AF37;
-    --gold-tint:       rgba(212,175,55,0.10);
-    --gold-text:       #8a6a1f;
-    --jewel-teal:      #0F5C6B;
-    --jewel-emerald:   #0F7B5C;
-    --jewel-coral:     #E8734A;
-    --radius: 16px;
-    --radius-sm: 10px;
-  }
-  :root[data-theme="dark"] {
-    color-scheme: dark;
-    --surface-1:      #1a1a19;
-    --page-plane:      #0d0d0d;
-    --text-primary:   #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted:     #898781;
-    --gridline:       #2c2c2a;
-    --border:         rgba(255,255,255,0.10);
-    --series-blue:    #3987e5;
-    --series-blue-tint: #12233a;
-    --status-good:     #0ca30c;
-    --status-good-tint: #123317;
-    --status-warning:  #fab219;
-    --status-warning-tint: #3a2c0c;
-    --status-serious:  #ec835a;
-    --status-serious-tint: #3a2318;
-    --status-critical: #d03b3b;
-    --status-critical-tint: #3a1414;
-    --status-quoted:   #d95926;
-    --status-quoted-tint: #3a2311;
-    --series-teal:     #2bbfa8;
-    --series-teal-tint: #0f2e29;
-    --series-purple:   #9b7ce8;
-    --series-purple-tint: #241c3a;
-    --series-orange:   #e8a250;
-    --series-orange-tint: #3a2712;
-    --gold-tint:       rgba(212,175,55,0.14);
-    --gold-text:       #D4AF37;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"])) {
-      color-scheme: dark;
-      --surface-1:      #1a1a19;
-      --page-plane:      #0d0d0d;
-      --text-primary:   #ffffff;
-      --text-secondary: #c3c2b7;
-      --text-muted:     #898781;
-      --gridline:       #2c2c2a;
-      --border:         rgba(255,255,255,0.10);
-      --series-blue:    #3987e5;
-      --series-blue-tint: #12233a;
-      --status-good:     #0ca30c;
-      --status-good-tint: #123317;
-      --status-warning:  #fab219;
-      --status-warning-tint: #3a2c0c;
-      --status-serious:  #ec835a;
-      --status-serious-tint: #3a2318;
-      --status-critical: #d03b3b;
-      --status-critical-tint: #3a1414;
-      --status-quoted:   #d95926;
-      --status-quoted-tint: #3a2311;
-      --series-teal:     #2bbfa8;
-      --series-teal-tint: #0f2e29;
-      --series-purple:   #9b7ce8;
-      --series-purple-tint: #241c3a;
-      --series-orange:   #e8a250;
-      --series-orange-tint: #3a2712;
-      --gold-tint:       rgba(212,175,55,0.14);
-      --gold-text:       #D4AF37;
-    }
-  }
-
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0; padding: 0;
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    background: var(--page-plane);
-    color: var(--text-primary);
-    -webkit-tap-highlight-color: transparent;
-  }
-  body {
-    display: flex;
-    justify-content: center;
-    min-height: 100vh;
-  }
-  .phone {
-    width: 100%;
-    max-width: 460px;
-    min-height: 100vh;
-    background: var(--page-plane);
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
-
-  header.topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 20px;
-    gap: 10px;
-    background: #0B2545;
-  }
-  .brand {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
-  }
-  .brand-logo {
-    height: 58px;
-    width: auto;
-    display: block;
-  }
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-  .theme-toggle {
-    border: 1px solid rgba(255,255,255,0.28);
-    background: rgba(255,255,255,0.12);
-    color: #ffffff;
-    border-radius: 999px;
-    width: 34px; height: 34px;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    position: relative;
-  }
-  .sync-dot {
-    position: absolute;
-    top: -2px; right: -2px;
-    width: 9px; height: 9px;
-    border-radius: 50%;
-    background: var(--status-good);
-    border: 1.5px solid #0B2545;
-  }
-  .sync-dot.is-offline { background: var(--status-critical); }
-  .basket-badge {
-    position: absolute;
-    top: -6px; right: -6px;
-    min-width: 18px; height: 18px;
-    padding: 0 4px;
-    border-radius: 999px;
-    background: var(--status-critical);
-    color: #ffffff;
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    border: 1.5px solid #0B2545;
-  }
-  .basket-modal-empty { margin: 0 0 4px; }
-
-  main {
-    flex: 1;
-    padding: 4px 20px 96px;
-    overflow-y: auto;
-  }
-  .view { display: none; }
-  .view.active { display: block; animation: fadein .18s ease; }
-  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-
-  h2.view-title {
-    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: .2px;
-    margin: 10px 0 4px;
-  }
-
-  /* hero (New Request landing moment) */
-  .hero-band {
-    position: relative;
-    overflow: hidden;
-    margin: -4px -20px 20px;
-    padding: 30px 24px 26px;
-    background: linear-gradient(135deg, #0B2545 0%, #0F5C6B 55%, #0F7B5C 100%);
-    text-align: center;
-  }
-  .hero-band::after {
-    content: '';
-    position: absolute;
-    width: 220px; height: 220px;
-    top: -70px; right: -50px;
-    background: radial-gradient(circle, rgba(232,115,74,0.35), transparent 70%);
-    pointer-events: none;
-    animation: heroGlowDrift 8s ease-in-out infinite;
-  }
-  .hero-band::before {
-    content: '';
-    position: absolute;
-    width: 260px; height: 260px;
-    bottom: -100px; left: -70px;
-    background: radial-gradient(circle, rgba(212,175,55,0.22), transparent 70%);
-    pointer-events: none;
-    animation: heroGlowDrift 10s ease-in-out infinite reverse;
-  }
-  @keyframes heroGlowDrift {
-    0%, 100% { transform: translate(0,0) scale(1); opacity: .85; }
-    50% { transform: translate(10px,-8px) scale(1.08); opacity: 1; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .hero-band::before, .hero-band::after, .basket-item, .basket-badge.pulse { animation: none !important; }
-  }
-  .hero-logo { width: 100%; max-width: 280px; height: auto; display: block; margin: 0 auto 14px; position: relative; }
-  .hero-tagline {
-    position: relative;
-    color: rgba(255,255,255,0.94);
-    font-size: 14px;
-    line-height: 1.55;
-    max-width: 420px;
-    margin: 0 auto;
-  }
-
-  /* how it works */
-  .how-it-works {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    margin: 0 0 26px;
-  }
-  .start-request-btn {
-    width: 100%;
-    padding: 16px;
-    border-radius: var(--radius-sm);
-    border: none;
-    background: var(--series-blue);
-    color: #ffffff;
-    font-size: 16px;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-    margin-bottom: 30px;
-  }
-  .how-step { display: flex; align-items: flex-start; gap: 12px; }
-  .how-icon {
-    flex-shrink: 0;
-    width: 38px; height: 38px;
-    border-radius: 999px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .how-text strong { display: block; font-size: 14px; font-weight: 700; margin-bottom: 2px; }
-  .how-text span { display: block; font-size: 12.5px; color: var(--text-secondary); }
-
-  /* basket badge pulse on add */
-  .basket-badge.pulse { animation: badgePulse .4s ease; }
-  @keyframes badgePulse {
-    0% { transform: scale(1); }
-    45% { transform: scale(1.4); }
-    100% { transform: scale(1); }
-  }
-
-  @media (hover: hover) {
-    .ticket-card { transition: transform .18s ease, box-shadow .18s ease; }
-    .ticket-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(11,37,69,0.10); }
-  }
-  p.view-sub {
-    margin: 0 0 18px;
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  /* form */
-  .field { margin-bottom: 16px; }
-  .field label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    color: var(--text-primary);
-  }
-  .field .hint {
-    font-weight: 400;
-    color: var(--text-muted);
-    font-size: 12px;
-  }
-  .field input, .field textarea, .field select {
-    width: 100%;
-    padding: 12px 13px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-size: 15px;
-    font-family: inherit;
-    resize: vertical;
-  }
-  .field input:focus, .field textarea:focus, .field select:focus {
-    outline: 2px solid var(--series-blue);
-    outline-offset: 1px;
-  }
-  .item-suggestions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-    animation: sourceCardIn .18s ease;
-  }
-  .item-suggestion-chip {
-    background: var(--gold-tint);
-    border: 1px solid rgba(212,175,55,0.35);
-    color: var(--gold-text);
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-size: 12.5px;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    transition: transform .1s ease;
-  }
-  .item-suggestion-chip:active { transform: scale(.96); }
-  .item-suggestion-hint {
-    font-size: 12px;
-    font-style: italic;
-    color: var(--text-secondary);
-    padding: 4px 2px;
-  }
-  .field input[readonly] { background: var(--page-plane); color: var(--text-secondary); cursor: not-allowed; }
-  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-  .legal-footer {
-    text-align: center;
-    padding: 20px 10px 90px;
-    font-size: 12px;
-  }
-  .legal-footer a { color: var(--text-secondary); text-decoration: underline; }
-  .legal-footer span { color: var(--text-muted); margin: 0 6px; }
-  @media (min-width: 900px) {
-    .legal-footer { padding-bottom: 20px; }
-  }
-
-  .home-account-prompt {
-    font-size: 12.5px;
-    line-height: 1.6;
-    color: var(--text-secondary);
-    background: var(--gold-tint);
-    border: 1px solid rgba(212,175,55,0.3);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-    margin: -6px 0 16px;
-  }
-  .home-account-prompt .link-btn { font-size: 12.5px; font-weight: 700; }
-
-  .same-day-disclaimer {
-    font-size: 12px;
-    line-height: 1.5;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
-    background: rgba(232,115,74,0.10);
-    border: 1px solid rgba(232,115,74,0.3);
-    color: var(--text-primary);
-    margin: -6px 0 16px;
-  }
-  .same-day-disclaimer.is-past-cutoff { background: rgba(232,115,74,0.18); font-weight: 600; }
-
-  .pill-group { display: flex; gap: 8px; flex-wrap: wrap; }
-  .pill-option {
-    flex: 1;
-    min-width: 84px;
-    padding: 10px 6px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-size: 12.5px;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-    text-align: center;
-    transition: transform .12s ease, background .15s ease, border-color .15s ease;
-  }
-  .pill-option:active { transform: scale(.96); }
-  .pill-option.is-selected {
-    background: #0B2545;
-    border-color: #0B2545;
-    color: #D4AF37;
-  }
-
-  .lookup-status {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-top: 6px;
-    min-height: 14px;
-  }
-  .lookup-status.is-error { color: var(--status-critical); }
-
-  .address-results {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 180px;
-    overflow-y: auto;
-    margin-top: 8px;
-  }
-  .address-result-item {
-    text-align: left;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-  }
-  .address-result-item.is-selected {
-    outline: 2px solid var(--series-blue);
-    outline-offset: -1px;
-    background: var(--series-blue-tint);
-  }
-
-  .btn-primary {
-    width: 100%;
-    padding: 14px;
-    border-radius: var(--radius-sm);
-    border: none;
-    background: var(--series-blue);
-    color: white;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    margin-top: 6px;
-    transition: transform .12s ease, opacity .12s ease;
-  }
-  .btn-primary:active { opacity: .85; transform: scale(.98); }
-  .btn-secondary {
-    width: 100%;
-    padding: 13px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--text-primary);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform .12s ease;
-  }
-  .btn-secondary:active { transform: scale(.98); }
-
-  /* stat tiles */
-  .stat-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 18px;
-  }
-  .stat-tile {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    cursor: pointer;
-  }
-  .stat-tile.is-active { outline: 2px solid var(--series-blue); outline-offset: -1px; }
-  .stat-tile .stat-top {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12px; font-weight: 600; color: var(--text-secondary);
-  }
-  .stat-tile .stat-value {
-    font-size: 26px;
-    font-weight: 700;
-    font-variant-numeric: proportional-nums;
-  }
-  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-
-  .manage-split { display: block; }
-  .manage-pane { }
-  .manage-tabs { display: none; gap: 8px; margin-bottom: 16px; }
-  .manage-tab {
-    flex: 1;
-    padding: 10px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-weight: 700;
-    font-size: 13.5px;
-    font-family: inherit;
-    cursor: pointer;
-  }
-  .manage-tab.is-active { background: #0B2545; color: #D4AF37; border-color: #0B2545; }
-
-  /* filter chips + search */
-  .search-row { margin-bottom: 12px; }
-  .search-row input {
-    width: 100%;
-    padding: 11px 13px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-size: 14px;
-  }
-  .chip-row {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    margin-bottom: 16px;
-  }
-  .chip {
-    flex-shrink: 0;
-    padding: 7px 13px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-secondary);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .chip.is-active {
-    background: var(--series-blue);
-    border-color: var(--series-blue);
-    color: white;
-  }
-
-  /* request cards */
-  .card-list { display: flex; flex-direction: column; gap: 10px; }
-  .req-card {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 13px 14px;
-    cursor: pointer;
-  }
-  .req-card-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-  .req-card-item { font-size: 15px; font-weight: 700; }
-  .req-card-meta { font-size: 12.5px; color: var(--text-secondary); margin: 1px 0; }
-  .req-card-meta strong { color: var(--text-primary); font-weight: 600; }
-  .req-card-basket-note { font-style: italic; color: var(--gold-text); font-size: 11.5px; margin-top: 4px; }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 9px;
-    border-radius: 999px;
-    font-size: 11.5px;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 50px 16px;
-    color: var(--text-secondary);
-  }
-  .empty-state .emoji { font-size: 34px; margin-bottom: 10px; }
-
-  /* basket */
-  .basket-section { margin-bottom: 22px; }
-  .basket-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-  }
-  .basket-header h3 { font-family: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif; font-size: 15px; font-weight: 700; }
-  .basket-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
-  .basket-item {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-left: 3px dashed var(--gold);
-    border-radius: var(--radius);
-    padding: 11px 12px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-    animation: basketItemIn .22s ease;
-  }
-  @keyframes basketItemIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: none; }
-  }
-  .basket-item-main { min-width: 0; }
-  .basket-item-name { font-size: 14px; font-weight: 700; }
-  .basket-item-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-  .basket-item-remove {
-    flex-shrink: 0;
-    width: 26px; height: 26px;
-    border-radius: 50%;
-    border: 1px solid var(--border);
-    background: var(--surface-2, var(--surface-1));
-    color: var(--text-secondary);
-    font-size: 15px;
-    line-height: 1;
-    cursor: pointer;
-  }
-  .basket-item-remove:hover { color: var(--status-critical); border-color: var(--status-critical); }
-  .item-form-title {
-    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
-    font-size: 17px;
-    font-weight: 700;
-    margin: 2px 0 14px;
-  }
-  .form-layout { display: block; }
-  .basket-sidebar { display: none; }
-
-  .btn-add-basket {
-    width: 100%;
-    padding: 13px;
-    border-radius: var(--radius-sm);
-    border: none;
-    background: linear-gradient(90deg, var(--jewel-emerald), var(--gold));
-    color: #ffffff;
-    font-size: 14.5px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    box-shadow: 0 3px 10px rgba(15,123,92,0.28);
-    transition: transform .12s ease, box-shadow .15s ease;
-  }
-  .btn-add-basket:active { transform: scale(.98); }
-  @media (hover: hover) {
-    .btn-add-basket:hover { box-shadow: 0 5px 16px rgba(15,123,92,0.4); }
-  }
-
-  .ticket-card {
-    position: relative;
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 23px 18px 18px;
-    box-shadow: 0 2px 10px rgba(11,37,69,0.06);
-    margin-bottom: 4px;
-  }
-  .ticket-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 3px;
-    border-radius: var(--radius) var(--radius) 0 0;
-    background: linear-gradient(90deg, var(--gold) 0%, var(--jewel-emerald) 65%, var(--jewel-coral) 100%);
-  }
-  .ticket-eyebrow {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    color: var(--gold-text);
-    margin-bottom: 2px;
-  }
-
-  /* bottom nav */
-  nav.bottomnav {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    display: flex;
-    justify-content: center;
-    background: var(--page-plane);
-    border-top: 1px solid var(--border);
-    padding: 8px max(8px, env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-bottom));
-  }
-  nav.bottomnav .inner {
-    width: 100%; max-width: 460px;
-    display: flex;
-  }
-  nav.bottomnav button {
-    flex: 1;
-    background: none;
-    border: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    padding: 6px 4px;
-    color: var(--text-muted);
-    font-size: 11.5px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  nav.bottomnav button.is-active { color: var(--series-blue); }
-
-  /* detail overlay */
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.45);
-    display: none;
-    align-items: flex-end;
-    justify-content: center;
-    z-index: 20;
-  }
-  .overlay.active { display: flex; }
-  .sheet {
-    width: 100%;
-    max-width: 460px;
-    max-height: 86vh;
-    overflow-y: auto;
-    background: var(--page-plane);
-    border-radius: 20px 20px 0 0;
-    padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
-    animation: slideup .2s ease;
-  }
-  @keyframes slideup { from { transform: translateY(24px); opacity: .4; } to { transform: none; opacity: 1; } }
-  .sheet-handle {
-    width: 40px; height: 4px; border-radius: 999px;
-    background: var(--border);
-    margin: 0 auto 16px;
-  }
-  .sheet h3 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
-  .detail-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--gridline);
-    font-size: 13.5px;
-  }
-  .detail-row:last-of-type { border-bottom: none; }
-  .detail-row .k { color: var(--text-secondary); flex-shrink: 0; }
-  .detail-row .v { text-align: right; font-weight: 600; }
-  .basket-detail-item { margin-bottom: 6px; }
-  .basket-detail-item:last-child { margin-bottom: 0; }
-  .basket-detail-item-name {
-    font-weight: 700;
-    font-size: 14px;
-    margin: 14px 0 2px;
-  }
-
-  /* order timeline */
-  .timeline { display: flex; flex-direction: column; padding: 2px 0 4px; }
-  .timeline-item {
-    position: relative;
-    display: flex;
-    gap: 10px;
-    padding-bottom: 16px;
-    padding-left: 2px;
-  }
-  .timeline-item:last-child { padding-bottom: 0; }
-  .timeline-item::before {
-    content: '';
-    position: absolute;
-    left: 5px;
-    top: 14px;
-    bottom: -2px;
-    width: 2px;
-    background: var(--gridline);
-  }
-  .timeline-item:last-child::before { display: none; }
-  .timeline-dot {
-    flex-shrink: 0;
-    width: 12px; height: 12px;
-    border-radius: 50%;
-    margin-top: 2px;
-  }
-  .timeline-body { min-width: 0; }
-  .timeline-status {
-    font-size: 13.5px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .timeline-item:not(.is-current) .timeline-status { color: var(--text-secondary); font-weight: 600; }
-  .timeline-date { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
-
-  /* horizontal stage tracker ("pizza tracker" style progress bar) */
-  .stage-tracker { margin: 4px 0 20px; }
-  .stage-track {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 34px;
-  }
-  .stage-track::before {
-    content: '';
-    position: absolute;
-    left: 17px; right: 17px; top: 50%;
-    height: 3px;
-    background: var(--gridline);
-    transform: translateY(-50%);
-  }
-  .stage-track-fill {
-    position: absolute;
-    left: 17px; top: 50%;
-    height: 3px;
-    background: var(--status-good);
-    transform: translateY(-50%);
-    transition: width .3s ease;
-  }
-  .stage-dot {
-    position: relative;
-    width: 34px; height: 34px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .stage-dot.is-current { animation: stagepulse 1.4s ease-in-out infinite; }
-  @keyframes stagepulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.12); }
-  }
-  .stage-labels {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 6px;
-  }
-  .stage-labels span {
-    flex: 1;
-    text-align: center;
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--text-muted);
-    padding: 0 2px;
-  }
-  .stage-labels span.is-current { color: var(--text-primary); font-weight: 700; }
-
-  .status-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin: 16px 0 10px;
-  }
-  .status-btn {
-    padding: 10px 6px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-size: 12.5px;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .status-btn.is-current { outline: 2px solid var(--series-blue); outline-offset: -1px; }
-  .sheet h4.section-title {
-    font-size: 13px;
-    font-weight: 700;
-    margin: 18px 0 10px;
-  }
-  .per-item-cost-block {
-    background: var(--page-plane);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-    margin-bottom: 14px;
-  }
-  .per-item-cost-label { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
-  .per-item-speed-toggle { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin: 12px 0 8px; }
-  .per-item-speed-toggle .hint { font-weight: 400; }
-  .per-item-total-box {
-    background: var(--gold-tint);
-    border: 1px solid rgba(212,175,55,0.3);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-    margin: 4px 0 14px;
-  }
-  .per-item-total-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
-
-  .quote-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 8px;
-  }
-  .quote-row label { font-size: 13.5px; font-weight: 600; flex: 1; }
-  .quote-input-wrap { position: relative; width: 116px; flex-shrink: 0; }
-  .quote-input-wrap .prefix {
-    position: absolute;
-    left: 10px; top: 50%;
-    transform: translateY(-50%);
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-  .quote-input-wrap input {
-    width: 100%;
-    padding: 9px 10px 9px 22px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-size: 14px;
-    font-family: inherit;
-  }
-  .margin-tile {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-  .margin-tile .mt-label {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12px; font-weight: 600; color: var(--text-secondary);
-  }
-  .margin-tile .mt-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
-  .margin-tile .mt-value {
-    font-size: 22px;
-    font-weight: 700;
-    font-variant-numeric: proportional-nums;
-    color: var(--status-good);
-  }
-
-  /* monthly reports */
-  .reports-summary-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .reports-summary-tile {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-  }
-  .reports-summary-tile .mt-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
-  .reports-summary-tile .mt-value { font-size: 22px; font-weight: 700; margin-top: 4px; color: var(--status-good); }
-  .reports-month-list { display: flex; flex-direction: column; gap: 8px; }
-  .reports-month-row {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  .reports-month-label { font-weight: 700; font-size: 14px; }
-  .reports-month-stats { display: flex; align-items: center; gap: 14px; font-size: 12.5px; color: var(--text-secondary); }
-  .reports-month-margin { font-weight: 700; color: var(--status-good); font-size: 14px; }
-
-  /* accounts / auth */
-  .auth-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-  .auth-tab {
-    flex: 1;
-    padding: 10px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-secondary);
-    font-size: 13.5px;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-  }
-  .auth-tab.is-active { background: var(--series-blue); border-color: var(--series-blue); color: #fff; }
-  .auth-error {
-    font-size: 12px;
-    color: var(--status-critical);
-    margin: -6px 0 12px;
-    min-height: 14px;
-  }
-  .guest-link-row { text-align: center; margin-top: 8px; }
-  .guest-link-row button {
-    background: none; border: none; color: var(--text-secondary);
-    font-size: 12.5px; font-family: inherit; text-decoration: underline; cursor: pointer;
-  }
-  .account-banner {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-    margin-bottom: 14px;
-    font-size: 13px;
-    color: var(--text-secondary);
-    line-height: 1.5;
-  }
-  .account-banner strong { color: var(--text-primary); }
-  .account-banner.is-note { border-color: var(--series-blue); background: var(--series-blue-tint); }
-  .staff-login-prompt { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; }
-  .staff-login-prompt .link-btn { margin-top: 0; }
-  .staff-login-prompt .field { text-align: left; }
-  .btn-quote {
-    width: 100%;
-    padding: 12px;
-    border-radius: var(--radius-sm);
-    border: none;
-    background: var(--series-blue);
-    color: white;
-    font-size: 13.5px;
-    font-weight: 700;
-    cursor: pointer;
-    margin-top: 4px;
-  }
-  .btn-quote:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
-  .choice-grid { margin-bottom: 4px; }
-  .choice-tile.is-selected-tile { border-color: var(--series-blue); background: var(--series-blue-tint); }
-  .choice-total-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 2px;
-    margin: 4px 0 10px;
-    border-top: 1px solid var(--border);
-    font-weight: 700;
-    font-size: 14px;
-  }
-  .item-breakdown-box {
-    background: var(--page-plane);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-    margin: -4px 0 12px;
-  }
-  .item-breakdown-title { font-size: 11.5px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .3px; }
-  .item-breakdown-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
-  .choice-tile {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 13px 14px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-family: inherit;
-    cursor: pointer;
-    margin-bottom: 8px;
-  }
-  .choice-tile:active { background: var(--series-blue-tint); }
-  .choice-tile .ct-name { font-weight: 700; font-size: 14px; }
-  .choice-tile .ct-price { font-weight: 700; font-size: 15px; color: var(--series-blue); }
-  .quote-summary-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    font-size: 13.5px;
-    border-bottom: 1px solid var(--gridline);
-  }
-  .quote-summary-row:last-child { border-bottom: none; }
-  .quote-summary-row.is-chosen { font-weight: 700; color: var(--status-good); }
-  .quote-summary-row.is-refunded { font-weight: 700; color: var(--status-critical); }
-  .refund-reason-note { font-size: 12px; color: var(--text-secondary); margin: -4px 0 8px; font-style: italic; }
-  .link-btn {
-    background: none;
-    border: none;
-    padding: 0;
-    color: var(--series-blue);
-    font-size: 12.5px;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-    margin-top: 6px;
-  }
-  /* staff decline + counter-offer a date */
-  .decline-tool { margin: 10px 0 4px; }
-  .decline-toggle-btn {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 8px 12px;
-    color: var(--jewel-coral);
-    font-size: 12.5px;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-  }
-  .decline-panel {
-    margin-top: 10px;
-    padding: 14px;
-    background: rgba(232,115,74,0.06);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-  .decline-panel .field { margin-bottom: 10px; }
-  .decline-error { font-size: 12px; color: var(--status-critical); min-height: 14px; margin-bottom: 6px; }
-  .decline-pending-note {
-    background: rgba(232,115,74,0.10);
-    border: 1px solid rgba(232,115,74,0.3);
-    border-radius: var(--radius);
-    padding: 10px 12px;
-    font-size: 12.5px;
-    line-height: 1.5;
-  }
-  .decline-pending-sub { color: var(--text-secondary); margin-top: 4px; font-size: 12px; }
-  .decline-withdraw-btn { margin-top: 6px; color: var(--text-secondary); }
-
-  /* buyer-facing: staff proposed a different date */
-  .proposed-date-banner {
-    background: var(--gold-tint);
-    border: 1px solid rgba(212,175,55,0.35);
-    border-radius: var(--radius);
-    padding: 14px;
-    margin: 10px 0 4px;
-    font-size: 13px;
-    line-height: 1.5;
-  }
-  .proposed-date-banner-title { font-weight: 700; margin-bottom: 4px; }
-  .proposed-date-banner-note { color: var(--text-secondary); font-size: 12.5px; margin: 6px 0; }
-  .proposed-date-banner .btn-primary { margin-top: 10px; }
-
-  /* staff item sourcing search — standalone tool on the Manage dashboard */
-  .item-search-standalone {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-    margin-bottom: 22px;
-    box-shadow: 0 2px 10px rgba(11,37,69,0.06);
-  }
-  .item-search-standalone .field { margin-bottom: 12px; }
-  .source-search-btn-row { display: flex; gap: 10px; }
-  .source-search-btn-row .btn-add-basket { flex: 2; }
-  .source-search-btn-row .btn-secondary { flex: 1; }
-  .source-status { font-size: 12.5px; color: var(--text-secondary); margin: 8px 0; }
-  .source-status.is-error { color: var(--status-critical); }
-  .source-option-card {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--jewel-teal);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-  }
-  .source-option-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-  .source-option-retailer { font-weight: 700; font-size: 13.5px; }
-  .source-option-price { font-weight: 700; font-size: 13.5px; color: var(--jewel-emerald); white-space: nowrap; }
-  .source-option-name { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
-  .source-option-note { font-size: 11.5px; margin-top: 6px; display: flex; align-items: center; gap: 5px; }
-  .source-option-note.is-feasible { color: var(--jewel-emerald); }
-  .source-option-note.is-tight { color: var(--jewel-coral); }
-
-  .source-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-  .tier-result-tile {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    animation: sourceCardIn .22s ease;
-  }
-  .tier-result-label { font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
-  .tier-result-price { font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 2px 0; }
-  .tier-result-save-btn { margin-top: 8px; font-size: 12.5px; padding: 10px; }
-  @media (min-width: 600px) { .source-results { grid-template-columns: repeat(3, 1fr); } }
-  .source-option-link { font-size: 12px; margin-top: 6px; display: inline-block; color: var(--jewel-teal); font-weight: 600; }
-
-  .source-loading { display: flex; align-items: center; gap: 10px; }
-  .source-spinner {
-    width: 15px; height: 15px;
-    border: 2px solid var(--border);
-    border-top-color: var(--jewel-teal);
-    border-radius: 50%;
-    flex-shrink: 0;
-    animation: sourceSpin .8s linear infinite;
-  }
-  @keyframes sourceSpin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) {
-    .source-spinner { animation: none; }
-    .source-option-card { animation: none !important; }
-  }
-  .source-option-card {
-    animation: sourceCardIn .22s ease;
-    position: relative;
-  }
-  @keyframes sourceCardIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: none; }
-  }
-  .source-option-card.is-best { border-left-color: var(--gold); box-shadow: 0 2px 10px rgba(212,175,55,0.18); }
-  .source-best-badge {
-    display: inline-block;
-    background: var(--gold-tint);
-    color: var(--gold-text);
-    font-size: 10.5px;
-    font-weight: 800;
-    letter-spacing: .3px;
-    padding: 3px 8px;
-    border-radius: 999px;
-    margin-bottom: 6px;
-  }
-  .source-option-card.is-best.is-chosen { border-left-color: var(--jewel-emerald); box-shadow: none; }
-
-  .danger-btn {
-    width: 100%;
-    padding: 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--status-critical);
-    background: var(--status-critical-tint);
-    color: var(--status-critical);
-    font-size: 13.5px;
-    font-weight: 700;
-    cursor: pointer;
-    margin-top: 6px;
-  }
-
-  .chat-fab {
-    position: fixed;
-    right: 16px;
-    bottom: 76px;
-    width: 52px; height: 52px;
-    border-radius: 50%;
-    background: #0B2545;
-    color: #D4AF37;
-    border: none;
-    box-shadow: 0 4px 14px rgba(11,37,69,0.35);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    z-index: 30;
-  }
-  .chat-panel {
-    position: fixed;
-    right: 16px;
-    bottom: 136px;
-    width: min(340px, calc(100vw - 32px));
-    max-height: 60vh;
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.22);
-    display: flex;
-    flex-direction: column;
-    z-index: 31;
-    overflow: hidden;
-  }
-  .chat-panel-header {
-    background: #0B2545;
-    color: #ffffff;
-    padding: 12px 14px;
-    display: flex; align-items: center; justify-content: space-between;
-    flex-shrink: 0;
-  }
-  .chat-panel-title { font-weight: 700; font-size: 14px; }
-  .chat-panel-close { background: none; border: none; color: #ffffff; font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; }
-  .chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-height: 220px;
-  }
-  .chat-msg {
-    max-width: 85%;
-    padding: 9px 12px;
-    border-radius: 14px;
-    font-size: 13px;
-    line-height: 1.45;
-  }
-  .chat-msg-bot { align-self: flex-start; background: var(--page-plane); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-  .chat-msg-user { align-self: flex-end; background: #0B2545; color: #ffffff; border-bottom-right-radius: 4px; }
-  .chat-msg-error { align-self: center; font-size: 12px; color: var(--status-critical); text-align: center; }
-  .chat-msg-loading { align-self: flex-start; font-size: 12px; color: var(--text-secondary); font-style: italic; }
-
-  .message-thread {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-height: 260px;
-    overflow-y: auto;
-    padding: 10px;
-    background: var(--page-plane);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: 8px;
-  }
-  .message-thread .chat-msg { max-width: 88%; }
-  .message-sender-label { font-size: 10.5px; font-weight: 700; opacity: .7; margin-bottom: 2px; }
-  .message-thread-empty { font-size: 12.5px; color: var(--text-secondary); text-align: center; padding: 10px; }
-  .message-compose-row { display: flex; gap: 8px; margin-bottom: 6px; }
-  .message-compose-row input {
-    flex: 1;
-    padding: 9px 12px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    font-size: 13px;
-    font-family: inherit;
-  }
-  .chat-input-row { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); flex-shrink: 0; }
-  .chat-input-row input {
-    flex: 1;
-    padding: 9px 12px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--page-plane);
-    color: var(--text-primary);
-    font-size: 13px;
-    font-family: inherit;
-  }
-  .chat-send-btn {
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    background: #D4AF37;
-    color: #0B2545;
-    border: none;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .chat-send-btn:disabled { opacity: .5; cursor: not-allowed; }
-  @media (min-width: 900px) {
-    .chat-fab { bottom: 24px; }
-    .chat-panel { bottom: 88px; width: 360px; }
-  }
-
-  /* toast */
-  .toast {
-    position: fixed;
-    bottom: 86px;
-    left: 50%;
-    transform: translateX(-50%) translateY(10px);
-    background: var(--text-primary);
-    color: var(--page-plane);
-    padding: 11px 18px;
-    border-radius: 999px;
-    font-size: 13.5px;
-    font-weight: 600;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .2s, transform .2s;
-    z-index: 30;
-    white-space: nowrap;
-  }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  svg { display: block; }
-
-  /* ---------- desktop layout ----------
-     Below 900px this is untouched: full-height phone-style shell, bottom tab
-     bar, single narrow column. At 900px+ the same DOM is re-laid-out via CSS
-     Grid into a proper desktop app shell — sticky top bar, a left sidebar
-     (the bottom nav's buttons, restyled in place, not duplicated), and an
-     independently scrolling content pane — so the app fills the browser
-     window instead of floating as a narrow strip in empty space. */
-  @media (min-width: 900px) {
-    html, body { height: 100%; }
-    body { overflow: hidden; }
-    .phone {
-      max-width: none;
-      width: 100%;
-      height: 100vh;
-      min-height: 0;
-      display: grid;
-      grid-template-columns: 248px 1fr;
-      grid-template-rows: auto 1fr;
-      grid-template-areas: "header header" "nav main";
-    }
-    header.topbar { grid-area: header; padding: 14px 32px; }
-    .brand-logo { height: 72px; }
-
-    nav.bottomnav {
-      grid-area: nav;
-      position: static;
-      height: 100%;
-      overflow-y: auto;
-      justify-content: flex-start;
-      border-top: none;
-      border-right: 1px solid var(--border);
-      padding: 24px 14px;
-    }
-    nav.bottomnav .inner {
-      max-width: none;
-      width: 100%;
-      flex-direction: column;
-      gap: 2px;
-    }
-    nav.bottomnav button {
-      flex: none;
-      flex-direction: row;
-      justify-content: flex-start;
-      gap: 12px;
-      padding: 11px 14px;
-      border-radius: var(--radius-sm);
-      font-size: 14px;
-      border-left: 3px solid transparent;
-    }
-    nav.bottomnav button.is-active {
-      background: rgba(212,175,55,0.10);
-      border-left-color: #D4AF37;
-    }
-
-    main {
-      grid-area: main;
-      height: 100%;
-      padding: 40px 48px 56px;
-    }
-    .view { max-width: 720px; }
-    #view-form { max-width: 1000px; }
-    #view-dashboard { max-width: 1100px; }
-    #view-dashboard .manage-tabs { display: none !important; }
-    .manage-split.has-search { display: grid; grid-template-columns: 1fr 400px; gap: 28px; align-items: start; }
-    .manage-split.has-search #managePaneSearch { display: block !important; position: sticky; top: 0; }
-    .manage-split.has-search #managePaneRequests { display: block !important; }
-    h2.view-title { font-size: 26px; }
-    .hero-band { margin: 0 0 28px; border-radius: var(--radius); padding: 40px 32px; }
-    .hero-logo { max-width: 340px; }
-    .how-it-works { flex-direction: row; gap: 22px; }
-    .how-step { flex: 1; flex-direction: column; align-items: flex-start; gap: 10px; }
-
-    .form-layout { display: grid; grid-template-columns: 1fr 320px; gap: 28px; align-items: start; }
-    .basket-sidebar { display: block; position: sticky; top: 0; }
-    .basket-section { display: none !important; }
-    .basket-sidebar-inner {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px;
-      box-shadow: 0 2px 10px rgba(11,37,69,0.06);
-    }
-    .basket-sidebar-inner h3 { font-family: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif; font-size: 15px; font-weight: 700; margin: 0 0 12px; }
-    /* the sidebar is always visible here, so the header icon/modal would be redundant */
-    #basketNavBtn { display: none; }
-
-    .toast { bottom: 32px; }
-  }
-</style>
+<link rel="stylesheet" href="/app.css" />
 </head>
 <body>
 <div class="phone">
@@ -1592,66 +140,87 @@
       <form id="itemForm" class="ticket-card">
         <div class="ticket-eyebrow" id="itemEyebrow">ITEM 1</div>
         <h3 class="item-form-title">Add an item</h3>
-        <div class="field">
-          <label for="f-item">What should be purchased? *</label>
-          <input id="f-item" type="text" placeholder="e.g. 6ft Christmas tree" required autocomplete="off" />
-          <div class="item-suggestions" id="itemSuggestions" style="display:none;"></div>
+
+        <div class="wizard-progress" id="wizardProgress" aria-hidden="true">
+          <span class="wizard-progress-step" data-step="1"></span>
+          <span class="wizard-progress-step" data-step="2"></span>
+          <span class="wizard-progress-step" data-step="3"></span>
         </div>
-        <div class="field">
-          <label for="f-link">Product details <span class="hint">(optional)</span></label>
-          <textarea id="f-link" rows="2" placeholder="Size, colour, brand preference..."></textarea>
-        </div>
-        <div class="field">
-          <label for="f-qty">Quantity</label>
-          <input id="f-qty" type="number" min="1" value="1" />
-        </div>
-        <div class="field">
-          <label>Preferred budget <span class="hint">(optional)</span></label>
-          <div class="pill-group" id="budgetGroup">
-            <button type="button" class="pill-option" data-value="Basic">Basic</button>
-            <button type="button" class="pill-option" data-value="Standard">Standard</button>
-            <button type="button" class="pill-option" data-value="Premium">Premium</button>
+        <div class="wizard-step-label" id="wizardStepLabel">Step 1 of 3 — What to buy</div>
+
+        <div class="wizard-step" data-wizard-step="1">
+          <div class="field">
+            <label for="f-item">What should be purchased? *</label>
+            <input id="f-item" type="text" placeholder="e.g. 6ft Christmas tree" required autocomplete="off" />
+            <div class="item-suggestions" id="itemSuggestions" style="display:none;"></div>
+          </div>
+          <div class="field">
+            <label for="f-link">Product details <span class="hint">(optional)</span></label>
+            <textarea id="f-link" rows="2" placeholder="Size, colour, brand preference..."></textarea>
+          </div>
+          <div class="field">
+            <label for="f-qty">Quantity</label>
+            <input id="f-qty" type="number" min="1" value="1" />
+          </div>
+          <div class="field">
+            <label>Preferred budget <span class="hint">(optional)</span></label>
+            <div class="pill-group" id="budgetGroup">
+              <button type="button" class="pill-option" data-value="Basic">Basic</button>
+              <button type="button" class="pill-option" data-value="Standard">Standard</button>
+              <button type="button" class="pill-option" data-value="Premium">Premium</button>
+            </div>
           </div>
         </div>
-        <div class="field">
-          <label for="f-recipient">Deliver to (recipient name) *</label>
-          <input id="f-recipient" type="text" placeholder="e.g. Sarah Jones" required />
-        </div>
-        <div class="field">
-          <label for="f-postcode">Delivery postcode *</label>
-          <div style="display:flex; gap:8px;">
-            <input id="f-postcode" type="text" placeholder="e.g. NW1 6XE" style="flex:1;" required />
-            <button type="button" class="btn-secondary" id="findAddressBtn" style="width:auto; padding:0 16px; flex-shrink:0;">Find address</button>
+
+        <div class="wizard-step" data-wizard-step="2" hidden>
+          <div class="field">
+            <label for="f-recipient">Deliver to (recipient name) *</label>
+            <input id="f-recipient" type="text" placeholder="e.g. Sarah Jones" required />
           </div>
-          <div class="lookup-status" id="lookupStatus"></div>
-          <div class="address-results" id="addressResults" style="display:none;"></div>
-        </div>
-        <div class="field">
-          <label for="f-address-line">Address *<span class="hint"> (tap a result above, or type it)</span></label>
-          <textarea id="f-address-line" rows="2" placeholder="House/flat number, street, town" required></textarea>
-        </div>
-        <div class="field">
-          <label>Priority</label>
-          <div class="pill-group" id="priorityGroup">
-            <button type="button" class="pill-option" data-value="Same Day">Same Day</button>
-            <button type="button" class="pill-option is-selected" data-value="Next Day">Next Day</button>
-            <button type="button" class="pill-option" data-value="Preferred Date">Preferred Date</button>
+          <div class="field">
+            <label for="f-postcode">Delivery postcode *</label>
+            <div style="display:flex; gap:8px;">
+              <input id="f-postcode" type="text" placeholder="e.g. NW1 6XE" style="flex:1;" required />
+              <button type="button" class="btn-secondary" id="findAddressBtn" style="width:auto; padding:0 16px; flex-shrink:0;">Find address</button>
+            </div>
+            <div class="lookup-status" id="lookupStatus"></div>
+            <div class="address-results" id="addressResults" style="display:none;"></div>
+          </div>
+          <div class="field">
+            <label for="f-address-line">Address *<span class="hint"> (tap a result above, or type it)</span></label>
+            <textarea id="f-address-line" rows="2" placeholder="House/flat number, street, town" required></textarea>
           </div>
         </div>
-        <div class="same-day-disclaimer" id="sameDayDisclaimer" style="display:none;"></div>
-        <div class="field">
-          <label for="f-needed" id="f-needed-label">Needed by</label>
-          <input id="f-needed" type="date" />
+
+        <div class="wizard-step" data-wizard-step="3" hidden>
+          <div class="field">
+            <label>Priority</label>
+            <div class="pill-group" id="priorityGroup">
+              <button type="button" class="pill-option" data-value="Same Day">Same Day</button>
+              <button type="button" class="pill-option is-selected" data-value="Next Day">Next Day</button>
+              <button type="button" class="pill-option" data-value="Preferred Date">Preferred Date</button>
+            </div>
+          </div>
+          <div class="same-day-disclaimer" id="sameDayDisclaimer" style="display:none;"></div>
+          <div class="field">
+            <label for="f-needed" id="f-needed-label">Needed by</label>
+            <input id="f-needed" type="date" />
+          </div>
+          <div class="field">
+            <label for="f-notes">Notes <span class="hint">(optional)</span></label>
+            <textarea id="f-notes" rows="2" placeholder="Anything else the purchasing team should know"></textarea>
+          </div>
         </div>
-        <div class="field">
-          <label for="f-notes">Notes <span class="hint">(optional)</span></label>
-          <textarea id="f-notes" rows="2" placeholder="Anything else the purchasing team should know"></textarea>
-        </div>
+
         <div class="lookup-status is-error" id="itemError"></div>
-        <button class="btn-add-basket" type="submit" id="addItemBtn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-          Add to basket
-        </button>
+        <div class="wizard-nav">
+          <button type="button" class="btn-secondary wizard-back-btn" id="wizardBackBtn" style="display:none;">← Back</button>
+          <button type="button" class="btn-primary wizard-next-btn" id="wizardNextBtn">Next →</button>
+          <button class="btn-add-basket" type="submit" id="addItemBtn" style="display:none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+            Add to basket
+          </button>
+        </div>
       </form>
 
       <div class="lookup-status is-error" id="submitError"></div>
@@ -1675,6 +244,8 @@
         <a href="/terms.html" target="_blank" rel="noopener">Terms and Conditions</a>
         <span>·</span>
         <a href="/refund-policy.html" target="_blank" rel="noopener">Refund &amp; Cancellation Policy</a>
+        <span>·</span>
+        <a href="/privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a>
       </div>
     </section>
 
@@ -1687,71 +258,11 @@
         <a href="/terms.html" target="_blank" rel="noopener">Terms and Conditions</a>
         <span>·</span>
         <a href="/refund-policy.html" target="_blank" rel="noopener">Refund &amp; Cancellation Policy</a>
+        <span>·</span>
+        <a href="/privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a>
       </div>
     </section>
 
-    <!-- MANAGE VIEW (staff / purchasing team) -->
-    <section class="view" id="view-dashboard">
-      <h2 class="view-title">Manage requests</h2>
-      <p class="view-sub">Everything requested so far — staff only.</p>
-
-      <div id="dashboardGate"></div>
-
-      <div id="dashboardContent" style="display:none;">
-        <div class="manage-tabs" id="manageTabs" style="display:none;">
-          <button type="button" class="manage-tab is-active" data-pane="requests">Requests</button>
-          <button type="button" class="manage-tab" data-pane="search">Search for items</button>
-        </div>
-
-        <div class="manage-split">
-          <div class="manage-pane" id="managePaneRequests">
-            <div id="marginTile"></div>
-
-            <div class="stat-grid" id="statGrid"></div>
-
-            <div class="search-row">
-              <input type="text" id="searchInput" placeholder="Search item, recipient, requester..." />
-            </div>
-            <div class="chip-row" id="chipRow"></div>
-            <div class="card-list" id="cardList"></div>
-          </div>
-
-          <div class="manage-pane" id="managePaneSearch" style="display:none;">
-            <div class="item-search-standalone" id="itemSearchStandalone">
-              <h4 class="section-title">Search for sourcing options</h4>
-              <p class="view-sub" style="margin:-4px 0 12px;">Search the web via Claude for a specific item — anything from a local shop to a major retailer.</p>
-              <div class="field"><label for="standaloneSearchRequest">Which request is this for?</label>
-                <select id="standaloneSearchRequest">
-                  <option value="">— Select a request —</option>
-                </select>
-              </div>
-              <div class="field" id="standaloneSearchItemPickerWrap" style="display:none;">
-                <label>Which item in this basket?</label>
-                <div class="pill-group" id="standaloneSearchItemPicker"></div>
-              </div>
-              <div class="field"><label for="standaloneSearchDesc">Item description</label><input type="text" id="standaloneSearchDesc" placeholder="e.g. bouquet of red roses"></div>
-              <div class="field"><label for="standaloneSearchDate">Delivery date</label><input type="date" id="standaloneSearchDate"></div>
-              <div class="field"><label for="standaloneSearchPostcode">Postcode</label><input type="text" id="standaloneSearchPostcode" placeholder="e.g. NW1 6XE"></div>
-              <div class="field"><label for="standaloneSearchLink">Product link <span class="hint">(optional)</span></label><input type="text" id="standaloneSearchLink" placeholder="Paste a link if you have one"></div>
-              <div class="source-search-btn-row">
-                <button type="button" class="btn-add-basket" id="standaloneSearchBtn">Search for options</button>
-                <button type="button" class="btn-secondary" id="standaloneSearchClearBtn">Clear</button>
-              </div>
-              <div class="source-status" id="standaloneSearchStatus"></div>
-              <div class="source-results" id="standaloneSearchResults"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- MONTHLY REPORTS (staff only, reached from Manage) -->
-    <section class="view" id="view-reports">
-      <button type="button" class="link-btn" id="backToManageBtn">← Back to Manage</button>
-      <h2 class="view-title">Monthly reports</h2>
-      <p class="view-sub">Orders fulfilled and margin earned, by month of completion.</p>
-      <div id="reportsContent"></div>
-    </section>
   </main>
 
   <nav class="bottomnav">
@@ -1763,10 +274,6 @@
       <button type="button" class="nav-btn" data-view="view-account">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c1-3.6 4-5.6 7.5-5.6s6.5 2 7.5 5.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
         My requests
-      </button>
-      <button type="button" class="nav-btn" data-view="view-dashboard" id="manageNavBtn" style="display:none;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/></svg>
-        Manage
       </button>
     </div>
   </nav>
@@ -2002,16 +509,6 @@
     if (!res.ok) throw new Error('Could not load config');
     return res.json();
   }
-  async function apiSourceItem(payload) {
-    var res = await fetch(apiUrl('/api/staff/source-item'), {
-      method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-      body: JSON.stringify(payload)
-    });
-    var data = await res.json().catch(function () { return {}; });
-    if (!res.ok) throw new Error(data.error || 'Could not search for options (' + res.status + ')');
-    return data;
-  }
   async function apiPay(id, tier, speedTier) {
     var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id) + '/pay'), {
       method: 'POST',
@@ -2119,19 +616,18 @@
 
   async function refreshRequests(opts) {
     var silent = !!(opts && opts.silent);
-    if (!silent) { state.loading = true; renderDashboard(); }
+    if (!silent) { state.loading = true; renderMyRequestsList(); }
     try {
       requests = await apiList();
       notifyStatusChanges(requests);
       state.connectionError = null;
       state.loading = false;
-      renderDashboard();
       renderMyRequestsList(); // safe no-op unless the account view's list is on screen
       updateSyncIndicator(true);
     } catch (err) {
       state.loading = false;
       state.connectionError = err.message || 'Could not reach the server.';
-      renderDashboard();
+      renderMyRequestsList();
       updateSyncIndicator(false);
     }
   }
@@ -2190,18 +686,6 @@
     window.scrollTo(0, 0);
   });
 
-  document.querySelectorAll('.manage-tab').forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      document.querySelectorAll('.manage-tab').forEach(function (t) { t.classList.remove('is-active'); });
-      tab.classList.add('is-active');
-      var pane = tab.getAttribute('data-pane');
-      document.getElementById('managePaneRequests').style.display = pane === 'requests' ? 'block' : 'none';
-      document.getElementById('managePaneSearch').style.display = pane === 'search' ? 'block' : 'none';
-    });
-  });
-  document.getElementById('backToManageBtn').addEventListener('click', function () {
-    showView('view-dashboard');
-  });
   document.getElementById('homeSignInBtn').addEventListener('click', function () {
     state.authTab = 'signin';
     authGateBuilt = false;
@@ -2241,9 +725,12 @@
   function updateChatFabVisibility(activeViewId) {
     var fab = document.getElementById('chatFab');
     if (!fab) return;
+    // Staff never reach this page's chat widget in practice (they sign in
+    // via /staff.html, which has no chat UI at all) — this check just stays
+    // a harmless no-op guard rather than something worth stripping out along
+    // with the dashboard.
     var isStaff = !!(state.authUser && state.authUser.role === 'staff');
-    var staffOnlyView = activeViewId === 'view-dashboard' || activeViewId === 'view-reports';
-    var shouldShow = !!state.chatEnabled && !isStaff && !staffOnlyView;
+    var shouldShow = !!state.chatEnabled && !isStaff;
     fab.style.display = shouldShow ? 'flex' : 'none';
     if (!shouldShow) {
       document.getElementById('chatPanel').style.display = 'none';
@@ -2322,236 +809,6 @@
     if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
   });
 
-  // ---------- standalone item sourcing search (Manage dashboard) ----------
-  // Populates the "Which request is this for?" dropdown from whatever's
-  // currently loaded, restricted to requests that can actually still be
-  // quoted (Processing or Quoted) — matches the same window the request
-  // detail view itself allows cost entry in.
-  function renderStandaloneSearchRequestPicker() {
-    var select = document.getElementById('standaloneSearchRequest');
-    if (!select) return;
-    var previousValue = select.value;
-    var quotable = requests.filter(function (r) { return r.status === 'Processing' || r.status === 'Quoted'; });
-    select.innerHTML = '<option value="">— Select a request —</option>' +
-      quotable.map(function (r) {
-        return '<option value="' + escapeHtml(r.id) + '">' + escapeHtml(r.item) + ' — ' + escapeHtml(r.requester) + ' (' + escapeHtml(r.status) + ')</option>';
-      }).join('');
-    if (quotable.some(function (r) { return r.id === previousValue; })) {
-      select.value = previousValue;
-    }
-  }
-
-  function fillStandaloneSearchFromItem(item) {
-    document.getElementById('standaloneSearchDesc').value = item.item || '';
-    document.getElementById('standaloneSearchDate').value = item.neededBy || '';
-    document.getElementById('standaloneSearchPostcode').value = item.postcode || '';
-    document.getElementById('standaloneSearchLink').value = item.link || '';
-  }
-
-  function renderStandaloneItemPicker(req) {
-    var wrap = document.getElementById('standaloneSearchItemPickerWrap');
-    var picker = document.getElementById('standaloneSearchItemPicker');
-    var items = (req && req.items) || [];
-    if (items.length <= 1) {
-      wrap.style.display = 'none';
-      picker.innerHTML = '';
-      return;
-    }
-    wrap.style.display = 'block';
-    picker.innerHTML = items.map(function (it, idx) {
-      return '<button type="button" class="pill-option' + (idx === 0 ? ' is-selected' : '') + '" data-idx="' + idx + '">' + (idx + 1) + '. ' + escapeHtml(it.item) + '</button>';
-    }).join('');
-    picker.querySelectorAll('.pill-option').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        picker.querySelectorAll('.pill-option').forEach(function (b) { b.classList.remove('is-selected'); });
-        btn.classList.add('is-selected');
-        fillStandaloneSearchFromItem(items[parseInt(btn.getAttribute('data-idx'), 10)]);
-      });
-    });
-  }
-
-  document.getElementById('standaloneSearchRequest').addEventListener('change', function () {
-    var reqId = this.value;
-    var req = requests.find(function (r) { return r.id === reqId; });
-    if (!req) {
-      document.getElementById('standaloneSearchItemPickerWrap').style.display = 'none';
-      return;
-    }
-    renderStandaloneItemPicker(req);
-    var firstItem = (req.items && req.items[0]) || req;
-    fillStandaloneSearchFromItem(firstItem);
-  });
-
-  function tierResultTileHtml(tier, opt) {
-    var priceHtml = (opt.price != null && !isNaN(parseFloat(opt.price))) ? '£' + Number(opt.price).toFixed(2) : 'Price unknown';
-    var feasible = opt.deliveryFeasible !== false;
-    var tierColorVar = { Basic: 'var(--gold-text)', Standard: 'var(--jewel-emerald)', Premium: 'var(--jewel-coral)' }[tier] || 'var(--jewel-teal)';
-    return '<div class="tier-result-tile">' +
-      '<div class="tier-result-label" style="color:' + tierColorVar + ';">' + tier + '</div>' +
-      '<div class="source-option-retailer">' + escapeHtml(opt.retailer || 'Unknown retailer') + (opt.isLocal ? ' · local' : '') + '</div>' +
-      '<div class="source-option-name">' + escapeHtml(opt.productName || '') + '</div>' +
-      '<div class="tier-result-price">' + priceHtml + '</div>' +
-      (opt.deliveryNote ? '<div class="source-option-note ' + (feasible ? 'is-feasible' : 'is-tight') + '">' + (feasible ? '✓' : '⚠') + ' ' + escapeHtml(opt.deliveryNote) + '</div>' : '') +
-      (opt.url ? '<a class="source-option-link" href="' + escapeHtml(opt.url) + '" target="_blank" rel="noopener noreferrer">View →</a>' : '') +
-      '<button type="button" class="btn-add-basket tier-result-save-btn" data-tier="' + tier + '">Save ' + tier + ' cost to request</button>' +
-    '</div>';
-  }
-
-  function wireStandaloneResultTiles(tiers) {
-    document.querySelectorAll('.tier-result-save-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var tier = btn.getAttribute('data-tier');
-        var opt = tiers[tier];
-        var price = Number(opt && opt.price);
-        var reqId = document.getElementById('standaloneSearchRequest').value;
-        if (!reqId) {
-          alert('Select which request this is for first, using the dropdown above.');
-          return;
-        }
-        if (isNaN(price) || price <= 0) {
-          alert('This tier has no valid price to save.');
-          return;
-        }
-        var targetReq = requests.find(function (r) { return r.id === reqId; });
-        if (!targetReq) {
-          alert('Could not find that request — try refreshing.');
-          return;
-        }
-
-        var originalLabel = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Saving…';
-
-        // A multi-item basket prices each item separately now — save to
-        // whichever item is currently selected in the picker above, not the
-        // old whole-request total the per-item form no longer reads from.
-        var isMultiItem = targetReq.items && targetReq.items.length > 1;
-        var selectedPill = isMultiItem ? document.querySelector('#standaloneSearchItemPicker .pill-option.is-selected') : null;
-
-        var savePromise;
-        var savedWhat;
-        if (isMultiItem && selectedPill) {
-          var idx = parseInt(selectedPill.getAttribute('data-idx'), 10);
-          var targetItem = targetReq.items[idx];
-          var directCosts = { Basic: 0, Standard: 0, Premium: 0 };
-          if (targetItem.directCosts) {
-            BUDGET_TIERS.forEach(function (t) { if (targetItem.directCosts[t] != null) directCosts[t] = targetItem.directCosts[t]; });
-          }
-          directCosts[tier] = price;
-          savedWhat = targetItem.item;
-          savePromise = apiSaveItemCosts(reqId, [{
-            itemId: targetItem.id,
-            directCosts: directCosts,
-            speedDirectCosts: targetItem.speedDirectCosts || null
-          }], false);
-        } else {
-          var reqDirectCosts = { Basic: 0, Standard: 0, Premium: 0 };
-          if (targetReq.directCosts) {
-            BUDGET_TIERS.forEach(function (t) { if (targetReq.directCosts[t] != null) reqDirectCosts[t] = targetReq.directCosts[t]; });
-          }
-          reqDirectCosts[tier] = price;
-          savedWhat = targetReq.item;
-          savePromise = apiPatch(reqId, { directCosts: reqDirectCosts });
-        }
-
-        savePromise
-          .then(function () { return refreshRequests(); })
-          .then(function () {
-            showToast(tier + ' cost of £' + price.toFixed(2) + ' saved to "' + savedWhat + '"');
-            btn.textContent = '✓ Saved';
-          })
-          .catch(function (err) {
-            btn.disabled = false;
-            btn.textContent = originalLabel;
-            alert(err.message || 'Could not save this cost — try again.');
-          });
-      });
-    });
-  }
-
-  (function () {
-    var btn = document.getElementById('standaloneSearchBtn');
-    if (!btn) return;
-
-    function runStandaloneSearch() {
-      var statusEl = document.getElementById('standaloneSearchStatus');
-      var resultsEl = document.getElementById('standaloneSearchResults');
-      var payload = {
-        itemDescription: document.getElementById('standaloneSearchDesc').value.trim(),
-        link: document.getElementById('standaloneSearchLink').value.trim(),
-        deliveryAddress: document.getElementById('standaloneSearchPostcode').value.trim(),
-        deliveryDate: document.getElementById('standaloneSearchDate').value
-      };
-      if (!payload.itemDescription || !payload.deliveryAddress || !payload.deliveryDate) {
-        statusEl.className = 'source-status is-error';
-        statusEl.textContent = 'Item description, delivery date, and postcode are all needed to search.';
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = 'Searching…';
-      resultsEl.innerHTML = '';
-
-      var loadingMessages = [
-        'Searching the web for options…',
-        'Checking local shops and online retailers…',
-        'Comparing prices…',
-        'Checking delivery windows for ' + fmtDate(payload.deliveryDate) + '…'
-      ];
-      var msgIdx = 0;
-      statusEl.className = 'source-status';
-      statusEl.innerHTML = '<div class="source-loading"><div class="source-spinner"></div><span class="source-loading-text">' + loadingMessages[0] + '</span></div>';
-      var loadingInterval = setInterval(function () {
-        msgIdx = (msgIdx + 1) % loadingMessages.length;
-        var textEl = statusEl.querySelector('.source-loading-text');
-        if (textEl) textEl.textContent = loadingMessages[msgIdx];
-      }, 2200);
-
-      apiSourceItem(payload)
-        .then(function (data) {
-          clearInterval(loadingInterval);
-          var tiers = data.tiers || {};
-          var tierNames = ['Basic', 'Standard', 'Premium'].filter(function (t) { return tiers[t]; });
-          statusEl.className = 'source-status';
-          if (!tierNames.length) {
-            statusEl.textContent = 'No options found — try a more specific description.';
-          } else {
-            statusEl.textContent = 'Tap a tile to save that cost to the selected request:';
-            resultsEl.innerHTML = tierNames.map(function (tier) { return tierResultTileHtml(tier, tiers[tier]); }).join('');
-            wireStandaloneResultTiles(tiers);
-          }
-        })
-        .catch(function (err) {
-          clearInterval(loadingInterval);
-          statusEl.className = 'source-status is-error';
-          statusEl.textContent = err.message || 'Could not search for options — try again.';
-        })
-        .finally(function () {
-          btn.disabled = false;
-          btn.textContent = 'Search for options';
-        });
-    }
-
-    btn.addEventListener('click', runStandaloneSearch);
-    ['standaloneSearchDesc', 'standaloneSearchDate', 'standaloneSearchPostcode', 'standaloneSearchLink'].forEach(function (id) {
-      document.getElementById(id).addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') { e.preventDefault(); runStandaloneSearch(); }
-      });
-    });
-
-    var clearBtn = document.getElementById('standaloneSearchClearBtn');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', function () {
-        document.getElementById('standaloneSearchDesc').value = '';
-        document.getElementById('standaloneSearchDate').value = '';
-        document.getElementById('standaloneSearchPostcode').value = '';
-        document.getElementById('standaloneSearchLink').value = '';
-        document.getElementById('standaloneSearchStatus').className = 'source-status';
-        document.getElementById('standaloneSearchStatus').textContent = '';
-        document.getElementById('standaloneSearchResults').innerHTML = '';
-      });
-    }
-  })();
 
   // ---------- nav ----------
   var navBtns = document.querySelectorAll('.nav-btn');
@@ -2577,9 +834,7 @@
   function showView(id) {
     document.querySelectorAll('.view').forEach(function (v) { v.classList.toggle('active', v.id === id); });
     navBtns.forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-view') === id); });
-    if (id === 'view-dashboard') renderDashboard();
     if (id === 'view-account') renderAccountView();
-    if (id === 'view-reports') renderReportsView();
     if (id === 'view-form') updateNewRequestFlow();
     updateChatFabVisibility(id);
   }
@@ -2825,7 +1080,72 @@
     addressResultsEl.style.display = 'none';
     addressResultsEl.innerHTML = '';
     setLookupStatus('', false);
+    showWizardStep(1);
   }
+
+  // ---------- item-form step wizard ----------
+  // The "Add an item" form is genuinely 16+ fields, so it's split into three
+  // logical steps rather than shown flat: what's being bought, where it's
+  // going, and when/notes. Values persist on the underlying <form> across
+  // steps (only visibility changes), so the existing submit handler below
+  // still just reads all the fields at once, unchanged.
+  var WIZARD_STEP_LABELS = ['What to buy', 'Delivery details', 'Timing & notes'];
+  var wizardStep = 1;
+  var wizardStepEls = document.querySelectorAll('.wizard-step');
+  var wizardBackBtn = document.getElementById('wizardBackBtn');
+  var wizardNextBtn = document.getElementById('wizardNextBtn');
+  var wizardStepLabelEl = document.getElementById('wizardStepLabel');
+  var wizardProgressDots = document.querySelectorAll('.wizard-progress-step');
+  var addItemBtnEl = document.getElementById('addItemBtn');
+
+  function showWizardStep(n) {
+    wizardStep = n;
+    wizardStepEls.forEach(function (el) {
+      el.hidden = parseInt(el.getAttribute('data-wizard-step'), 10) !== n;
+    });
+    wizardStepLabelEl.textContent = 'Step ' + n + ' of 3 — ' + WIZARD_STEP_LABELS[n - 1];
+    wizardProgressDots.forEach(function (dot) {
+      var step = parseInt(dot.getAttribute('data-step'), 10);
+      dot.classList.toggle('is-done', step < n);
+      dot.classList.toggle('is-current', step === n);
+    });
+    wizardBackBtn.style.display = n === 1 ? 'none' : '';
+    wizardNextBtn.style.display = n === 3 ? 'none' : '';
+    addItemBtnEl.style.display = n === 3 ? '' : 'none';
+    itemErrorEl.textContent = '';
+  }
+
+  // Mirrors the fields required on each step — matches what the final
+  // "Add to basket" submit handler re-checks anyway, so Next can't be used
+  // to skip past a required field left empty.
+  function validateWizardStep(n) {
+    if (n === 1) {
+      if (!document.getElementById('f-item').value.trim()) {
+        return 'Enter what should be purchased before continuing.';
+      }
+      return null;
+    }
+    if (n === 2) {
+      var recipient = document.getElementById('f-recipient').value.trim();
+      var postcode = document.getElementById('f-postcode').value.trim();
+      var addressLine = document.getElementById('f-address-line').value.trim();
+      if (!recipient || !postcode || !addressLine) {
+        return 'Fill in the required fields (marked *) before continuing.';
+      }
+      return null;
+    }
+    return null;
+  }
+
+  wizardNextBtn.addEventListener('click', function () {
+    var err = validateWizardStep(wizardStep);
+    if (err) { itemErrorEl.textContent = err; return; }
+    showWizardStep(wizardStep + 1);
+  });
+  wizardBackBtn.addEventListener('click', function () {
+    showWizardStep(wizardStep - 1);
+  });
+  showWizardStep(1);
 
   // ---------- item description suggestions ----------
   // Static, built-in dictionary — instant and free, no external calls. Each
@@ -3272,49 +1592,6 @@
       });
   });
 
-  // ---------- dashboard ----------
-  var statGrid = document.getElementById('statGrid');
-  var chipRow = document.getElementById('chipRow');
-  var cardList = document.getElementById('cardList');
-  var searchInput = document.getElementById('searchInput');
-  searchInput.addEventListener('input', function () {
-    state.search = searchInput.value.trim().toLowerCase();
-    renderList();
-  });
-
-  function renderStatTiles() {
-    var counts = {};
-    STATUSES.forEach(function (s) { counts[s.key] = 0; });
-    requests.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
-    statGrid.innerHTML = STATUSES.map(function (s) {
-      var active = state.filter === s.key;
-      return '<div class="stat-tile' + (active ? ' is-active' : '') + '" data-status="' + s.key + '">' +
-        '<div class="stat-top"><span class="dot" style="background:' + s.color + '"></span>' + s.key + '</div>' +
-        '<div class="stat-value" style="color:' + s.color + '">' + counts[s.key] + '</div>' +
-        '</div>';
-    }).join('');
-    statGrid.querySelectorAll('.stat-tile').forEach(function (tile) {
-      tile.addEventListener('click', function () {
-        var st = tile.getAttribute('data-status');
-        state.filter = (state.filter === st) ? 'All' : st;
-        renderDashboard();
-      });
-    });
-  }
-
-  function renderChips() {
-    var opts = ['All'].concat(STATUSES.map(function (s) { return s.key; }));
-    chipRow.innerHTML = opts.map(function (o) {
-      return '<button type="button" class="chip' + (state.filter === o ? ' is-active' : '') + '" data-status="' + o + '">' + o + '</button>';
-    }).join('');
-    chipRow.querySelectorAll('.chip').forEach(function (chip) {
-      chip.addEventListener('click', function () {
-        state.filter = chip.getAttribute('data-status');
-        renderDashboard();
-      });
-    });
-  }
-
   function fmtDate(iso) {
     if (!iso) return '';
     var d = new Date(iso);
@@ -3385,23 +1662,6 @@
       '</div>';
   }
 
-  // Shared by the staff card list and the buyer/guest "My requests" list —
-  // same card markup either way, just a different source list and a
-  // different viewer role wired onto the click handler.
-  function buildCardListHtml(list) {
-    return list.map(function (r) {
-      var s = statusInfo(r.status);
-      return '<div class="req-card" data-id="' + r.id + '">' +
-        '<div class="req-card-top">' +
-          '<div class="req-card-item">' + escapeHtml(r.item) + '</div>' +
-          '<span class="badge" style="background:' + s.tint + ';color:' + s.color + '">' + icon(s.icon, 11) + s.key + '</span>' +
-        '</div>' +
-        '<div class="req-card-meta">To <strong>' + escapeHtml(r.recipient) + '</strong></div>' +
-        '<div class="req-card-meta">Requested by ' + escapeHtml(r.requester) + ' · ' + fmtDate(r.createdAt) + '</div>' +
-      '</div>';
-    }).join('');
-  }
-
   // Buyer-facing "My requests" list: a submitted basket is still one request
   // under the hood (one quote, one status, one payment), but buyers think of
   // it as the separate items they asked for — so show one card per item
@@ -3433,224 +1693,9 @@
     });
   }
 
-  function renderList() {
-    var filtered = requests.filter(function (r) {
-      if (state.filter !== 'All' && r.status !== state.filter) return false;
-      if (state.search) {
-        var hay = (r.item + ' ' + r.recipient + ' ' + r.requester + ' ' + (r.postcode || '') + ' ' + (r.addressLine || '')).toLowerCase();
-        if (hay.indexOf(state.search) === -1) return false;
-      }
-      return true;
-    });
-
-    if (state.loading && !requests.length) {
-      cardList.innerHTML = '<div class="empty-state"><div class="emoji">⏳</div>Loading requests…</div>';
-      return;
-    }
-
-    if (state.connectionError && !requests.length) {
-      cardList.innerHTML = '<div class="empty-state"><div class="emoji">⚠️</div>' +
-        escapeHtml(state.connectionError) +
-        '<div style="margin-top:12px"><button type="button" class="btn-secondary" id="retryLoadBtn" style="width:auto;padding:9px 18px;">Try again</button></div></div>';
-      var retryBtn = document.getElementById('retryLoadBtn');
-      if (retryBtn) retryBtn.addEventListener('click', function () { refreshRequests(); });
-      return;
-    }
-
-    if (!filtered.length) {
-      cardList.innerHTML = '<div class="empty-state"><div class="emoji">🎄</div>' +
-        (requests.length ? 'No requests match that filter.' : 'No requests yet — submit one from the New request tab.') +
-        '</div>';
-      return;
-    }
-
-    cardList.innerHTML = buildCardListHtml(filtered);
-    wireCardClicks(cardList, 'staff');
-  }
-
   function escapeHtml(str) {
     return String(str || '').replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
-  }
-
-  // Margin is business-only information — direct cost is never sent to, or
-  // shown on, any customer-facing screen. This tile is the one place the
-  // markup the business earns is surfaced, as a running total rather than
-  // a per-item breakdown.
-  // Shared by the margin tile and the monthly reports view, so the two
-  // never drift out of sync. Includes delivery-speed margin as well as the
-  // budget-tier margin — a request can earn margin on both dimensions since
-  // they're fully separate quotes.
-  function computeOrderMargin(r) {
-    var margin = 0;
-    if (r.quotes && r.directCosts && r.selectedTier) {
-      var q = r.quotes[r.selectedTier], c = r.directCosts[r.selectedTier];
-      if (typeof q === 'number' && typeof c === 'number') margin += (q - c);
-    }
-    if (r.speedQuotes && r.speedDirectCosts && r.selectedSpeedTier) {
-      var sq = r.speedQuotes[r.selectedSpeedTier], sc = r.speedDirectCosts[r.selectedSpeedTier];
-      if (typeof sq === 'number' && typeof sc === 'number') margin += (sq - sc);
-    }
-    return margin;
-  }
-
-  function renderMarginTile() {
-    var tileEl = document.getElementById('marginTile');
-    if (!tileEl) return;
-    var total = 0, count = 0;
-    requests.forEach(function (r) {
-      // Margin is earned the moment payment succeeds, regardless of which
-      // delivery stage the order is currently sitting at — checking
-      // paymentStatus directly (rather than enumerating every post-payment
-      // status) means this keeps working as the delivery pipeline evolves.
-      if (r.paymentStatus === 'paid' && r.quotes && r.directCosts && r.selectedTier) {
-        total += computeOrderMargin(r);
-        count++;
-      }
-    });
-    tileEl.innerHTML =
-      '<div class="margin-tile">' +
-        '<div><div class="mt-label">' + icon('tag', 12) + ' Margin earned</div>' +
-        '<div class="mt-sub">' + (count ? ('Across ' + count + ' completed order' + (count === 1 ? '' : 's')) : 'No completed orders yet') + '</div></div>' +
-        '<div class="mt-value">' + fmtMoney(total) + '</div>' +
-      '</div>' +
-      '<button type="button" class="link-btn" id="viewMonthlyReportsBtn">View monthly reports →</button>';
-    var reportsBtn = document.getElementById('viewMonthlyReportsBtn');
-    if (reportsBtn) reportsBtn.addEventListener('click', function () { showView('view-reports'); });
-  }
-
-  var MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-  // Orders fulfilled + margin earned, grouped by the month payment
-  // completed (paidAt) — the same "completed = paid" definition the margin
-  // tile already uses, so the two never disagree with each other.
-  function renderReportsView() {
-    var contentEl = document.getElementById('reportsContent');
-    if (!contentEl) return;
-    if (!state.authUser || state.authUser.role !== 'staff') {
-      showView('view-form');
-      return;
-    }
-
-    var byMonth = {};
-    requests.forEach(function (r) {
-      if (r.paymentStatus !== 'paid' || !r.paidAt) return;
-      var d = new Date(r.paidAt);
-      var key = d.getFullYear() + '-' + d.getMonth();
-      if (!byMonth[key]) byMonth[key] = { year: d.getFullYear(), month: d.getMonth(), count: 0, margin: 0 };
-      byMonth[key].count++;
-      byMonth[key].margin += computeOrderMargin(r);
-    });
-
-    var months = Object.keys(byMonth).map(function (k) { return byMonth[k]; }).sort(function (a, b) {
-      if (a.year !== b.year) return b.year - a.year;
-      return b.month - a.month;
-    });
-
-    if (!months.length) {
-      contentEl.innerHTML = '<div class="empty-state"><div class="emoji">📊</div><p>No completed (paid) orders yet — monthly figures will appear here once some come in.</p></div>';
-      return;
-    }
-
-    var totalCount = months.reduce(function (sum, m) { return sum + m.count; }, 0);
-    var totalMargin = months.reduce(function (sum, m) { return sum + m.margin; }, 0);
-
-    contentEl.innerHTML =
-      '<div class="reports-summary-row">' +
-        '<div class="reports-summary-tile"><div class="mt-label">Orders fulfilled (all time)</div><div class="mt-value">' + totalCount + '</div></div>' +
-        '<div class="reports-summary-tile"><div class="mt-label">Margin earned (all time)</div><div class="mt-value">' + fmtMoney(totalMargin) + '</div></div>' +
-      '</div>' +
-      '<h4 class="section-title" style="margin-top:20px;">By month</h4>' +
-      '<div class="reports-month-list">' +
-      months.map(function (m) {
-        return '<div class="reports-month-row">' +
-          '<div class="reports-month-label">' + MONTH_NAMES[m.month] + ' ' + m.year + '</div>' +
-          '<div class="reports-month-stats">' +
-            '<span>' + m.count + ' order' + (m.count === 1 ? '' : 's') + ' fulfilled</span>' +
-            '<span class="reports-month-margin">' + fmtMoney(m.margin) + '</span>' +
-          '</div>' +
-        '</div>';
-      }).join('') +
-      '</div>';
-  }
-
-  // ---------- staff gate (Manage tab) ----------
-  var dashboardGateEl = document.getElementById('dashboardGate');
-  var dashboardContentEl = document.getElementById('dashboardContent');
-  var staffGateBuilt = false; // guards against the 8s poll wiping out a half-typed password
-
-  var manageNavBtn = document.getElementById('manageNavBtn');
-  function updateManageNavVisibility() {
-    var isStaff = !!(state.authUser && state.authUser.role === 'staff');
-    manageNavBtn.style.display = isStaff ? '' : 'none';
-    // If staff signs out (or a stored session turns out invalid) while this
-    // tab happens to be active, don't leave them stranded on a hidden tab.
-    if (!isStaff && manageNavBtn.classList.contains('is-active')) showView('view-form');
-  }
-
-  function renderDashboard() {
-    updateManageNavVisibility();
-    var isStaff = !!(state.authUser && state.authUser.role === 'staff');
-    dashboardContentEl.style.display = isStaff ? '' : 'none';
-    dashboardGateEl.style.display = isStaff ? 'none' : '';
-    if (!isStaff) {
-      renderStaffGate();
-      return;
-    }
-    staffGateBuilt = false; // rebuild fresh if they ever sign out
-    var manageTabsEl = document.getElementById('manageTabs');
-    var manageSplitEl = document.querySelector('.manage-split');
-    var managePaneSearchEl = document.getElementById('managePaneSearch');
-    if (state.itemSearchEnabled) {
-      manageTabsEl.style.display = 'flex';
-      manageSplitEl.classList.add('has-search');
-    } else {
-      manageTabsEl.style.display = 'none';
-      manageSplitEl.classList.remove('has-search');
-      managePaneSearchEl.style.display = 'none';
-      document.getElementById('managePaneRequests').style.display = 'block';
-    }
-    renderStandaloneSearchRequestPicker();
-    renderMarginTile();
-    renderStatTiles();
-    renderChips();
-    renderList();
-  }
-
-  function renderStaffGate() {
-    if (staffGateBuilt) return;
-    staffGateBuilt = true;
-    dashboardGateEl.innerHTML =
-      '<div class="account-banner">Managing requests — quoting, statuses, and the margin tile — needs the purchasing team\'s login.</div>' +
-      '<div class="field"><label for="staff-email">Email</label><input id="staff-email" type="email" autocomplete="username" /></div>' +
-      '<div class="field"><label for="staff-password">Password</label><input id="staff-password" type="password" autocomplete="current-password" /></div>' +
-      '<div class="auth-error" id="staffLoginError"></div>' +
-      '<button type="button" class="btn-primary" id="staffLoginBtn">Sign in</button>';
-
-    document.getElementById('staffLoginBtn').addEventListener('click', function () {
-      var btn = this;
-      var email = document.getElementById('staff-email').value.trim();
-      var password = document.getElementById('staff-password').value;
-      var errEl = document.getElementById('staffLoginError');
-      errEl.textContent = '';
-      if (!email || !password) { errEl.textContent = 'Enter an email and password.'; return; }
-      btn.disabled = true; btn.textContent = 'Signing in…';
-      apiLogin(email, password)
-        .then(function (result) {
-          if (result.user.role !== 'staff') {
-            throw new Error("That's a buyer account — sign in from the My requests tab instead.");
-          }
-          setAuth(result.token, result.user);
-          showToast('Signed in as staff');
-          return refreshRequests();
-        })
-        .catch(function (err) {
-          errEl.textContent = err.message || 'Could not sign in.';
-        })
-        .finally(function () {
-          btn.disabled = false; btn.textContent = 'Sign in';
-        });
     });
   }
 
@@ -3673,7 +1718,6 @@
     state.authUser = null;
     saveAuth(null);
     authGateBuilt = false;
-    staffGateBuilt = false;
     if (token) apiLogout(token);
     var emailEl = document.getElementById('f-email');
     if (emailEl) { emailEl.readOnly = false; emailEl.value = ''; }
@@ -3703,12 +1747,11 @@
       renderBuyerAccount();
     } else if (state.authUser && state.authUser.role === 'staff') {
       accountContentEl.innerHTML =
-        '<div class="account-banner is-note">Signed in as staff (' + escapeHtml(state.authUser.email) + '). Staff logins don\'t have personal requests of their own — head to <strong>Manage</strong> to see everything.</div>' +
+        '<div class="account-banner is-note">Signed in as staff (' + escapeHtml(state.authUser.email) + '). Staff logins don\'t have personal requests of their own — head to the <a href="/staff.html">staff dashboard</a> to see everything.</div>' +
         '<button type="button" class="btn-secondary" id="accSignOutBtn">Sign out</button>';
       document.getElementById('accSignOutBtn').addEventListener('click', function () {
         clearAuth();
         renderAccountView();
-        renderDashboard();
       });
     } else if (state.guestMode) {
       authGateBuilt = false;
@@ -3718,71 +1761,22 @@
     }
   }
 
-  // Small, low-key staff sign-in entry point embedded in the My Requests /
-  // Account view. Needed because the Manage tab is now hidden until a staff
-  // session exists (see updateManageNavVisibility) — without this, there'd
-  // be no way for staff to ever sign in in the first place. Uses "-acc"
-  // suffixed ids so it never collides with the (now mostly unreachable, but
-  // left in place) dashboard-gate version of the same form.
-  //
-  // The link itself only appears when the page was opened with ?staff in
-  // the URL — an ordinary customer browsing normally will never see any
-  // staff sign-in option anywhere in the app. This is a visibility gate,
-  // not real security: the actual protection is (and always was) the staff
-  // password plus the server checking role on every request, both fully in
-  // place regardless of this. A technically determined person could still
-  // find the login endpoint by inspecting the code, same as with any
-  // client-side app — this just stops it from being something a normal
-  // customer would ever stumble onto.
+  // Small, low-key link to the separate staff dashboard (/staff.html),
+  // embedded in the My Requests / Account view. Only appears when the page
+  // was opened with ?staff in the URL — an ordinary customer browsing
+  // normally will never see any staff sign-in option anywhere in the app.
+  // This is a visibility gate, not real security: the actual protection is
+  // (and always was) the staff password plus the server checking role on
+  // every request, both fully in place regardless of this. staff.html is a
+  // genuinely separate page too — none of its dashboard markup or JS ships
+  // to this page at all, so there's nothing to "find" here even by
+  // inspecting the code.
   function hasStaffAccessParam() {
     try { return new URLSearchParams(window.location.search).has('staff'); } catch (e) { return false; }
   }
   function staffLoginPromptHtml() {
     if (!hasStaffAccessParam()) return '';
-    return '<div class="staff-login-prompt">' +
-      '<button type="button" class="link-btn" id="staffLoginToggle">Staff sign in</button>' +
-      '<div id="staffLoginPanel" style="display:none; margin-top:10px;">' +
-        '<div class="field"><label for="staff-email-acc">Email</label><input id="staff-email-acc" type="email" autocomplete="username" /></div>' +
-        '<div class="field"><label for="staff-password-acc">Password</label><input id="staff-password-acc" type="password" autocomplete="current-password" /></div>' +
-        '<div class="auth-error" id="staffLoginError-acc"></div>' +
-        '<button type="button" class="btn-primary" id="staffLoginBtn-acc">Sign in</button>' +
-      '</div>' +
-    '</div>';
-  }
-  function wireStaffLoginPrompt() {
-    var toggle = document.getElementById('staffLoginToggle');
-    if (!toggle) return;
-    toggle.addEventListener('click', function () {
-      var panel = document.getElementById('staffLoginPanel');
-      panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
-    });
-    document.getElementById('staffLoginBtn-acc').addEventListener('click', function () {
-      var btn = this;
-      var email = document.getElementById('staff-email-acc').value.trim();
-      var password = document.getElementById('staff-password-acc').value;
-      var errEl = document.getElementById('staffLoginError-acc');
-      errEl.textContent = '';
-      if (!email || !password) { errEl.textContent = 'Enter an email and password.'; return; }
-      btn.disabled = true; btn.textContent = 'Signing in…';
-      apiLogin(email, password)
-        .then(function (result) {
-          if (result.user.role !== 'staff') {
-            throw new Error("That's a buyer account — sign in from the form above instead.");
-          }
-          setAuth(result.token, result.user);
-          showToast('Signed in as staff');
-          return refreshRequests();
-        })
-        .then(function () {
-          showView('view-dashboard'); // Manage is visible now — jump straight in
-        })
-        .catch(function (err) {
-          errEl.textContent = err.message || 'Could not sign in.';
-        })
-        .finally(function () {
-          btn.disabled = false; btn.textContent = 'Sign in';
-        });
-    });
+    return '<div class="staff-login-prompt"><a class="link-btn" href="/staff.html">Staff sign in →</a></div>';
   }
 
   function renderAuthGate() {
@@ -3796,8 +1790,6 @@
       '<div id="authFormMount"></div>' +
       '<div class="guest-link-row"><button type="button" id="continueGuestBtn">Continue as guest instead</button></div>' +
       staffLoginPromptHtml();
-
-    wireStaffLoginPrompt();
 
     accountContentEl.querySelectorAll('.auth-tab').forEach(function (tab) {
       tab.addEventListener('click', function () {
@@ -3889,7 +1881,6 @@
       clearAuth();
       refreshRequests().then(function () { renderAccountView(); });
     });
-    wireStaffLoginPrompt();
     renderMyRequestsList();
   }
 
@@ -3904,7 +1895,6 @@
       authGateBuilt = false;
       renderAccountView();
     });
-    wireStaffLoginPrompt();
     renderMyRequestsList();
   }
 

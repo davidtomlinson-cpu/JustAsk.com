@@ -1,0 +1,1995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>JustAsk.com &mdash; Staff</title>
+<meta name="robots" content="noindex, nofollow" />
+
+<meta name="theme-color" content="#0B2545" />
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png" />
+<link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+<div class="phone">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-logo" viewBox="0 0 760 220" role="img" aria-label="JustAsk.com - Staff">
+        <rect x="0" y="0" width="760" height="220" fill="#0B2545"/>
+        <g transform="translate(30,50)">
+          <g fill="none" stroke-linecap="round" stroke-width="16">
+            <path d="M 60,20 A 40,40 0 0 1 99.39,66.94" stroke="#FFFFFF"/>
+            <path d="M 94.64,80 A 40,40 0 0 1 34.29,90.64" stroke="#D4AF37"/>
+            <path d="M 25.36,80 A 40,40 0 0 1 46.32,22.41" stroke="#FFFFFF"/>
+          </g>
+        </g>
+        <text x="185" y="145" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="80" letter-spacing="1" fill="#FFFFFF">JustAsk<tspan fill="#D4AF37">.com</tspan></text>
+        <text x="188" y="182" font-family="Arial, Helvetica, sans-serif" font-weight="600" font-size="17" letter-spacing="3.5" fill="#D4AF37">STAFF</text>
+      </svg>
+    </div>
+    <div class="header-actions">
+      <button class="theme-toggle" id="refreshBtn" aria-label="Refresh requests" type="button">
+        <span class="sync-dot" id="syncDot" title="Connected"></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0 1 13.66-5.66M20 12a8 8 0 0 1-13.66 5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M17 3v5h-5M7 21v-5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      </button>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" id="themeIcon"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- MANAGE VIEW (staff / purchasing team) -->
+    <section class="view active" id="view-dashboard">
+      <h2 class="view-title">Manage requests</h2>
+      <p class="view-sub">Everything requested so far. <a href="/">Customer site &rarr;</a></p>
+
+      <div id="dashboardGate"></div>
+
+      <div id="dashboardContent" style="display:none;">
+        <div class="account-banner is-note" id="staffWhoAmI"></div>
+
+        <div class="manage-tabs" id="manageTabs" style="display:none;">
+          <button type="button" class="manage-tab is-active" data-pane="requests">Requests</button>
+          <button type="button" class="manage-tab" data-pane="search">Search for items</button>
+        </div>
+
+        <div class="manage-split">
+          <div class="manage-pane" id="managePaneRequests">
+            <div id="marginTile"></div>
+
+            <div class="stat-grid" id="statGrid"></div>
+
+            <div class="search-row">
+              <input type="text" id="searchInput" placeholder="Search item, recipient, requester..." />
+            </div>
+            <div class="chip-row" id="chipRow"></div>
+            <div class="card-list" id="cardList"></div>
+          </div>
+
+          <div class="manage-pane" id="managePaneSearch" style="display:none;">
+            <div class="item-search-standalone" id="itemSearchStandalone">
+              <h4 class="section-title">Search for sourcing options</h4>
+              <p class="view-sub" style="margin:-4px 0 12px;">Search the web via Claude for a specific item — anything from a local shop to a major retailer.</p>
+              <div class="field"><label for="standaloneSearchRequest">Which request is this for?</label>
+                <select id="standaloneSearchRequest">
+                  <option value="">— Select a request —</option>
+                </select>
+              </div>
+              <div class="field" id="standaloneSearchItemPickerWrap" style="display:none;">
+                <label>Which item in this basket?</label>
+                <div class="pill-group" id="standaloneSearchItemPicker"></div>
+              </div>
+              <div class="field"><label for="standaloneSearchDesc">Item description</label><input type="text" id="standaloneSearchDesc" placeholder="e.g. bouquet of red roses"></div>
+              <div class="field"><label for="standaloneSearchDate">Delivery date</label><input type="date" id="standaloneSearchDate"></div>
+              <div class="field"><label for="standaloneSearchPostcode">Postcode</label><input type="text" id="standaloneSearchPostcode" placeholder="e.g. NW1 6XE"></div>
+              <div class="field"><label for="standaloneSearchLink">Product link <span class="hint">(optional)</span></label><input type="text" id="standaloneSearchLink" placeholder="Paste a link if you have one"></div>
+              <div class="source-search-btn-row">
+                <button type="button" class="btn-add-basket" id="standaloneSearchBtn">Search for options</button>
+                <button type="button" class="btn-secondary" id="standaloneSearchClearBtn">Clear</button>
+              </div>
+              <div class="source-status" id="standaloneSearchStatus"></div>
+              <div class="source-results" id="standaloneSearchResults"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MONTHLY REPORTS (reached from Manage) -->
+    <section class="view" id="view-reports">
+      <button type="button" class="link-btn" id="backToManageBtn">← Back to Manage</button>
+      <h2 class="view-title">Monthly reports</h2>
+      <p class="view-sub">Orders fulfilled and margin earned, by month of completion.</p>
+      <div id="reportsContent"></div>
+    </section>
+  </main>
+
+  <div class="overlay" id="detailOverlay">
+    <div class="sheet" id="detailSheet"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function () {
+  var THEME_KEY = 'elevate_purchase_requests_theme';
+
+  // API_BASE is empty by default, meaning "same origin as this page" —
+  // that's correct when the backend serves this file itself (the normal
+  // setup). Override with ?api=https://your-api-host if you ever host the
+  // frontend and backend separately.
+  // Inside the native app (Capacitor), the web assets are bundled locally
+  // rather than served from justask-com.onrender.com, so relative API calls
+  // would have nowhere to go — point them at the live server instead. On
+  // the normal web, window.Capacitor doesn't exist, so this falls through
+  // to relative URLs exactly as before. The ?api= override still works too
+  // (e.g. for local testing).
+  var API_BASE = new URLSearchParams(location.search).get('api')
+    || ((window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+      ? 'https://justask-com.onrender.com'
+      : '');
+
+  // "Order On Route" and "Order Delivered" are the delivery pipeline a buyer
+  // actually wants to track once they've paid — each one gets its own
+  // timeline entry (see statusHistory / timelineHtml below) so a buyer can
+  // see exactly when their order moved from one stage to the next.
+  // "Cancelled" is a separate exception outcome, not part of the normal flow.
+  var DELIVERY_STATUSES = ['Order On Route', 'Order Delivered'];
+  var STATUSES = [
+    { key: 'Processing',       color: 'var(--status-warning)',  tint: 'var(--status-warning-tint)',  icon: 'clock' },
+    { key: 'Quoted',           color: 'var(--status-quoted)',    tint: 'var(--status-quoted-tint)',   icon: 'tag' },
+    { key: 'Awaiting Payment', color: 'var(--status-serious)',   tint: 'var(--status-serious-tint)',  icon: 'card' },
+    { key: 'Order On Route',   color: 'var(--series-orange)',    tint: 'var(--series-orange-tint)',   icon: 'pin' },
+    { key: 'Order Delivered',  color: 'var(--status-good)',      tint: 'var(--status-good-tint)',     icon: 'check' },
+    { key: 'Cancelled',        color: 'var(--status-critical)',  tint: 'var(--status-critical-tint)', icon: 'x' }
+  ];
+  var BUDGET_TIERS = ['Basic', 'Standard', 'Premium'];
+  var SPEED_TIERS = ['Same Day', 'Next Day', 'Preferred Date'];
+
+  function statusInfo(key) {
+    for (var i = 0; i < STATUSES.length; i++) if (STATUSES[i].key === key) return STATUSES[i];
+    return STATUSES[0];
+  }
+
+  function icon(name, size) {
+    size = size || 12;
+    var paths = {
+      clock: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      bag: '<path d="M6 8h12l-1 12H7L6 8z" stroke="currentColor" stroke-width="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="2"/>',
+      check: '<path d="M4 12.5l5 5L20 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+      x: '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+      tag: '<path d="M11 2H5a2 2 0 0 0-2 2v6l10 10 8-8-10-10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1.6" fill="currentColor"/>',
+      card: '<rect x="2.5" y="5.5" width="19" height="13" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M2.5 9.5h19" stroke="currentColor" stroke-width="2"/><path d="M5.5 14.5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      box: '<path d="M3 8l9-4 9 4-9 4-9-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/><path d="M3 8v8l9 4 9-4V8" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/><path d="M12 12v8" stroke="currentColor" stroke-width="2"/>',
+      truck: '<rect x="1" y="8" width="13" height="8" rx="1" stroke="currentColor" stroke-width="2" fill="none"/><path d="M14 11h4l3 3v2h-7v-5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/><circle cx="6" cy="18" r="1.6" fill="currentColor"/><circle cx="17" cy="18" r="1.6" fill="currentColor"/>',
+      pin: '<path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/><circle cx="12" cy="9.5" r="2.2" stroke="currentColor" stroke-width="2" fill="none"/>'
+    };
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none">' + (paths[name] || '') + '</svg>';
+  }
+
+  // ---------- accounts (staff login) ----------
+  var AUTH_KEY = 'aaa_auth';        // { token, user } for whoever is currently signed in — same key index.html uses, so a staff session carries over between the two pages
+
+  function loadAuth() {
+    try { return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function saveAuth(auth) {
+    if (auth) localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+    else localStorage.removeItem(AUTH_KEY);
+  }
+
+  // ---------- backend API ----------
+  function apiUrl(p) { return API_BASE + p; }
+  function authHeaders() {
+    return state.authToken ? { 'Authorization': 'Bearer ' + state.authToken } : {};
+  }
+
+  async function apiList() {
+    var res = await fetch(apiUrl('/api/requests'), { headers: authHeaders() });
+    if (!res.ok) throw new Error('Could not load requests (' + res.status + ')');
+    return res.json();
+  }
+  async function apiPatch(id, patch) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id)), {
+      method: 'PATCH',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify(patch)
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      throw new Error(err.error || 'Could not save the change (' + res.status + ')');
+    }
+    return res.json();
+  }
+  async function apiSaveItemCosts(id, items, sendQuote) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id) + '/item-costs'), {
+      method: 'PATCH',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ items: items, sendQuote: !!sendQuote })
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      throw new Error(err.error || 'Could not save item costs (' + res.status + ')');
+    }
+    return res.json();
+  }
+  async function apiDelete(id) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id)), { method: 'DELETE', headers: authHeaders() });
+    if (!res.ok && res.status !== 404) throw new Error('Could not delete the request (' + res.status + ')');
+  }
+  // Not reachable from this page (the detail sheet's "Cancel request" button
+  // only renders for a buyer viewer, and staff.html always opens the detail
+  // sheet as viewer:'staff') — kept so the shared detail-sheet code below is
+  // an unmodified copy of index.html's, not one with a call site quietly
+  // removed.
+  async function apiCancel(id) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id) + '/cancel'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders())
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not cancel the request (' + res.status + ')');
+    return data;
+  }
+  async function apiMarkPaid(id) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id) + '/mark-paid'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders())
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not mark this as paid (' + res.status + ')');
+    return data;
+  }
+  async function apiRefund(id, reason) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id) + '/refund'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ reason: reason || undefined })
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not process the refund (' + res.status + ')');
+    return data;
+  }
+  async function apiProposeDate(requestId, itemId, proposedDate, proposedNote) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(requestId) + '/items/' + encodeURIComponent(itemId)), {
+      method: 'PATCH',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ proposedDate: proposedDate, proposedNote: proposedNote })
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not save the proposed date (' + res.status + ')');
+    return data;
+  }
+  async function apiAcceptDate(requestId, itemId) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(requestId) + '/items/' + encodeURIComponent(itemId) + '/accept-date'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders())
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not accept the new date (' + res.status + ')');
+    return data;
+  }
+  async function apiConfig() {
+    var res = await fetch(apiUrl('/api/config'));
+    if (!res.ok) throw new Error('Could not load config');
+    return res.json();
+  }
+  async function apiSourceItem(payload) {
+    var res = await fetch(apiUrl('/api/staff/source-item'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify(payload)
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not search for options (' + res.status + ')');
+    return data;
+  }
+  async function apiPay(id, tier, speedTier) {
+    var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(id) + '/pay'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ tier: tier, speedTier: speedTier || undefined })
+    });
+    var body = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(body.error || 'Could not start payment (' + res.status + ')');
+    return body; // { url }
+  }
+  async function apiLogin(email, password) {
+    var res = await fetch(apiUrl('/api/auth/login'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: password })
+    });
+    var body = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(body.error || 'Could not sign you in');
+    return body; // { token, user }
+  }
+  async function apiLogout(token) {
+    try {
+      await fetch(apiUrl('/api/auth/logout'), { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    } catch (e) { /* sign out locally regardless */ }
+  }
+  async function apiMe(token) {
+    var res = await fetch(apiUrl('/api/auth/me'), { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) throw new Error('Session expired');
+    return res.json(); // { user }
+  }
+  var requests = [];
+  var storedAuth = loadAuth();
+  var state = {
+    filter: 'All', search: '', loading: true, connectionError: null, paymentsEnabled: false, itemSearchEnabled: false, markupRate: 0.2,
+    authToken: storedAuth ? storedAuth.token : null,
+    authUser: storedAuth ? storedAuth.user : null
+  };
+  var POLL_INTERVAL_MS = 8000;
+
+  async function refreshRequests(opts) {
+    var silent = !!(opts && opts.silent);
+    if (!silent) { state.loading = true; renderDashboard(); }
+    try {
+      requests = await apiList();
+      state.connectionError = null;
+      state.loading = false;
+      renderDashboard();
+      updateSyncIndicator(true);
+    } catch (err) {
+      state.loading = false;
+      state.connectionError = err.message || 'Could not reach the server.';
+      renderDashboard();
+      updateSyncIndicator(false);
+    }
+  }
+
+  function updateSyncIndicator(ok) {
+    var dot = document.getElementById('syncDot');
+    if (!dot) return;
+    dot.classList.toggle('is-offline', !ok);
+    dot.title = ok ? 'Connected' : 'Can\'t reach the server';
+  }
+
+  // ---------- theme ----------
+  var themeIconEl = document.getElementById('themeIcon');
+  var ICONS_THEME = {
+    moon: '<path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" fill="currentColor"/>',
+    sun: '<circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></g>'
+  };
+  function applyTheme(mode) {
+    if (mode === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      themeIconEl.innerHTML = ICONS_THEME.sun;
+    } else if (mode === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+      themeIconEl.innerHTML = ICONS_THEME.moon;
+    } else {
+      // No explicit choice made yet — don't force either theme. Leaving
+      // data-theme unset lets the CSS's prefers-color-scheme rule decide,
+      // so a visitor's system dark-mode setting is actually respected
+      // instead of always defaulting to light until they manually toggle.
+      document.documentElement.removeAttribute('data-theme');
+      var systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      themeIconEl.innerHTML = systemPrefersDark ? ICONS_THEME.sun : ICONS_THEME.moon;
+    }
+  }
+  var savedTheme = localStorage.getItem(THEME_KEY);
+  applyTheme(savedTheme === 'dark' ? 'dark' : (savedTheme === 'light' ? 'light' : 'auto'));
+  document.getElementById('themeToggle').addEventListener('click', function () {
+    var currentlyDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+      (!document.documentElement.getAttribute('data-theme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var next = currentlyDark ? 'light' : 'dark';
+    applyTheme(next);
+    localStorage.setItem(THEME_KEY, next);
+  });
+  document.getElementById('refreshBtn').addEventListener('click', function () {
+    refreshRequests();
+  });
+
+  document.querySelectorAll('.manage-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.manage-tab').forEach(function (t) { t.classList.remove('is-active'); });
+      tab.classList.add('is-active');
+      var pane = tab.getAttribute('data-pane');
+      document.getElementById('managePaneRequests').style.display = pane === 'requests' ? 'block' : 'none';
+      document.getElementById('managePaneSearch').style.display = pane === 'search' ? 'block' : 'none';
+    });
+  });
+  document.getElementById('backToManageBtn').addEventListener('click', function () {
+    showView('view-dashboard');
+  });
+
+  // ---------- standalone item sourcing search (Manage dashboard) ----------
+  // Populates the "Which request is this for?" dropdown from whatever's
+  // currently loaded, restricted to requests that can actually still be
+  // quoted (Processing or Quoted) — matches the same window the request
+  // detail view itself allows cost entry in.
+  function renderStandaloneSearchRequestPicker() {
+    var select = document.getElementById('standaloneSearchRequest');
+    if (!select) return;
+    var previousValue = select.value;
+    var quotable = requests.filter(function (r) { return r.status === 'Processing' || r.status === 'Quoted'; });
+    select.innerHTML = '<option value="">— Select a request —</option>' +
+      quotable.map(function (r) {
+        return '<option value="' + escapeHtml(r.id) + '">' + escapeHtml(r.item) + ' — ' + escapeHtml(r.requester) + ' (' + escapeHtml(r.status) + ')</option>';
+      }).join('');
+    if (quotable.some(function (r) { return r.id === previousValue; })) {
+      select.value = previousValue;
+    }
+  }
+
+  function fillStandaloneSearchFromItem(item) {
+    document.getElementById('standaloneSearchDesc').value = item.item || '';
+    document.getElementById('standaloneSearchDate').value = item.neededBy || '';
+    document.getElementById('standaloneSearchPostcode').value = item.postcode || '';
+    document.getElementById('standaloneSearchLink').value = item.link || '';
+  }
+
+  function renderStandaloneItemPicker(req) {
+    var wrap = document.getElementById('standaloneSearchItemPickerWrap');
+    var picker = document.getElementById('standaloneSearchItemPicker');
+    var items = (req && req.items) || [];
+    if (items.length <= 1) {
+      wrap.style.display = 'none';
+      picker.innerHTML = '';
+      return;
+    }
+    wrap.style.display = 'block';
+    picker.innerHTML = items.map(function (it, idx) {
+      return '<button type="button" class="pill-option' + (idx === 0 ? ' is-selected' : '') + '" data-idx="' + idx + '">' + (idx + 1) + '. ' + escapeHtml(it.item) + '</button>';
+    }).join('');
+    picker.querySelectorAll('.pill-option').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        picker.querySelectorAll('.pill-option').forEach(function (b) { b.classList.remove('is-selected'); });
+        btn.classList.add('is-selected');
+        fillStandaloneSearchFromItem(items[parseInt(btn.getAttribute('data-idx'), 10)]);
+      });
+    });
+  }
+
+  document.getElementById('standaloneSearchRequest').addEventListener('change', function () {
+    var reqId = this.value;
+    var req = requests.find(function (r) { return r.id === reqId; });
+    if (!req) {
+      document.getElementById('standaloneSearchItemPickerWrap').style.display = 'none';
+      return;
+    }
+    renderStandaloneItemPicker(req);
+    var firstItem = (req.items && req.items[0]) || req;
+    fillStandaloneSearchFromItem(firstItem);
+  });
+
+  function tierResultTileHtml(tier, opt) {
+    var priceHtml = (opt.price != null && !isNaN(parseFloat(opt.price))) ? '£' + Number(opt.price).toFixed(2) : 'Price unknown';
+    var feasible = opt.deliveryFeasible !== false;
+    var tierColorVar = { Basic: 'var(--gold-text)', Standard: 'var(--jewel-emerald)', Premium: 'var(--jewel-coral)' }[tier] || 'var(--jewel-teal)';
+    return '<div class="tier-result-tile">' +
+      '<div class="tier-result-label" style="color:' + tierColorVar + ';">' + tier + '</div>' +
+      '<div class="source-option-retailer">' + escapeHtml(opt.retailer || 'Unknown retailer') + (opt.isLocal ? ' · local' : '') + '</div>' +
+      '<div class="source-option-name">' + escapeHtml(opt.productName || '') + '</div>' +
+      '<div class="tier-result-price">' + priceHtml + '</div>' +
+      (opt.deliveryNote ? '<div class="source-option-note ' + (feasible ? 'is-feasible' : 'is-tight') + '">' + (feasible ? '✓' : '⚠') + ' ' + escapeHtml(opt.deliveryNote) + '</div>' : '') +
+      (opt.url ? '<a class="source-option-link" href="' + escapeHtml(opt.url) + '" target="_blank" rel="noopener noreferrer">View →</a>' : '') +
+      '<button type="button" class="btn-add-basket tier-result-save-btn" data-tier="' + tier + '">Save ' + tier + ' cost to request</button>' +
+    '</div>';
+  }
+
+  function wireStandaloneResultTiles(tiers) {
+    document.querySelectorAll('.tier-result-save-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var tier = btn.getAttribute('data-tier');
+        var opt = tiers[tier];
+        var price = Number(opt && opt.price);
+        var reqId = document.getElementById('standaloneSearchRequest').value;
+        if (!reqId) {
+          alert('Select which request this is for first, using the dropdown above.');
+          return;
+        }
+        if (isNaN(price) || price <= 0) {
+          alert('This tier has no valid price to save.');
+          return;
+        }
+        var targetReq = requests.find(function (r) { return r.id === reqId; });
+        if (!targetReq) {
+          alert('Could not find that request — try refreshing.');
+          return;
+        }
+
+        var originalLabel = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+
+        // A multi-item basket prices each item separately now — save to
+        // whichever item is currently selected in the picker above, not the
+        // old whole-request total the per-item form no longer reads from.
+        var isMultiItem = targetReq.items && targetReq.items.length > 1;
+        var selectedPill = isMultiItem ? document.querySelector('#standaloneSearchItemPicker .pill-option.is-selected') : null;
+
+        var savePromise;
+        var savedWhat;
+        if (isMultiItem && selectedPill) {
+          var idx = parseInt(selectedPill.getAttribute('data-idx'), 10);
+          var targetItem = targetReq.items[idx];
+          var directCosts = { Basic: 0, Standard: 0, Premium: 0 };
+          if (targetItem.directCosts) {
+            BUDGET_TIERS.forEach(function (t) { if (targetItem.directCosts[t] != null) directCosts[t] = targetItem.directCosts[t]; });
+          }
+          directCosts[tier] = price;
+          savedWhat = targetItem.item;
+          savePromise = apiSaveItemCosts(reqId, [{
+            itemId: targetItem.id,
+            directCosts: directCosts,
+            speedDirectCosts: targetItem.speedDirectCosts || null
+          }], false);
+        } else {
+          var reqDirectCosts = { Basic: 0, Standard: 0, Premium: 0 };
+          if (targetReq.directCosts) {
+            BUDGET_TIERS.forEach(function (t) { if (targetReq.directCosts[t] != null) reqDirectCosts[t] = targetReq.directCosts[t]; });
+          }
+          reqDirectCosts[tier] = price;
+          savedWhat = targetReq.item;
+          savePromise = apiPatch(reqId, { directCosts: reqDirectCosts });
+        }
+
+        savePromise
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            showToast(tier + ' cost of £' + price.toFixed(2) + ' saved to "' + savedWhat + '"');
+            btn.textContent = '✓ Saved';
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = originalLabel;
+            alert(err.message || 'Could not save this cost — try again.');
+          });
+      });
+    });
+  }
+
+  (function () {
+    var btn = document.getElementById('standaloneSearchBtn');
+    if (!btn) return;
+
+    function runStandaloneSearch() {
+      var statusEl = document.getElementById('standaloneSearchStatus');
+      var resultsEl = document.getElementById('standaloneSearchResults');
+      var payload = {
+        itemDescription: document.getElementById('standaloneSearchDesc').value.trim(),
+        link: document.getElementById('standaloneSearchLink').value.trim(),
+        deliveryAddress: document.getElementById('standaloneSearchPostcode').value.trim(),
+        deliveryDate: document.getElementById('standaloneSearchDate').value
+      };
+      if (!payload.itemDescription || !payload.deliveryAddress || !payload.deliveryDate) {
+        statusEl.className = 'source-status is-error';
+        statusEl.textContent = 'Item description, delivery date, and postcode are all needed to search.';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Searching…';
+      resultsEl.innerHTML = '';
+
+      var loadingMessages = [
+        'Searching the web for options…',
+        'Checking local shops and online retailers…',
+        'Comparing prices…',
+        'Checking delivery windows for ' + fmtDate(payload.deliveryDate) + '…'
+      ];
+      var msgIdx = 0;
+      statusEl.className = 'source-status';
+      statusEl.innerHTML = '<div class="source-loading"><div class="source-spinner"></div><span class="source-loading-text">' + loadingMessages[0] + '</span></div>';
+      var loadingInterval = setInterval(function () {
+        msgIdx = (msgIdx + 1) % loadingMessages.length;
+        var textEl = statusEl.querySelector('.source-loading-text');
+        if (textEl) textEl.textContent = loadingMessages[msgIdx];
+      }, 2200);
+
+      apiSourceItem(payload)
+        .then(function (data) {
+          clearInterval(loadingInterval);
+          var tiers = data.tiers || {};
+          var tierNames = ['Basic', 'Standard', 'Premium'].filter(function (t) { return tiers[t]; });
+          statusEl.className = 'source-status';
+          if (!tierNames.length) {
+            statusEl.textContent = 'No options found — try a more specific description.';
+          } else {
+            statusEl.textContent = 'Tap a tile to save that cost to the selected request:';
+            resultsEl.innerHTML = tierNames.map(function (tier) { return tierResultTileHtml(tier, tiers[tier]); }).join('');
+            wireStandaloneResultTiles(tiers);
+          }
+        })
+        .catch(function (err) {
+          clearInterval(loadingInterval);
+          statusEl.className = 'source-status is-error';
+          statusEl.textContent = err.message || 'Could not search for options — try again.';
+        })
+        .finally(function () {
+          btn.disabled = false;
+          btn.textContent = 'Search for options';
+        });
+    }
+
+    btn.addEventListener('click', runStandaloneSearch);
+    ['standaloneSearchDesc', 'standaloneSearchDate', 'standaloneSearchPostcode', 'standaloneSearchLink'].forEach(function (id) {
+      document.getElementById(id).addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); runStandaloneSearch(); }
+      });
+    });
+
+    var clearBtn = document.getElementById('standaloneSearchClearBtn');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        document.getElementById('standaloneSearchDesc').value = '';
+        document.getElementById('standaloneSearchDate').value = '';
+        document.getElementById('standaloneSearchPostcode').value = '';
+        document.getElementById('standaloneSearchLink').value = '';
+        document.getElementById('standaloneSearchStatus').className = 'source-status';
+        document.getElementById('standaloneSearchStatus').textContent = '';
+        document.getElementById('standaloneSearchResults').innerHTML = '';
+      });
+    }
+  })();
+
+  // ---------- nav (just two views here: Manage and Monthly reports) ----------
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(function (v) { v.classList.toggle('active', v.id === id); });
+    if (id === 'view-dashboard') renderDashboard();
+    if (id === 'view-reports') renderReportsView();
+  }
+
+  // ---------- toast ----------
+  var toastEl = document.getElementById('toast');
+  var toastTimer;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2200);
+  }
+
+  // ---------- dashboard ----------
+  var statGrid = document.getElementById('statGrid');
+  var chipRow = document.getElementById('chipRow');
+  var cardList = document.getElementById('cardList');
+  var searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', function () {
+    state.search = searchInput.value.trim().toLowerCase();
+    renderList();
+  });
+
+  function renderStatTiles() {
+    var counts = {};
+    STATUSES.forEach(function (s) { counts[s.key] = 0; });
+    requests.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
+    statGrid.innerHTML = STATUSES.map(function (s) {
+      var active = state.filter === s.key;
+      return '<div class="stat-tile' + (active ? ' is-active' : '') + '" data-status="' + s.key + '">' +
+        '<div class="stat-top"><span class="dot" style="background:' + s.color + '"></span>' + s.key + '</div>' +
+        '<div class="stat-value" style="color:' + s.color + '">' + counts[s.key] + '</div>' +
+        '</div>';
+    }).join('');
+    statGrid.querySelectorAll('.stat-tile').forEach(function (tile) {
+      tile.addEventListener('click', function () {
+        var st = tile.getAttribute('data-status');
+        state.filter = (state.filter === st) ? 'All' : st;
+        renderDashboard();
+      });
+    });
+  }
+
+  function renderChips() {
+    var opts = ['All'].concat(STATUSES.map(function (s) { return s.key; }));
+    chipRow.innerHTML = opts.map(function (o) {
+      return '<button type="button" class="chip' + (state.filter === o ? ' is-active' : '') + '" data-status="' + o + '">' + o + '</button>';
+    }).join('');
+    chipRow.querySelectorAll('.chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        state.filter = chip.getAttribute('data-status');
+        renderDashboard();
+      });
+    });
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function fmtDateTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) +
+      ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Short labels for the horizontal stage tracker below — matches
+  // DELIVERY_STATUSES above.
+  var STAGE_LABELS = {
+    'Order On Route':  'On Route',
+    'Order Delivered': 'Delivered'
+  };
+
+  // A Domino's-tracker-style horizontal progress bar across the delivery
+  // pipeline — lights up every stage up to and including the current one, so
+  // a buyer gets an at-a-glance "where's my order" view before scrolling
+  // down to the full timestamped timeline. Only shown once an order has
+  // actually entered the delivery pipeline (i.e. after payment); nothing to
+  // show yet while it's still Processing/Quoted/Awaiting Payment, and a
+  // Cancelled order doesn't get a "how far did it get" bar either.
+  function stageTrackerHtml(r) {
+    var stageIdx = DELIVERY_STATUSES.indexOf(r.status);
+    if (stageIdx === -1) return '';
+    var fraction = stageIdx / (DELIVERY_STATUSES.length - 1);
+
+    return '<div class="stage-tracker">' +
+      '<div class="stage-track">' +
+        '<div class="stage-track-fill" style="width: calc((100% - 34px) * ' + fraction.toFixed(4) + ')"></div>' +
+        DELIVERY_STATUSES.map(function (key, i) {
+          var s = statusInfo(key);
+          var state = i < stageIdx ? 'is-done' : (i === stageIdx ? 'is-current' : 'is-upcoming');
+          var litStyle = state !== 'is-upcoming' ? ('background:' + s.color + ';border-color:' + s.color + ';color:#fff;') : '';
+          return '<span class="stage-dot ' + state + '" style="' + litStyle + '">' + icon(s.icon, 15) + '</span>';
+        }).join('') +
+      '</div>' +
+      '<div class="stage-labels">' +
+        DELIVERY_STATUSES.map(function (key, i) {
+          return '<span class="' + (i === stageIdx ? 'is-current' : '') + '">' + STAGE_LABELS[key] + '</span>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+  }
+
+  // A visual timeline of every status this order has passed through — this
+  // is what actually lets a buyer see "when" their order moved from one
+  // delivery stage to the next, not just its current stage.
+  function timelineHtml(r) {
+    var hist = (r.statusHistory && r.statusHistory.length) ? r.statusHistory : [{ status: r.status, createdAt: r.updatedAt || r.createdAt }];
+    return '<h4 class="section-title">Order timeline</h4>' +
+      '<div class="timeline">' +
+      hist.map(function (h, idx) {
+        var s = statusInfo(h.status);
+        var isCurrent = idx === hist.length - 1;
+        return '<div class="timeline-item' + (isCurrent ? ' is-current' : '') + '">' +
+          '<span class="timeline-dot" style="background:' + s.color + '"></span>' +
+          '<div class="timeline-body">' +
+            '<div class="timeline-status" style="color:' + (isCurrent ? s.color : 'inherit') + '">' + icon(s.icon, 12) + ' ' + escapeHtml(h.status) + '</div>' +
+            '<div class="timeline-date">' + fmtDateTime(h.createdAt) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+      '</div>';
+  }
+
+  // Shared by the staff card list and the buyer/guest "My requests" list —
+  // same card markup either way, just a different source list and a
+  // different viewer role wired onto the click handler.
+  function buildCardListHtml(list) {
+    return list.map(function (r) {
+      var s = statusInfo(r.status);
+      return '<div class="req-card" data-id="' + r.id + '">' +
+        '<div class="req-card-top">' +
+          '<div class="req-card-item">' + escapeHtml(r.item) + '</div>' +
+          '<span class="badge" style="background:' + s.tint + ';color:' + s.color + '">' + icon(s.icon, 11) + s.key + '</span>' +
+        '</div>' +
+        '<div class="req-card-meta">To <strong>' + escapeHtml(r.recipient) + '</strong></div>' +
+        '<div class="req-card-meta">Requested by ' + escapeHtml(r.requester) + ' · ' + fmtDate(r.createdAt) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // Buyer-facing "My requests" list: a submitted basket is still one request
+  // under the hood (one quote, one status, one payment), but buyers think of
+  // it as the separate items they asked for — so show one card per item
+  // rather than folding a 3-item basket into a single card that only shows
+  // the first item's name.
+  function buildBuyerItemCardsHtml(list) {
+    return list.map(function (r) {
+      var s = statusInfo(r.status);
+      var orderItems = (r.items && r.items.length) ? r.items : [{ item: r.item, recipient: r.recipient }];
+      var multiNote = orderItems.length > 1
+        ? '<div class="req-card-meta req-card-basket-note">Part of a basket with ' + orderItems.length + ' items · quoted &amp; tracked together</div>'
+        : '';
+      return orderItems.map(function (it) {
+        return '<div class="req-card" data-id="' + r.id + '">' +
+          '<div class="req-card-top">' +
+            '<div class="req-card-item">' + escapeHtml(it.item) + '</div>' +
+            '<span class="badge" style="background:' + s.tint + ';color:' + s.color + '">' + icon(s.icon, 11) + s.key + '</span>' +
+          '</div>' +
+          '<div class="req-card-meta">To <strong>' + escapeHtml(it.recipient) + '</strong></div>' +
+          '<div class="req-card-meta">Requested by ' + escapeHtml(r.requester) + ' · ' + fmtDate(r.createdAt) + '</div>' +
+          multiNote +
+        '</div>';
+      }).join('');
+    }).join('');
+  }
+  function wireCardClicks(containerEl, viewer) {
+    containerEl.querySelectorAll('.req-card').forEach(function (card) {
+      card.addEventListener('click', function () { openDetail(card.getAttribute('data-id'), { viewer: viewer }); });
+    });
+  }
+
+  function renderList() {
+    var filtered = requests.filter(function (r) {
+      if (state.filter !== 'All' && r.status !== state.filter) return false;
+      if (state.search) {
+        var hay = (r.item + ' ' + r.recipient + ' ' + r.requester + ' ' + (r.postcode || '') + ' ' + (r.addressLine || '')).toLowerCase();
+        if (hay.indexOf(state.search) === -1) return false;
+      }
+      return true;
+    });
+
+    if (state.loading && !requests.length) {
+      cardList.innerHTML = '<div class="empty-state"><div class="emoji">⏳</div>Loading requests…</div>';
+      return;
+    }
+
+    if (state.connectionError && !requests.length) {
+      cardList.innerHTML = '<div class="empty-state"><div class="emoji">⚠️</div>' +
+        escapeHtml(state.connectionError) +
+        '<div style="margin-top:12px"><button type="button" class="btn-secondary" id="retryLoadBtn" style="width:auto;padding:9px 18px;">Try again</button></div></div>';
+      var retryBtn = document.getElementById('retryLoadBtn');
+      if (retryBtn) retryBtn.addEventListener('click', function () { refreshRequests(); });
+      return;
+    }
+
+    if (!filtered.length) {
+      cardList.innerHTML = '<div class="empty-state"><div class="emoji">🎄</div>' +
+        (requests.length ? 'No requests match that filter.' : 'No requests yet — submit one from the New request tab.') +
+        '</div>';
+      return;
+    }
+
+    cardList.innerHTML = buildCardListHtml(filtered);
+    wireCardClicks(cardList, 'staff');
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // Margin is business-only information — direct cost is never sent to, or
+  // shown on, any customer-facing screen. This tile is the one place the
+  // markup the business earns is surfaced, as a running total rather than
+  // a per-item breakdown.
+  // Shared by the margin tile and the monthly reports view, so the two
+  // never drift out of sync. Includes delivery-speed margin as well as the
+  // budget-tier margin — a request can earn margin on both dimensions since
+  // they're fully separate quotes.
+  function computeOrderMargin(r) {
+    var margin = 0;
+    if (r.quotes && r.directCosts && r.selectedTier) {
+      var q = r.quotes[r.selectedTier], c = r.directCosts[r.selectedTier];
+      if (typeof q === 'number' && typeof c === 'number') margin += (q - c);
+    }
+    if (r.speedQuotes && r.speedDirectCosts && r.selectedSpeedTier) {
+      var sq = r.speedQuotes[r.selectedSpeedTier], sc = r.speedDirectCosts[r.selectedSpeedTier];
+      if (typeof sq === 'number' && typeof sc === 'number') margin += (sq - sc);
+    }
+    return margin;
+  }
+
+  function renderMarginTile() {
+    var tileEl = document.getElementById('marginTile');
+    if (!tileEl) return;
+    var total = 0, count = 0;
+    requests.forEach(function (r) {
+      // Margin is earned the moment payment succeeds, regardless of which
+      // delivery stage the order is currently sitting at — checking
+      // paymentStatus directly (rather than enumerating every post-payment
+      // status) means this keeps working as the delivery pipeline evolves.
+      if (r.paymentStatus === 'paid' && r.quotes && r.directCosts && r.selectedTier) {
+        total += computeOrderMargin(r);
+        count++;
+      }
+    });
+    tileEl.innerHTML =
+      '<div class="margin-tile">' +
+        '<div><div class="mt-label">' + icon('tag', 12) + ' Margin earned</div>' +
+        '<div class="mt-sub">' + (count ? ('Across ' + count + ' completed order' + (count === 1 ? '' : 's')) : 'No completed orders yet') + '</div></div>' +
+        '<div class="mt-value">' + fmtMoney(total) + '</div>' +
+      '</div>' +
+      '<button type="button" class="link-btn" id="viewMonthlyReportsBtn">View monthly reports →</button>';
+    var reportsBtn = document.getElementById('viewMonthlyReportsBtn');
+    if (reportsBtn) reportsBtn.addEventListener('click', function () { showView('view-reports'); });
+  }
+
+  var MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  // Orders fulfilled + margin earned, grouped by the month payment
+  // completed (paidAt) — the same "completed = paid" definition the margin
+  // tile already uses, so the two never disagree with each other.
+  function renderReportsView() {
+    var contentEl = document.getElementById('reportsContent');
+    if (!contentEl) return;
+    if (!state.authUser || state.authUser.role !== 'staff') {
+      showView('view-dashboard');
+      return;
+    }
+
+    var byMonth = {};
+    requests.forEach(function (r) {
+      if (r.paymentStatus !== 'paid' || !r.paidAt) return;
+      var d = new Date(r.paidAt);
+      var key = d.getFullYear() + '-' + d.getMonth();
+      if (!byMonth[key]) byMonth[key] = { year: d.getFullYear(), month: d.getMonth(), count: 0, margin: 0 };
+      byMonth[key].count++;
+      byMonth[key].margin += computeOrderMargin(r);
+    });
+
+    var months = Object.keys(byMonth).map(function (k) { return byMonth[k]; }).sort(function (a, b) {
+      if (a.year !== b.year) return b.year - a.year;
+      return b.month - a.month;
+    });
+
+    if (!months.length) {
+      contentEl.innerHTML = '<div class="empty-state"><div class="emoji">📊</div><p>No completed (paid) orders yet — monthly figures will appear here once some come in.</p></div>';
+      return;
+    }
+
+    var totalCount = months.reduce(function (sum, m) { return sum + m.count; }, 0);
+    var totalMargin = months.reduce(function (sum, m) { return sum + m.margin; }, 0);
+
+    contentEl.innerHTML =
+      '<div class="reports-summary-row">' +
+        '<div class="reports-summary-tile"><div class="mt-label">Orders fulfilled (all time)</div><div class="mt-value">' + totalCount + '</div></div>' +
+        '<div class="reports-summary-tile"><div class="mt-label">Margin earned (all time)</div><div class="mt-value">' + fmtMoney(totalMargin) + '</div></div>' +
+      '</div>' +
+      '<h4 class="section-title" style="margin-top:20px;">By month</h4>' +
+      '<div class="reports-month-list">' +
+      months.map(function (m) {
+        return '<div class="reports-month-row">' +
+          '<div class="reports-month-label">' + MONTH_NAMES[m.month] + ' ' + m.year + '</div>' +
+          '<div class="reports-month-stats">' +
+            '<span>' + m.count + ' order' + (m.count === 1 ? '' : 's') + ' fulfilled</span>' +
+            '<span class="reports-month-margin">' + fmtMoney(m.margin) + '</span>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+      '</div>';
+  }
+
+  // ---------- staff gate (Manage) ----------
+  var dashboardGateEl = document.getElementById('dashboardGate');
+  var dashboardContentEl = document.getElementById('dashboardContent');
+  var staffGateBuilt = false; // guards against the 8s poll wiping out a half-typed password
+
+  function renderDashboard() {
+    var isStaff = !!(state.authUser && state.authUser.role === 'staff');
+    dashboardContentEl.style.display = isStaff ? '' : 'none';
+    dashboardGateEl.style.display = isStaff ? 'none' : '';
+    if (!isStaff) {
+      renderStaffGate();
+      return;
+    }
+    staffGateBuilt = false; // rebuild fresh if they ever sign out
+    var whoAmIEl = document.getElementById('staffWhoAmI');
+    if (whoAmIEl) {
+      whoAmIEl.innerHTML = 'Signed in as staff (' + escapeHtml(state.authUser.email) + '). ' +
+        '<button type="button" class="link-btn" id="staffSignOutBtn" style="margin:0;display:inline;">Sign out</button>';
+      var signOutBtn = document.getElementById('staffSignOutBtn');
+      if (signOutBtn) signOutBtn.addEventListener('click', function () { clearAuth(); refreshRequests(); });
+    }
+    var manageTabsEl = document.getElementById('manageTabs');
+    var manageSplitEl = document.querySelector('.manage-split');
+    var managePaneSearchEl = document.getElementById('managePaneSearch');
+    if (state.itemSearchEnabled) {
+      manageTabsEl.style.display = 'flex';
+      manageSplitEl.classList.add('has-search');
+    } else {
+      manageTabsEl.style.display = 'none';
+      manageSplitEl.classList.remove('has-search');
+      managePaneSearchEl.style.display = 'none';
+      document.getElementById('managePaneRequests').style.display = 'block';
+    }
+    renderStandaloneSearchRequestPicker();
+    renderMarginTile();
+    renderStatTiles();
+    renderChips();
+    renderList();
+  }
+
+  function renderStaffGate() {
+    if (staffGateBuilt) return;
+    staffGateBuilt = true;
+    dashboardGateEl.innerHTML =
+      '<div class="account-banner">Managing requests — quoting, statuses, and the margin tile — needs the purchasing team\'s login.</div>' +
+      '<div class="field"><label for="staff-email">Email</label><input id="staff-email" type="email" autocomplete="username" /></div>' +
+      '<div class="field"><label for="staff-password">Password</label><input id="staff-password" type="password" autocomplete="current-password" /></div>' +
+      '<div class="auth-error" id="staffLoginError"></div>' +
+      '<button type="button" class="btn-primary" id="staffLoginBtn">Sign in</button>';
+
+    document.getElementById('staffLoginBtn').addEventListener('click', function () {
+      var btn = this;
+      var email = document.getElementById('staff-email').value.trim();
+      var password = document.getElementById('staff-password').value;
+      var errEl = document.getElementById('staffLoginError');
+      errEl.textContent = '';
+      if (!email || !password) { errEl.textContent = 'Enter an email and password.'; return; }
+      btn.disabled = true; btn.textContent = 'Signing in…';
+      apiLogin(email, password)
+        .then(function (result) {
+          if (result.user.role !== 'staff') {
+            throw new Error("That's a buyer account — sign in from the My requests tab instead.");
+          }
+          setAuth(result.token, result.user);
+          showToast('Signed in as staff');
+          return refreshRequests();
+        })
+        .catch(function (err) {
+          errEl.textContent = err.message || 'Could not sign in.';
+        })
+        .finally(function () {
+          btn.disabled = false; btn.textContent = 'Sign in';
+        });
+    });
+  }
+
+  // ---------- staff session ----------
+  function setAuth(token, user) {
+    state.authToken = token;
+    state.authUser = user;
+    saveAuth({ token: token, user: user });
+  }
+  function clearAuth() {
+    var token = state.authToken;
+    state.authToken = null;
+    state.authUser = null;
+    saveAuth(null);
+    staffGateBuilt = false;
+    if (token) apiLogout(token);
+  }
+
+  // ---------- detail sheet ----------
+  var overlay = document.getElementById('detailOverlay');
+  var sheet = document.getElementById('detailSheet');
+
+  function fmtMoney(n) {
+    return '£' + Number(n).toFixed(2);
+  }
+
+  // Shown to the buyer for genuine multi-item baskets so they can see what
+  // makes up the total, not just the combined figure — only renders
+  // anything if the basket actually has per-item pricing set (older
+  // requests quoted the whole-basket way just won't have it, and that's
+  // fine, nothing to show).
+  function perItemBreakdownHtml(r, tier, speedTier) {
+    if (!r.items || r.items.length <= 1 || !tier) return '';
+    var hasAnyItemQuotes = r.items.some(function (it) { return it.quotes; });
+    if (!hasAnyItemQuotes) return '';
+    var rows = r.items.map(function (it) {
+      var itemPrice = (it.quotes && it.quotes[tier] != null) ? it.quotes[tier] : 0;
+      var itemSpeedPrice = (speedTier && it.speedQuotes && it.speedQuotes[speedTier] != null) ? it.speedQuotes[speedTier] : 0;
+      return '<div class="item-breakdown-row"><span>' + escapeHtml(it.item) + '</span><span>' + fmtMoney(itemPrice + itemSpeedPrice) + '</span></div>';
+    }).join('');
+    return '<div class="item-breakdown-box"><div class="item-breakdown-title">Price breakdown</div>' + rows + '</div>';
+  }
+
+  // A basket with more than one item gets its own per-item pricing form —
+  // one blended guess for a whole basket of different products was never
+  // accurate. Each item's Basic/Standard/Premium (and optional delivery
+  // speed) is entered separately; the totals shown here are just the sum,
+  // computed live as staff type, matching exactly what the server will
+  // compute when the quote is actually sent.
+  function perItemCostEntryHtml(r) {
+    var items = r.items;
+    var html = '<h4 class="section-title">Cost options — priced per item</h4>' +
+      '<p style="margin:-4px 0 14px;font-size:12px;color:var(--text-secondary);">This basket has ' + items.length + ' items — price each one separately below; the requester\'s total is worked out automatically by adding them up.</p>';
+
+    items.forEach(function (it, idx) {
+      var directCosts = it.directCosts || {};
+      var speedDirectCosts = it.speedDirectCosts || {};
+      html += '<div class="per-item-cost-block">' +
+        '<div class="per-item-cost-label">' + (idx + 1) + '. ' + escapeHtml(it.item) + '</div>' +
+        BUDGET_TIERS.map(function (tier) {
+          var cost = directCosts[tier] != null ? directCosts[tier] : '';
+          return '<div class="quote-row"><label>' + tier + '</label>' +
+            '<div class="quote-input-wrap"><span class="prefix">£</span>' +
+            '<input type="number" min="0" step="0.01" class="per-item-cost-input" data-item-id="' + escapeHtml(it.id) + '" data-tier="' + escapeHtml(tier) + '" value="' + cost + '" placeholder="0.00" /></div></div>';
+        }).join('') +
+        '<div class="per-item-speed-toggle">Delivery speed for this item <span class="hint">(optional — leave all blank to skip)</span></div>' +
+        SPEED_TIERS.map(function (tier) {
+          var cost = speedDirectCosts[tier] != null ? speedDirectCosts[tier] : '';
+          return '<div class="quote-row"><label>' + tier + '</label>' +
+            '<div class="quote-input-wrap"><span class="prefix">£</span>' +
+            '<input type="number" min="0" step="0.01" class="per-item-speed-input" data-item-id="' + escapeHtml(it.id) + '" data-speed-tier="' + escapeHtml(tier) + '" value="' + cost + '" placeholder="0.00" /></div></div>';
+        }).join('') +
+      '</div>';
+    });
+
+    html += '<div class="per-item-total-box" id="perItemTotalBox">' +
+      '<div class="per-item-total-title">Basket total</div>' +
+      BUDGET_TIERS.map(function (tier) {
+        return '<div class="quote-summary-row"><span>' + tier + '</span><span id="perItemTotal-' + tier + '">£0.00</span></div>';
+      }).join('') +
+      '</div>' +
+      '<div class="lookup-status is-error" id="perItemCostError"></div>' +
+      '<button type="button" class="btn-quote" id="sendItemQuoteBtn">' + (r.quotes ? 'Save quote' : 'Send quote to requester') + '</button>';
+
+    return html;
+  }
+
+  function quoteSectionHtml(r, opts) {
+    var editMode = !!(opts && opts.editQuote);
+    var reconsider = !!(opts && opts.reconsider);
+    var isStaff = !opts || opts.viewer !== 'buyer';
+
+    // Company hasn't quoted yet (or is Processing) -> always show the entry
+    // form (staff only — a buyer viewing their own Processing request
+    // instead sees a "waiting for a quote" message below).
+    // Quoted (or Awaiting Payment + reconsidering) -> choose-an-option tiles, which pay via Stripe.
+    // Awaiting Payment, not reconsidering -> "complete payment" panel for the chosen tier.
+    // Past that (any delivery stage, or Cancelled) with quotes -> read-only summary incl. payment status.
+    var showEntryForm = isStaff && ((r.status === 'Processing') || (r.status === 'Quoted' && editMode));
+    var showChooser = (r.status === 'Quoted' && !editMode) || (r.status === 'Awaiting Payment' && reconsider);
+    var showAwaitingPayment = (r.status === 'Awaiting Payment') && !reconsider;
+    var showSummary = DELIVERY_STATUSES.concat(['Cancelled']).indexOf(r.status) !== -1 && r.quotes;
+
+    if (!isStaff && r.status === 'Processing') {
+      return '<div class="account-banner">Waiting for the purchasing team to quote this request — check back soon.</div>';
+    }
+
+    if (showEntryForm) {
+      if (r.items && r.items.length > 1) {
+        return perItemCostEntryHtml(r);
+      }
+      return '<h4 class="section-title">Cost options</h4>' +
+        '<p style="margin:-4px 0 10px;font-size:12px;color:var(--text-secondary);">Enter the direct cost for each tier. Pricing for the requester is worked out automatically and never shows this figure.</p>' +
+        BUDGET_TIERS.map(function (tier) {
+          var cost = (r.directCosts && r.directCosts[tier] != null) ? r.directCosts[tier] : '';
+          return '<div class="quote-row"><label>' + tier + '</label>' +
+            '<div class="quote-input-wrap"><span class="prefix">£</span>' +
+            '<input type="number" min="0" step="0.01" class="cost-input" data-tier="' + escapeHtml(tier) + '" value="' + cost + '" placeholder="0.00" /></div></div>';
+        }).join('') +
+        '<h4 class="section-title" style="margin-top:20px;">Delivery speed cost options</h4>' +
+        '<p style="margin:-4px 0 10px;font-size:12px;color:var(--text-secondary);">Separate from the tiers above — leave at 0 for any speed that costs nothing extra. Fill these in to let the requester choose a delivery speed too; leave them all blank to skip speed pricing entirely.</p>' +
+        SPEED_TIERS.map(function (tier) {
+          var cost = (r.speedDirectCosts && r.speedDirectCosts[tier] != null) ? r.speedDirectCosts[tier] : '';
+          return '<div class="quote-row"><label>' + tier + '</label>' +
+            '<div class="quote-input-wrap"><span class="prefix">£</span>' +
+            '<input type="number" min="0" step="0.01" class="speed-cost-input" data-speed-tier="' + escapeHtml(tier) + '" value="' + cost + '" placeholder="0.00" /></div></div>';
+        }).join('') +
+        '<button type="button" class="btn-quote" id="sendQuoteBtn">' + (r.quotes ? 'Save quote' : 'Send quote to requester') + '</button>';
+    }
+
+    if (showChooser) {
+      var paymentNote = state.paymentsEnabled
+        ? 'The company has quoted these prices — tap the one you\'d like to go for to pay securely and confirm the order.'
+        : 'The company has quoted these prices — tap the one you\'d like to go for. (Online payment isn\'t switched on yet, so the team will follow up to arrange payment separately.)';
+      var hasSpeedQuotes = r.speedQuotes && Object.keys(r.speedQuotes).length;
+
+      if (!hasSpeedQuotes) {
+        // Simple case, unchanged from before this feature existed: one tap
+        // on a tier pays immediately.
+        return '<h4 class="section-title">Choose an option</h4>' +
+          '<p style="margin:-4px 0 10px;font-size:12px;color:var(--text-secondary);">' + paymentNote + '</p>' +
+          BUDGET_TIERS.map(function (tier) {
+            var price = r.quotes[tier];
+            return '<button type="button" class="choice-tile" data-tier="' + escapeHtml(tier) + '">' +
+              '<span class="ct-name">' + tier + (r.selectedTier === tier ? ' ✓' : '') + '</span>' +
+              '<span class="ct-price">' + fmtMoney(price) + '</span></button>';
+          }).join('') +
+          (isStaff ? '<button type="button" class="link-btn" id="editQuoteBtn">Edit costs</button>' : '');
+      }
+
+      // Delivery speed has been quoted too — this is genuinely two separate
+      // choices, so tapping a tile just selects it; payment only fires once
+      // both a budget tier and a speed option are chosen.
+      return '<h4 class="section-title">Choose an option</h4>' +
+        '<p style="margin:-4px 0 10px;font-size:12px;color:var(--text-secondary);">' + paymentNote + '</p>' +
+        '<div class="choice-grid" id="budgetChoiceGrid">' +
+        BUDGET_TIERS.map(function (tier) {
+          var price = r.quotes[tier];
+          return '<button type="button" class="choice-tile" data-tier="' + escapeHtml(tier) + '">' +
+            '<span class="ct-name">' + tier + '</span>' +
+            '<span class="ct-price">' + fmtMoney(price) + '</span></button>';
+        }).join('') +
+        '</div>' +
+        '<h4 class="section-title" style="margin-top:18px;">Choose a delivery speed</h4>' +
+        '<div class="choice-grid" id="speedChoiceGrid">' +
+        SPEED_TIERS.map(function (tier) {
+          var price = r.speedQuotes[tier];
+          return '<button type="button" class="choice-tile" data-speed-tier="' + escapeHtml(tier) + '">' +
+            '<span class="ct-name">' + tier + '</span>' +
+            '<span class="ct-price">' + fmtMoney(price) + '</span></button>';
+        }).join('') +
+        '</div>' +
+        '<div class="choice-total-row" id="choiceTotalRow" style="display:none;"><span>Total</span><span id="choiceTotalValue"></span></div>' +
+        '<div id="choiceItemBreakdown"></div>' +
+        '<button type="button" class="btn-quote" id="payWithBothBtn" disabled>Choose both an option and a delivery speed</button>' +
+        (isStaff ? '<button type="button" class="link-btn" id="editQuoteBtn">Edit costs</button>' : '');
+    }
+
+    if (showAwaitingPayment) {
+      var cost = r.selectedCost != null ? r.selectedCost : (r.quotes ? r.quotes[r.selectedTier] : null);
+      var speedCost = r.selectedSpeedCost != null ? r.selectedSpeedCost : 0;
+      var totalCost = cost + speedCost;
+      var speedLine = r.selectedSpeedTier
+        ? '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedSpeedTier) + '</span><span>' + fmtMoney(speedCost) + '</span></div>'
+        : '';
+      var totalLine = r.selectedSpeedTier ? '<div class="quote-summary-row" style="font-weight:700;"><span>Total</span><span>' + fmtMoney(totalCost) + '</span></div>' : '';
+      var itemBreakdown = perItemBreakdownHtml(r, r.selectedTier, r.selectedSpeedTier);
+
+      if (isStaff) {
+        // Staff took payment outside Stripe (bank transfer, card over the
+        // phone, cash, whatever) — or Stripe isn't configured at all — so
+        // give them one action to record it and move the order along,
+        // rather than a generic status button that would silently leave
+        // paymentStatus at 'unpaid' forever.
+        return '<h4 class="section-title">Awaiting payment</h4>' +
+          '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedTier || '') + '</span><span>' + fmtMoney(cost) + '</span></div>' +
+          speedLine + totalLine + itemBreakdown +
+          '<p style="margin:10px 0;font-size:12px;color:var(--text-secondary);">' +
+          (state.paymentsEnabled
+            ? 'The requester is completing payment online. If they\'ve paid another way instead, mark it below to move things along.'
+            : 'Online payment isn\'t switched on, so once you\'ve taken payment another way, mark it here to move the order on to On Route.') +
+          '</p>' +
+          '<button type="button" class="btn-quote" id="markPaidBtn">Mark as paid — move to On Route</button>';
+      }
+
+      if (!state.paymentsEnabled) {
+        return '<h4 class="section-title">Choice recorded</h4>' +
+          '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedTier || '') + '</span><span>' + fmtMoney(cost) + '</span></div>' +
+          speedLine + totalLine + itemBreakdown +
+          '<p style="margin:10px 0;font-size:12px;color:var(--text-secondary);">Online payment isn\'t switched on for this app yet, so the team will follow up separately to arrange payment.</p>' +
+          '<button type="button" class="link-btn" id="reconsiderBtn">Choose a different option instead</button>';
+      }
+
+      return '<h4 class="section-title">Payment</h4>' +
+        '<div class="quote-summary-row is-chosen"><span>✓ ' + escapeHtml(r.selectedTier || '') + '</span><span>' + fmtMoney(cost) + '</span></div>' +
+        speedLine + totalLine + itemBreakdown +
+        '<p style="margin:10px 0;font-size:12px;color:var(--text-secondary);">Waiting for payment to complete. If the payment page was closed before finishing, pick up where it left off below.</p>' +
+        '<button type="button" class="btn-quote" id="completePaymentBtn" data-tier="' + escapeHtml(r.selectedTier || '') + '" data-speed-tier="' + escapeHtml(r.selectedSpeedTier || '') + '">Complete payment (' + fmtMoney(totalCost) + ')</button>' +
+        '<button type="button" class="link-btn" id="reconsiderBtn">Choose a different option instead</button>';
+    }
+
+    if (showSummary) {
+      var paidLine = r.paymentStatus === 'refunded'
+        ? '<div class="quote-summary-row is-refunded"><span>↩ Refunded' + (r.refundedAt ? ' · ' + fmtDate(r.refundedAt) : '') + '</span><span>' + fmtMoney(r.refundAmount || 0) + '</span></div>' +
+          (r.refundReason ? '<div class="refund-reason-note">Reason: ' + escapeHtml(r.refundReason) + '</div>' : '')
+        : (r.paymentStatus === 'paid'
+          ? '<div class="quote-summary-row is-chosen"><span>✓ ' + (r.stripeSessionId ? 'Paid via card' : 'Paid') + (r.paidAt ? ' · ' + fmtDate(r.paidAt) : '') + '</span><span></span></div>'
+          : '<div class="quote-summary-row"><span>Not paid online</span><span></span></div>');
+      var speedSummaryLines = (r.speedQuotes && Object.keys(r.speedQuotes).length)
+        ? '<h4 class="section-title" style="margin-top:16px;">Delivery speed</h4>' +
+          SPEED_TIERS.map(function (tier) {
+            var price = r.speedQuotes[tier];
+            if (price == null) return '';
+            var chosen = r.selectedSpeedTier === tier;
+            return '<div class="quote-summary-row' + (chosen ? ' is-chosen' : '') + '">' +
+              '<span>' + (chosen ? '✓ ' : '') + tier + '</span><span>' + fmtMoney(price) + '</span></div>';
+          }).join('')
+        : '';
+      var totalLine = (r.selectedSpeedTier && r.selectedCost != null)
+        ? '<div class="quote-summary-row" style="font-weight:700;margin-top:6px;"><span>Total</span><span>' + fmtMoney(r.selectedCost + (r.selectedSpeedCost || 0)) + '</span></div>'
+        : '';
+      var refundBtnHtml = (isStaff && r.paymentStatus === 'paid')
+        ? '<button type="button" class="danger-btn" id="refundBtn" style="margin-top:12px;">Issue refund</button>'
+        : '';
+      var itemBreakdown = perItemBreakdownHtml(r, r.selectedTier, r.selectedSpeedTier);
+      return '<h4 class="section-title">Cost options</h4>' +
+        BUDGET_TIERS.map(function (tier) {
+          var price = r.quotes[tier];
+          var chosen = r.selectedTier === tier;
+          return '<div class="quote-summary-row' + (chosen ? ' is-chosen' : '') + '">' +
+            '<span>' + (chosen ? '✓ ' : '') + tier + '</span><span>' + fmtMoney(price) + '</span></div>';
+        }).join('') +
+        speedSummaryLines +
+        totalLine +
+        itemBreakdown +
+        paidLine +
+        refundBtnHtml;
+    }
+
+    return '';
+  }
+
+
+  // Staff-only: for Same Day / Next Day items, lets staff say "can't do that
+  // date" and offer an alternative instead of just leaving the requester
+  // waiting. Preferred Date items aren't covered here since the requester
+  // already picked a specific date themselves.
+  function declineToolHtml(it, idx, status) {
+    if (['Processing', 'Quoted', 'Awaiting Payment'].indexOf(status) === -1) return '';
+    if (it.priority !== 'Same Day' && it.priority !== 'Next Day') return '';
+    if (it.proposedDate) {
+      return '<div class="decline-tool">' +
+        '<div class="decline-pending-note">📅 Suggested <strong>' + escapeHtml(fmtDate(it.proposedDate)) + '</strong> to the requester — awaiting their response' +
+        (it.proposedNote ? '<div class="decline-pending-sub">' + escapeHtml(it.proposedNote) + '</div>' : '') +
+        '</div>' +
+        '<button type="button" class="link-btn decline-withdraw-btn" data-idx="' + idx + '" data-item-id="' + escapeHtml(it.id) + '">Withdraw offer</button>' +
+      '</div>';
+    }
+    return '<div class="decline-tool">' +
+      '<button type="button" class="decline-toggle-btn" data-idx="' + idx + '">Can\'t fulfil this date?</button>' +
+      '<div class="decline-panel" id="declinePanel-' + idx + '" style="display:none;">' +
+        '<div class="field"><label>Offer a different date</label><input type="date" class="decline-date" data-idx="' + idx + '"></div>' +
+        '<div class="field"><label>Note <span class="hint">(optional)</span></label><input type="text" class="decline-note" data-idx="' + idx + '" placeholder="e.g. florist fully booked today"></div>' +
+        '<div class="decline-error" id="declineError-' + idx + '"></div>' +
+        '<button type="button" class="btn-add-basket decline-send-btn" data-idx="' + idx + '" data-item-id="' + escapeHtml(it.id) + '">Send new date to requester</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  // Buyer/guest-facing: shows up on their own request detail when staff have
+  // proposed an alternative date, with a one-tap way to accept it.
+  function proposedDateBannerHtml(it, status) {
+    if (['Processing', 'Quoted', 'Awaiting Payment'].indexOf(status) === -1) return '';
+    if (!it.proposedDate) return '';
+    return '<div class="proposed-date-banner">' +
+      '<div class="proposed-date-banner-title">📅 New date suggested</div>' +
+      '<div>The team can\'t fulfil the original timing for this item. Suggested date: <strong>' + escapeHtml(fmtDate(it.proposedDate)) + '</strong></div>' +
+      (it.proposedNote ? '<div class="proposed-date-banner-note">' + escapeHtml(it.proposedNote) + '</div>' : '') +
+      '<button type="button" class="btn-primary accept-date-btn" data-item-id="' + escapeHtml(it.id) + '">Accept new date</button>' +
+    '</div>';
+  }
+
+
+
+  // ---------- per-order messages + push notifications ----------
+  function messageThreadHtml(isStaff) {
+    return '<h4 class="section-title" style="margin-top:20px;">Messages</h4>' +
+      '<div class="message-thread" id="messageThread"><div class="message-thread-empty">Loading…</div></div>' +
+      '<div class="message-compose-row">' +
+        '<input type="text" id="messageComposeInput" placeholder="Write a message..." autocomplete="off" />' +
+        '<button type="button" class="chat-send-btn" id="messageSendBtn" aria-label="Send">' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 12l16-8-6 16-2-7-8-1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/></svg>' +
+        '</button>' +
+      '</div>' +
+      (!isStaff && state.pushEnabled
+        ? '<button type="button" class="link-btn" id="enablePushBtn">🔔 Enable notifications for this order</button>'
+        : '');
+  }
+
+  function renderMessageThread(messages, viewer) {
+    var el = document.getElementById('messageThread');
+    if (!el) return;
+    if (!messages.length) {
+      el.innerHTML = '<div class="message-thread-empty">No messages yet — say hello.</div>';
+      return;
+    }
+    el.innerHTML = messages.map(function (m) {
+      var mine = m.sender === viewer;
+      return '<div class="chat-msg ' + (mine ? 'chat-msg-user' : 'chat-msg-bot') + '">' +
+        '<div class="message-sender-label">' + escapeHtml(m.senderName || (m.sender === 'staff' ? 'Team' : 'Customer')) + '</div>' +
+        escapeHtml(m.content) +
+      '</div>';
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function loadAndRenderMessages(requestId, viewer) {
+    var el = document.getElementById('messageThread');
+    try {
+      var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(requestId) + '/messages'), { headers: authHeaders() });
+      var msgs = await res.json();
+      if (!res.ok) throw new Error((msgs && msgs.error) || 'Could not load messages');
+      renderMessageThread(Array.isArray(msgs) ? msgs : [], viewer);
+    } catch (err) {
+      if (el) el.innerHTML = '<div class="message-thread-empty">Could not load messages.</div>';
+    }
+  }
+
+  function wireMessageCompose(requestId, viewer) {
+    var input = document.getElementById('messageComposeInput');
+    var btn = document.getElementById('messageSendBtn');
+    if (!input || !btn) return;
+    function send() {
+      var text = input.value.trim();
+      if (!text) return;
+      input.disabled = true;
+      btn.disabled = true;
+      fetch(apiUrl('/api/requests/' + encodeURIComponent(requestId) + '/messages'), {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ content: text })
+      })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok) throw new Error(data.error || 'Could not send that message.');
+            return data;
+          });
+        })
+        .then(function () {
+          input.value = '';
+          return loadAndRenderMessages(requestId, viewer);
+        })
+        .catch(function (err) { alert(err.message || 'Could not send that message.'); })
+        .finally(function () { input.disabled = false; btn.disabled = false; input.focus(); });
+    }
+    btn.addEventListener('click', send);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); send(); } });
+  }
+
+  // Standard base64url -> Uint8Array conversion the Push API requires for
+  // applicationServerKey — the VAPID public key arrives as base64url text.
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = window.atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  function wireEnablePush(requestId) {
+    var btn = document.getElementById('enablePushBtn');
+    if (!btn) return;
+    btn.addEventListener('click', async function () {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('Push notifications are not supported in this browser.');
+        return;
+      }
+      btn.disabled = true;
+      var originalLabel = btn.textContent;
+      btn.textContent = 'Requesting permission…';
+      try {
+        var permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          btn.disabled = false;
+          btn.textContent = originalLabel;
+          alert("Notifications weren't allowed — you can still track this order in the app.");
+          return;
+        }
+        var reg = await navigator.serviceWorker.ready;
+        var sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(state.vapidPublicKey)
+        });
+        var res = await fetch(apiUrl('/api/requests/' + encodeURIComponent(requestId) + '/push-subscribe'), {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+          body: JSON.stringify(sub.toJSON())
+        });
+        if (!res.ok) throw new Error('Could not save the subscription.');
+        btn.textContent = '🔔 Notifications enabled for this order';
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+        alert(err.message || "Couldn't enable notifications — try again.");
+      }
+    });
+  }
+
+  function openDetail(id, opts) {
+    opts = opts || {};
+    var viewer = opts.viewer || 'staff';
+    var isStaff = viewer === 'staff';
+    var r = requests.find(function (x) { return x.id === id; });
+    if (!r) return;
+    var s = statusInfo(r.status);
+
+    // Ephemeral working state for the sourcing-search "choose a tier" flow —
+    // not persisted anywhere; resets each time the sheet is (re)built, which
+    // is fine since by that point either the choice has already been
+    // reflected in the cost-input values, or the request itself changed.
+    var sourceChoices = {}; // key: idx + ':' + tier -> { optIdx, price }
+
+    var orderItems = (r.items && r.items.length) ? r.items : [{
+      item: r.item, link: r.link, qty: r.qty, budgetTier: r.budgetTier,
+      recipient: r.recipient, postcode: r.postcode, addressLine: r.addressLine,
+      neededBy: r.neededBy, priority: r.priority, notes: r.notes
+    }];
+    var isBasket = orderItems.length > 1;
+
+    var rows = [
+      ['Requested by', r.requester],
+      ['Submitted', fmtDate(r.createdAt)]
+    ];
+
+    var itemsHtml =
+      '<h4 class="section-title">' + (isBasket ? 'Items (' + orderItems.length + ')' : 'Item details') + '</h4>' +
+      orderItems.map(function (it, idx) {
+        var itRows = [
+          ['Recipient', it.recipient],
+          ['Postcode', it.postcode || '—'],
+          ['Address', it.addressLine || '—'],
+          ['Quantity', it.qty],
+          ['Preferred budget', it.budgetTier || '—'],
+          ['Priority', it.priority],
+          ['Needed by', it.neededBy ? fmtDate(it.neededBy) : '—'],
+          ['Product details', it.link || '—'],
+          ['Notes', it.notes || '—']
+        ];
+        return '<div class="basket-detail-item">' +
+          (isBasket ? '<div class="basket-detail-item-name">' + (idx + 1) + '. ' + escapeHtml(it.item) + '</div>' : '') +
+          itRows.map(function (row) {
+            return '<div class="detail-row"><span class="k">' + row[0] + '</span><span class="v">' + escapeHtml(row[1]) + '</span></div>';
+          }).join('') +
+          (isStaff ? declineToolHtml(it, idx, r.status) : proposedDateBannerHtml(it, r.status)) +
+        '</div>';
+      }).join('');
+
+    var statusSectionHtml = isStaff
+      ? '<h4 class="section-title">Status</h4>' +
+        '<div class="status-actions">' +
+          STATUSES.map(function (st) {
+            return '<button type="button" class="status-btn' + (st.key === r.status ? ' is-current' : '') + '" data-status="' + st.key + '">' + icon(st.icon, 12) + ' ' + st.key + '</button>';
+          }).join('') +
+        '</div>'
+      : '';
+
+    var deleteSectionHtml = isStaff
+      ? '<button type="button" class="danger-btn" id="deleteBtn">Delete request</button>'
+      : ((r.paymentStatus !== 'paid' && ['Processing', 'Quoted', 'Awaiting Payment'].indexOf(r.status) !== -1)
+          ? '<button type="button" class="danger-btn" id="cancelBtn">Cancel request</button>'
+          : '');
+
+    sheet.innerHTML =
+      '<div class="sheet-handle"></div>' +
+      '<span class="badge" style="background:' + s.tint + ';color:' + s.color + '">' + icon(s.icon, 12) + s.key + '</span>' +
+      '<h3 style="margin-top:8px">' + escapeHtml(r.item) + '</h3>' +
+      rows.map(function (row) {
+        return '<div class="detail-row"><span class="k">' + row[0] + '</span><span class="v">' + escapeHtml(row[1]) + '</span></div>';
+      }).join('') +
+      stageTrackerHtml(r) +
+      timelineHtml(r) +
+      itemsHtml +
+      quoteSectionHtml(r, opts) +
+      statusSectionHtml +
+      messageThreadHtml(isStaff) +
+      deleteSectionHtml;
+
+    var messageViewer = isStaff ? 'staff' : 'buyer';
+    loadAndRenderMessages(r.id, messageViewer);
+    wireMessageCompose(r.id, messageViewer);
+    wireEnablePush(r.id);
+
+    sheet.querySelectorAll('.decline-toggle-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var panel = document.getElementById('declinePanel-' + btn.getAttribute('data-idx'));
+        if (panel) panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
+      });
+    });
+
+    sheet.querySelectorAll('.decline-send-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = btn.getAttribute('data-idx');
+        var itemId = btn.getAttribute('data-item-id');
+        var dateInput = sheet.querySelector('.decline-date[data-idx="' + idx + '"]');
+        var noteInput = sheet.querySelector('.decline-note[data-idx="' + idx + '"]');
+        var errEl = document.getElementById('declineError-' + idx);
+        var proposedDate = dateInput.value;
+        errEl.textContent = '';
+        if (!proposedDate) {
+          errEl.textContent = 'Choose the date you can actually offer instead.';
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+        apiProposeDate(r.id, itemId, proposedDate, noteInput.value.trim())
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('New date suggested to the requester');
+          })
+          .catch(function (err) {
+            errEl.textContent = err.message || 'Could not send the new date — try again.';
+            btn.disabled = false;
+            btn.textContent = 'Send new date to requester';
+          });
+      });
+    });
+
+    sheet.querySelectorAll('.decline-withdraw-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var itemId = btn.getAttribute('data-item-id');
+        btn.disabled = true;
+        apiProposeDate(r.id, itemId, null, null)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Offer withdrawn');
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            alert(err.message || "Couldn't withdraw the offer — try again.");
+          });
+      });
+    });
+
+    sheet.querySelectorAll('.accept-date-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var itemId = btn.getAttribute('data-item-id');
+        btn.disabled = true;
+        btn.textContent = 'Accepting…';
+        apiAcceptDate(r.id, itemId)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('New date accepted');
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = 'Accept new date';
+            alert(err.message || "Couldn't accept the new date — try again.");
+          });
+      });
+    });
+
+    sheet.querySelectorAll('.status-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var newStatus = btn.getAttribute('data-status');
+        btn.disabled = true;
+        apiPatch(r.id, { status: newStatus })
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Marked as ' + newStatus);
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            alert(err.message || "Couldn't update the status — check your connection and try again.");
+          });
+      });
+    });
+
+    var sendQuoteBtn = sheet.querySelector('#sendQuoteBtn');
+    if (sendQuoteBtn) {
+      sendQuoteBtn.addEventListener('click', function () {
+        var directCosts = {};
+        var ok = true;
+        sheet.querySelectorAll('.cost-input').forEach(function (input) {
+          var v = parseFloat(input.value);
+          if (isNaN(v) || v < 0) ok = false;
+          directCosts[input.getAttribute('data-tier')] = v;
+        });
+        if (!ok) { alert('Enter a valid direct cost for all three options.'); return; }
+
+        // Speed costs are optional as a whole — leave all three blank to
+        // skip delivery-speed pricing entirely (or to clear it if it was
+        // previously set), but a mix of filled and blank isn't allowed since
+        // that would leave the requester an incomplete set of choices.
+        var speedInputs = sheet.querySelectorAll('.speed-cost-input');
+        var filledCount = 0;
+        var speedDirectCosts = {};
+        var speedOk = true;
+        speedInputs.forEach(function (input) {
+          if (input.value.trim() !== '') filledCount++;
+          var v = parseFloat(input.value);
+          if (isNaN(v) || v < 0) speedOk = false;
+          speedDirectCosts[input.getAttribute('data-speed-tier')] = v;
+        });
+        var speedAllBlank = filledCount === 0;
+        if (!speedAllBlank && filledCount < speedInputs.length) {
+          alert('Enter a cost for all three delivery speed options, or leave them all blank to skip speed pricing.');
+          return;
+        }
+        if (!speedAllBlank && !speedOk) {
+          alert('Enter a valid (non-negative) cost for each delivery speed option.');
+          return;
+        }
+
+        var patch = { directCosts: directCosts, speedDirectCosts: speedAllBlank ? null : speedDirectCosts };
+        if (r.status === 'Processing') patch.status = 'Quoted';
+
+        sendQuoteBtn.disabled = true;
+        sendQuoteBtn.textContent = 'Saving…';
+        apiPatch(r.id, patch)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Quote sent — waiting for the requester to choose.');
+          })
+          .catch(function (err) {
+            sendQuoteBtn.disabled = false;
+            sendQuoteBtn.textContent = r.quotes ? 'Save quote' : 'Send quote to requester';
+            alert(err.message || "Couldn't save the quote — check your connection and try again.");
+          });
+      });
+    }
+
+    function recomputePerItemTotals() {
+      var totals = { Basic: 0, Standard: 0, Premium: 0 };
+      sheet.querySelectorAll('.per-item-cost-block').forEach(function (block) {
+        BUDGET_TIERS.forEach(function (tier) {
+          var input = block.querySelector('.per-item-cost-input[data-tier="' + tier + '"]');
+          var v = input ? parseFloat(input.value) : NaN;
+          if (!isNaN(v) && v >= 0) totals[tier] += v;
+        });
+      });
+      BUDGET_TIERS.forEach(function (tier) {
+        var el = document.getElementById('perItemTotal-' + tier);
+        if (el) el.textContent = fmtMoney(totals[tier]);
+      });
+    }
+    if (sheet.querySelector('.per-item-cost-block')) {
+      sheet.querySelectorAll('.per-item-cost-input').forEach(function (input) {
+        input.addEventListener('input', recomputePerItemTotals);
+      });
+      recomputePerItemTotals();
+    }
+
+    var sendItemQuoteBtn = sheet.querySelector('#sendItemQuoteBtn');
+    if (sendItemQuoteBtn) {
+      sendItemQuoteBtn.addEventListener('click', function () {
+        var errorEl = document.getElementById('perItemCostError');
+        errorEl.textContent = '';
+        var itemsPayload = [];
+        var ok = true;
+
+        sheet.querySelectorAll('.per-item-cost-block').forEach(function (block) {
+          var firstCostInput = block.querySelector('.per-item-cost-input');
+          var itemId = firstCostInput.getAttribute('data-item-id');
+          var directCosts = {};
+          BUDGET_TIERS.forEach(function (tier) {
+            var input = block.querySelector('.per-item-cost-input[data-tier="' + tier + '"]');
+            var v = parseFloat(input.value);
+            if (isNaN(v) || v < 0) ok = false;
+            directCosts[tier] = v;
+          });
+
+          var speedInputs = block.querySelectorAll('.per-item-speed-input');
+          var filledCount = 0;
+          var speedDirectCosts = {};
+          var speedOk = true;
+          speedInputs.forEach(function (input) {
+            if (input.value.trim() !== '') filledCount++;
+            var v = parseFloat(input.value);
+            if (isNaN(v) || v < 0) speedOk = false;
+            speedDirectCosts[input.getAttribute('data-speed-tier')] = v;
+          });
+          var speedAllBlank = filledCount === 0;
+          if (!speedAllBlank && (filledCount < speedInputs.length || !speedOk)) {
+            ok = false;
+            errorEl.textContent = 'For each item, either fill in all three delivery speeds (valid, non-negative) or leave them all blank.';
+          }
+
+          itemsPayload.push({
+            itemId: itemId,
+            directCosts: directCosts,
+            speedDirectCosts: speedAllBlank ? null : speedDirectCosts
+          });
+        });
+
+        if (!ok) {
+          if (!errorEl.textContent) errorEl.textContent = 'Enter a valid, non-negative cost for every Basic/Standard/Premium field.';
+          return;
+        }
+
+        var originalLabel = sendItemQuoteBtn.textContent;
+        sendItemQuoteBtn.disabled = true;
+        sendItemQuoteBtn.textContent = 'Saving…';
+        apiSaveItemCosts(r.id, itemsPayload, true)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Quote sent — waiting for the requester to choose.');
+          })
+          .catch(function (err) {
+            sendItemQuoteBtn.disabled = false;
+            sendItemQuoteBtn.textContent = originalLabel;
+            errorEl.textContent = err.message || "Couldn't save the quote — check your connection and try again.";
+          });
+      });
+    }
+
+    var editQuoteBtn = sheet.querySelector('#editQuoteBtn');
+    if (editQuoteBtn) {
+      editQuoteBtn.addEventListener('click', function () {
+        openDetail(r.id, { viewer: viewer, editQuote: true });
+      });
+    }
+
+    var reconsiderBtn = sheet.querySelector('#reconsiderBtn');
+    if (reconsiderBtn) {
+      reconsiderBtn.addEventListener('click', function () {
+        openDetail(r.id, { viewer: viewer, reconsider: true });
+      });
+    }
+
+    var markPaidBtn = sheet.querySelector('#markPaidBtn');
+    if (markPaidBtn) {
+      markPaidBtn.addEventListener('click', function () {
+        markPaidBtn.disabled = true;
+        markPaidBtn.textContent = 'Marking as paid…';
+        apiMarkPaid(r.id)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Marked as paid — moved to Order On Route');
+          })
+          .catch(function (err) {
+            markPaidBtn.disabled = false;
+            markPaidBtn.textContent = 'Mark as paid — move to On Route';
+            alert(err.message || "Couldn't mark this as paid — try again.");
+          });
+      });
+    }
+
+    var refundBtn = sheet.querySelector('#refundBtn');
+    if (refundBtn) {
+      refundBtn.addEventListener('click', function () {
+        var total = (r.selectedCost || 0) + (r.selectedSpeedCost || 0);
+        if (!confirm('Refund ' + fmtMoney(total) + ' for this order? This cannot be undone.')) return;
+        var reason = prompt('Optional: add a reason for this refund (visible to staff only).') || '';
+        refundBtn.disabled = true;
+        refundBtn.textContent = 'Processing refund…';
+        apiRefund(r.id, reason)
+          .then(function (result) {
+            return refreshRequests().then(function () { return result; });
+          })
+          .then(function (result) {
+            openDetail(r.id, { viewer: viewer });
+            showToast(result.stripeRefunded ? 'Refunded via Stripe' : 'Refund recorded — refund the customer via however they originally paid');
+          })
+          .catch(function (err) {
+            refundBtn.disabled = false;
+            refundBtn.textContent = 'Issue refund';
+            alert(err.message || "Couldn't process the refund — try again.");
+          });
+      });
+    }
+
+    var completePaymentBtn = sheet.querySelector('#completePaymentBtn');
+    if (completePaymentBtn) {
+      completePaymentBtn.addEventListener('click', function () {
+        startPayment(completePaymentBtn.getAttribute('data-tier'), completePaymentBtn.getAttribute('data-speed-tier') || null, completePaymentBtn);
+      });
+    }
+
+    function startPayment(tier, speedTier, triggerBtn) {
+      if (triggerBtn) { triggerBtn.disabled = true; }
+      var previousLabel = triggerBtn ? triggerBtn.textContent : '';
+      if (triggerBtn) triggerBtn.textContent = state.paymentsEnabled ? 'Redirecting to secure payment…' : 'Confirming…';
+      apiPay(r.id, tier, speedTier)
+        .then(function (result) {
+          if (result.url) {
+            window.location.href = result.url;
+            return;
+          }
+          // No Stripe configured — the choice is still recorded and the
+          // request has already moved to Awaiting Payment server-side;
+          // just reflect that here instead of redirecting anywhere.
+          return refreshRequests().then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Choice recorded — the team will follow up to arrange payment.');
+          });
+        })
+        .catch(function (err) {
+          if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.textContent = previousLabel; }
+          alert(err.message || "Couldn't record your choice — check your connection and try again.");
+        });
+    }
+
+    // Simple case (no speed quotes on this request): unchanged from before
+    // this feature existed — tapping a tier pays immediately. Tiles inside
+    // the dual-choice grids below are handled separately, since those need
+    // both a budget tier AND a speed tier chosen before paying.
+    sheet.querySelectorAll('.choice-tile').forEach(function (btn) {
+      if (btn.closest('#budgetChoiceGrid') || btn.closest('#speedChoiceGrid')) return;
+      btn.addEventListener('click', function () {
+        startPayment(btn.getAttribute('data-tier'), null, btn);
+      });
+    });
+
+    var budgetChoiceGrid = sheet.querySelector('#budgetChoiceGrid');
+    var speedChoiceGrid = sheet.querySelector('#speedChoiceGrid');
+    if (budgetChoiceGrid && speedChoiceGrid) {
+      var chosenTier = null;
+      var chosenSpeedTier = null;
+      var payWithBothBtn = document.getElementById('payWithBothBtn');
+      var choiceTotalRow = document.getElementById('choiceTotalRow');
+      var choiceTotalValueEl = document.getElementById('choiceTotalValue');
+
+      function updateDualChoiceState() {
+        budgetChoiceGrid.querySelectorAll('.choice-tile').forEach(function (b) {
+          b.classList.toggle('is-selected-tile', b.getAttribute('data-tier') === chosenTier);
+        });
+        speedChoiceGrid.querySelectorAll('.choice-tile').forEach(function (b) {
+          b.classList.toggle('is-selected-tile', b.getAttribute('data-speed-tier') === chosenSpeedTier);
+        });
+        var breakdownEl = document.getElementById('choiceItemBreakdown');
+        if (chosenTier && chosenSpeedTier) {
+          var total = r.quotes[chosenTier] + r.speedQuotes[chosenSpeedTier];
+          choiceTotalRow.style.display = 'flex';
+          choiceTotalValueEl.textContent = fmtMoney(total);
+          payWithBothBtn.disabled = false;
+          payWithBothBtn.textContent = 'Pay now (' + fmtMoney(total) + ')';
+          if (breakdownEl) breakdownEl.innerHTML = perItemBreakdownHtml(r, chosenTier, chosenSpeedTier);
+        } else {
+          choiceTotalRow.style.display = 'none';
+          payWithBothBtn.disabled = true;
+          payWithBothBtn.textContent = 'Choose both an option and a delivery speed';
+          if (breakdownEl) breakdownEl.innerHTML = '';
+        }
+      }
+
+      budgetChoiceGrid.querySelectorAll('.choice-tile').forEach(function (b) {
+        b.addEventListener('click', function () { chosenTier = b.getAttribute('data-tier'); updateDualChoiceState(); });
+      });
+      speedChoiceGrid.querySelectorAll('.choice-tile').forEach(function (b) {
+        b.addEventListener('click', function () { chosenSpeedTier = b.getAttribute('data-speed-tier'); updateDualChoiceState(); });
+      });
+      if (payWithBothBtn) {
+        payWithBothBtn.addEventListener('click', function () {
+          startPayment(chosenTier, chosenSpeedTier, payWithBothBtn);
+        });
+      }
+    }
+
+    var deleteBtn = sheet.querySelector('#deleteBtn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', function () {
+        if (!confirm('Delete this request? This cannot be undone.')) return;
+        apiDelete(r.id)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            closeDetail();
+            showToast('Request deleted');
+          })
+          .catch(function (err) {
+            alert(err.message || "Couldn't delete the request — check your connection and try again.");
+          });
+      });
+    }
+
+    var cancelBtn = sheet.querySelector('#cancelBtn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function () {
+        if (!confirm('Cancel this request? This cannot be undone.')) return;
+        cancelBtn.disabled = true;
+        apiCancel(r.id)
+          .then(function () { return refreshRequests(); })
+          .then(function () {
+            openDetail(r.id, { viewer: viewer });
+            showToast('Request cancelled');
+          })
+          .catch(function (err) {
+            cancelBtn.disabled = false;
+            alert(err.message || "Couldn't cancel the request — check your connection and try again.");
+          });
+      });
+    }
+
+    overlay.classList.add('active');
+  }
+  function closeDetail() { overlay.classList.remove('active'); }
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeDetail(); });
+
+  // ---------- init: load config, restore a staff session, then go ----------
+  async function init() {
+    try {
+      var cfg = await apiConfig();
+      state.paymentsEnabled = !!cfg.paymentsEnabled;
+      state.itemSearchEnabled = !!cfg.itemSearchEnabled;
+      if (typeof cfg.markupRate === 'number') state.markupRate = cfg.markupRate;
+    } catch (err) {
+      state.paymentsEnabled = false;
+      state.itemSearchEnabled = false;
+    }
+    if (state.authToken) {
+      try {
+        var me = await apiMe(state.authToken);
+        state.authUser = me.user;
+        saveAuth({ token: state.authToken, user: me.user });
+      } catch (err) {
+        // Stored session is no longer valid (server restarted, logged out
+        // elsewhere, etc.) — fall back to signed-out rather than get stuck.
+        state.authToken = null;
+        state.authUser = null;
+        saveAuth(null);
+      }
+    }
+    await refreshRequests();
+    setInterval(function () { refreshRequests({ silent: true }); }, POLL_INTERVAL_MS);
+  }
+
+  init();
+})();
+</script>
+
+<script>
+  // Register the service worker so the app is installable and reopens
+  // instantly. Safe to run on every load — the browser handles re-registers.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/service-worker.js').catch(function (err) {
+        console.warn('Service worker registration failed:', err);
+      });
+    });
+  }
+</script>
+</body>
+</html>
