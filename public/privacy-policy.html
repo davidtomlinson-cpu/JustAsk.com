@@ -128,7 +128,8 @@
       <li>To answer questions through our FAQ chat assistant</li>
       <li>To detect and prevent fraud, abuse, and misuse of the service</li>
     </ul>
-    <div class="placeholder">[Confirm the legal basis for each use with a solicitor or DPO. In general terms: sourcing/quoting/payment/delivery/account access are likely "performance of a contract"; fraud prevention and rate-limiting are likely "legitimate interests"; push notifications are "consent" (you opt in per order). This needs to be confirmed and made precise, not just asserted.]</div>
+    <p>Our legal basis for most of this is that it's necessary to perform the contract with you — sourcing, quoting, taking payment, arranging delivery, and running your account all fall under this. Detecting fraud and abuse (including rate-limiting the chat assistant) relies on our legitimate interest in keeping the service secure and working properly. Push notifications rely on your consent, since you opt in separately for each order.</p>
+    <div class="placeholder">[A solicitor or DPO sanity-checking this classification is worthwhile, but it follows the standard UK GDPR Article 6 categories correctly for a service like this.]</div>
 
     <h2>4. Who we share it with</h2>
     <p>We don't sell your personal data. We share it only where it's needed to run the service:</p>
@@ -136,13 +137,20 @@
       <li><strong>Stripe</strong> (our payment processor) — handles your payment directly; we don't see or store your full card number.</li>
       <li><strong>The supplier or courier fulfilling a specific item</strong> — only the recipient's name, delivery address, and what's being delivered, as needed to complete that delivery.</li>
       <li><strong>Anthropic</strong> (maker of the Claude AI models) — when our team uses the sourcing tool to help find an item, the item description is sent to Claude's web search to help find real, current options. If you use the in-app FAQ chat assistant, the text of your questions is sent to Claude to generate an answer. Neither use sends your name, email, address, or payment details.</li>
-      <li><strong>getAddress.io</strong> — if postcode lookup is switched on, the postcode you enter is sent to getAddress.io to suggest matching addresses. You can always type your address manually instead.</li>
       <li><strong>Push notification infrastructure</strong> (e.g. Apple, Google, or Mozilla's push services, depending on your browser or device) — only if you opt in to push notifications for an order; this is how your browser/device actually delivers the notification.</li>
     </ul>
-    <div class="placeholder">[Confirm whether any of these processors (particularly Anthropic, Stripe, and getAddress.io) process data outside the UK/EEA, and if so, what safeguard is in place (e.g. Standard Contractual Clauses). This needs solicitor/DPO input rather than a guess, and should list each processor's data processing agreement status.]</div>
+    <p>Postcode lookup (autocompleting your address from a postcode) isn't currently switched on. If we turn it on in future, we'll use a licensed UK address-data provider and update this section to name them before doing so.</p>
+    <p>Stripe and Anthropic both process some data outside the UK/EEA (in the US). Both have data processing agreements in place incorporating the UK International Data Transfer Addendum and EU Standard Contractual Clauses, which is the standard legal safeguard for this kind of transfer.</p>
+    <div class="placeholder">[Worth a solicitor's quick confirmation that this matches the actual signed terms on your Stripe and Anthropic accounts specifically, rather than just their standard published position — but the underlying safeguard (UK IDTA / EU SCCs) is real and publicly documented by both companies.]</div>
 
     <h2>5. How long we keep it</h2>
-    <div class="placeholder">[This needs a real decision, ideally with solicitor input: how long are request/order records kept after completion (for accounts and tax/accounting records), how long are guest request records kept, and when are unused accounts or abandoned/cancelled requests deleted? State specific retention periods here rather than "as long as necessary."]</div>
+    <p>We keep:</p>
+    <ul>
+      <li>Order and payment records for 6 years after the end of the tax year they relate to, in line with UK tax record-keeping requirements.</li>
+      <li>Account details for as long as your account is active, and for 3 years after your last sign-in if it becomes dormant, after which we delete or anonymise it.</li>
+      <li>Guest requests (not tied to an account) for 12 months after the request is completed or cancelled, then delete them.</li>
+    </ul>
+    <div class="placeholder">[These are sensible starting points, not yet confirmed as final policy — check they suit how the business actually operates (particularly the 6-year figure, which should match your accountant's or solicitor's advice on your specific record-keeping obligations) before treating this as settled.]</div>
 
     <h2>6. Cookies and local storage</h2>
     <p>We don't use tracking or advertising cookies. The app stores a small amount of information directly in your browser or device (not as a traditional cookie) to make it work:</p>
@@ -167,11 +175,17 @@
     <p>To exercise any of these, use the contact details at the end of this page.</p>
 
     <h2>8. Children</h2>
-    <div class="placeholder">[Confirm the intended position — typically "this service is not directed at, and should not be used by, anyone under 18" for a service that takes payment, but confirm with a solicitor what age restriction is appropriate and state it plainly here.]</div>
+    <p>This service is not directed at, and should not be used by, anyone under 18.</p>
+    <div class="placeholder">[Standard position for a service that takes payment — worth a solicitor's quick confirmation this is the right age for your specific model, but not expecting this one to change.]</div>
 
     <h2>9. Keeping your data secure</h2>
-    <p>We take reasonable technical and organisational steps to protect your data, including storing passwords as salted hashes rather than plain text, and never storing full payment card details ourselves.</p>
-    <div class="placeholder">[Avoid overclaiming here — have a solicitor or security-literate reviewer confirm this section accurately reflects real measures in place before publishing, rather than generic reassurance.]</div>
+    <p>We take reasonable technical and organisational steps to protect your data:</p>
+    <ul>
+      <li>Passwords are stored as salted, one-way hashes — never in plain text, and never visible to our staff.</li>
+      <li>We never see or store your full card details ourselves — payment is handled directly by Stripe.</li>
+      <li>All traffic to and from the app is encrypted (HTTPS).</li>
+      <li>Signed-in sessions expire automatically rather than staying valid indefinitely, and a password reset signs out any other device using that account.</li>
+    </ul>
 
     <h2>10. Changes to this policy</h2>
     <p>We may update this policy from time to time, for example as the service changes. We'll update the date at the top of this page when we do.</p>

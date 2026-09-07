@@ -346,11 +346,12 @@
       ? 'https://justask-com.onrender.com'
       : '');
 
-  // ---- getAddress.io configuration ----
-  // Sign up for a key at https://getaddress.io (they have a free/trial tier),
-  // then paste it below. Until a key is added, "Find address" will tell the
-  // user to enter the address manually instead.
-  var GETADDRESS_API_KEY = ''; // <-- paste your getAddress.io API key here
+  // ---- Ideal Postcodes configuration ----
+  // Sign up for a key at https://ideal-postcodes.co.uk, then paste it below.
+  // Until a key is added, "Find address" will tell the user to enter the
+  // address manually instead. (Previously used getAddress.io, which shut
+  // down in Feb 2026 after losing a High Court case over its address data.)
+  var IDEAL_POSTCODES_API_KEY = ''; // <-- paste your Ideal Postcodes API key here
 
   // "Order On Route" and "Order Delivered" are the delivery pipeline a buyer
   // actually wants to track once they've paid — each one gets its own
@@ -963,14 +964,14 @@
 
     if (!pc) { setLookupStatus('Enter a postcode first.', true); return; }
 
-    if (!GETADDRESS_API_KEY) {
+    if (!IDEAL_POSTCODES_API_KEY) {
       setLookupStatus("Address lookup isn't set up yet — enter the address manually below.", true);
       return;
     }
 
     setLookupStatus('Looking up addresses…', false);
 
-    fetch('https://api.getAddress.io/find/' + encodeURIComponent(pc) + '?api-key=' + encodeURIComponent(GETADDRESS_API_KEY))
+    fetch('https://api.ideal-postcodes.co.uk/v1/postcodes/' + encodeURIComponent(pc) + '?api_key=' + encodeURIComponent(IDEAL_POSTCODES_API_KEY))
       .then(function (res) {
         if (res.status === 401 || res.status === 403) throw new Error('auth');
         if (res.status === 404) throw new Error('notfound');
@@ -978,7 +979,13 @@
         return res.json();
       })
       .then(function (data) {
-        var addrs = (data && data.addresses) || [];
+        var results = (data && data.result) || [];
+        // Ideal Postcodes returns structured address parts rather than one
+        // pre-formatted line, so build a single display string per address
+        // the same way the rest of this form already shows addresses.
+        var addrs = results.map(function (r) {
+          return [r.line_1, r.line_2, r.line_3, r.post_town].filter(function (part) { return !!part; }).join(', ');
+        }).filter(function (line) { return !!line; });
         if (!addrs.length) {
           setLookupStatus('No addresses found for that postcode — enter it manually below.', true);
           return;
