@@ -2020,11 +2020,14 @@
         state.authUser = me.user;
         saveAuth({ token: state.authToken, user: me.user });
       } catch (err) {
-        // Stored session is no longer valid (server restarted, logged out
-        // elsewhere, etc.) — fall back to signed-out rather than get stuck.
+        // Stored session is no longer valid (expired, server restarted,
+        // logged out elsewhere, etc.) — fall back to signed-out rather than
+        // get stuck.
+        var hadToken = !!state.authToken;
         state.authToken = null;
         state.authUser = null;
         saveAuth(null);
+        if (hadToken) showToast("You've been signed out — sign in again to continue.");
       }
     }
     await refreshRequests();
