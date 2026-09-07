@@ -1,8 +1,14 @@
 # JustAsk.com — purchase request app + backend
 
 This is the small backend for the purchase-request app: a plain Node.js
-(Express) API backed by a single SQLite file, plus the app's frontend served
-straight out of the same process. One deploy gives you both.
+(Express) API backed by Postgres, plus the app's frontend served straight
+out of the same process. One deploy gives you both.
+
+(This used to run on a single SQLite file. That's genuinely fine for local
+development, but SQLite-on-local-disk has nowhere durable to live on most
+hosting platforms — including Render's free tier, where the filesystem gets
+recreated on every deploy and every idle-timeout restart, silently wiping
+every request, account and session. Postgres survives both.)
 
 Because everyone now talks to the same server, the requester and the
 purchasing team can be on completely different devices and still see each
@@ -31,29 +37,49 @@ charged. See "Pricing markup" below.
 
 ## Running it locally
 
-You'll need Node.js 18 or later.
+You'll need Node.js 18 or later, and a Postgres database to point at.
+
+**Getting a local Postgres.** Easiest with Docker:
+
+```bash
+docker run -d --name justask-postgres -e POSTGRES_PASSWORD=justask_dev \
+  -e POSTGRES_USER=justask -e POSTGRES_DB=justask_dev -p 5432:5432 postgres:16
+```
+
+Or install Postgres directly (`apt install postgresql` / `brew install postgresql`)
+and create a database + user with `createdb`/`psql` however you normally would.
+Either way, you end up with a connection string that looks like
+`postgresql://justask:justask_dev@localhost:5432/justask_dev`.
+
+**Running the app:**
 
 ```bash
 npm install
-npm start
+DATABASE_URL=postgresql://justask:justask_dev@localhost:5432/justask_dev npm start
 ```
 
 Then open http://localhost:3000 — that's the whole app, form and dashboard
 both, served by the same server that holds the data.
 
-The database file is created automatically at `data/requests.db` the first
-time you run it. Delete that file (server stopped) to start with a clean
-slate.
+All the tables, indexes, and the one-time schema migrations run automatically
+on startup against whatever `DATABASE_URL` points at — there's no separate
+migration step to run by hand. To start with a clean slate, drop and
+recreate the database (or just `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`
+inside it) and restart the server.
+
+`DATABASE_URL` is required — the server refuses to start without it, on
+purpose, rather than silently falling back to something that won't survive a
+restart.
 
 ## Project structure
 
 ```
 aaa-backend/
-  server.js          the API + static file server
+  server.js          the API + static file server (talks to Postgres via DATABASE_URL)
   package.json
-  data/              the SQLite database lives here (created on first run)
   public/
-    index.html       the whole frontend — one file, form + dashboard
+    index.html       the customer-facing frontend — form, wizard, order tracking
+    staff.html        the staff dashboard, separate page, separate login
 ```
 
 ## The API
@@ -102,27 +128,38 @@ built from.
 ## Deploying it somewhere real
 
 Pick whichever fits how your team already works. In every case the two
-things that matter are: **run `npm install && npm start`**, and **give the
-`data/` folder a persistent disk** so the SQLite file survives restarts and
-redeploys.
+things that matter are: **run `npm install && npm start`**, and **set
+`DATABASE_URL` to a real, managed Postgres database** — not a database
+running on the same disk as the app, which brings back the exact
+lose-everything-on-restart problem this setup avoids.
 
 ### Render (probably the easiest)
 
 1. Push this folder to a GitHub repo.
-2. On Render: New → Web Service → connect the repo.
-3. Build command: `npm install`. Start command: `npm start`.
-4. Add a **persistent disk** (Render's dashboard calls this out explicitly)
-   mounted at `/opt/render/project/src/data`, and set an environment
-   variable `DATA_DIR=/opt/render/project/src/data` so the app writes there.
-   Without this, Render's free/standard filesystem resets on every deploy
-   and you'd lose all requests.
+2. On Render: **New → Postgres**, create a database (the free tier works
+   fine to start). Render shows you its connection string — you don't need
+   to copy it by hand if the web service and database are in the same
+   Render account: adding the database as an environment "resource" link to
+   your web service auto-injects `DATABASE_URL`. Otherwise copy the
+   **Internal Database URL** it shows you.
+3. New → Web Service → connect the repo.
+4. Build command: `npm install`. Start command: `npm start`.
+5. Under the web service's Environment tab, set `DATABASE_URL` to the
+   connection string from step 2 (skip this if step 2's linking already set
+   it), and set `PGSSL=require` (Render's managed Postgres needs SSL, and
+   its certificate isn't one Node trusts by default without this).
+
+That's it — no persistent disk to attach, no `DATA_DIR` to configure. The
+database lives independently of the web service, so it survives deploys and
+idle-timeout restarts on the free tier.
 
 ### Railway / Fly.io
 
-Same shape: point it at this repo, `npm start` as the run command, and
-attach a persistent volume mounted somewhere you point `DATA_DIR` at (both
-have a "volumes" feature in their dashboards — search their docs for
-"persistent volume" if the exact steps have moved since this was written).
+Same shape: create a managed Postgres addon/service (both platforms offer
+one directly), point `DATABASE_URL` at it, and set `PGSSL=require` if the
+provider's Postgres requires SSL (check its dashboard — Railway and Fly's
+managed Postgres typically do). Point this repo at the platform as normal
+(`npm start` as the run command) — no volumes or persistent disks needed.
 
 ### Your own server / VPS
 
@@ -130,7 +167,7 @@ have a "volumes" feature in their dashboards — search their docs for
 git clone <your-repo> aaa-backend
 cd aaa-backend
 npm install
-PORT=3000 npm start
+DATABASE_URL=postgresql://user:pass@your-postgres-host:5432/justask PORT=3000 npm start
 ```
 
 Keep it running with `pm2` (`npm i -g pm2 && pm2 start server.js --name aaa`)
@@ -144,8 +181,8 @@ details (names, addresses) will be traveling over it.
 | Variable  | Default             | What it does |
 |-----------|---------------------|---------------|
 | `PORT`    | `3000`              | Port the server listens on |
-| `DATA_DIR`| `./data`            | Where the SQLite file lives — point this at your persistent disk/volume |
-| `DB_PATH` | `${DATA_DIR}/requests.db` | Override the exact file path if you need to |
+| `DATABASE_URL` | *(required, no default)* | Postgres connection string. The server refuses to start without it. |
+| `PGSSL`   | *(unset — no SSL)*  | Set to `require` for managed Postgres providers (Render, Railway, Fly.io) that need SSL but use a certificate Node doesn't trust by default. Leave unset for local Postgres. |
 | `STRIPE_SECRET_KEY` | *(unset — payments off)* | Your Stripe secret key. Setting this is what switches online payment on. |
 | `STRIPE_WEBHOOK_SECRET` | *(unset)* | The signing secret Stripe gives you for the webhook endpoint (see below) |
 | `PUBLIC_BASE_URL` | *(worked out from the request)* | Set this to your real public URL (e.g. `https://requests.yourcompany.com`) if the auto-detected one is ever wrong — it's used to build the "come back here after paying" links |
@@ -441,6 +478,13 @@ key to your deployed domain once you have one.
 
 ## Backups
 
-The entire app's data is the one file at `data/requests.db` (plus
-`-wal`/`-shm` sidecar files SQLite uses while running). Stop the server and
-copy that file somewhere safe on whatever schedule makes sense for you.
+All the app's data lives in Postgres now, so back up the database, not the
+app. Render's managed Postgres takes automatic daily backups on paid plans
+(check what your plan/tier includes); Railway and Fly.io's managed Postgres
+offerings have their own backup features too — check their dashboards. For
+anything self-managed, a scheduled `pg_dump` to somewhere safe is the usual
+approach:
+
+```bash
+pg_dump "$DATABASE_URL" > backup-$(date +%Y%m%d).sql
+```
