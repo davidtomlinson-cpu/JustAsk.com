@@ -32,7 +32,7 @@ const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
 const stripeClient = STRIPE_SECRET_KEY ? require('stripe')(STRIPE_SECRET_KEY) : null;
 
 // ---- Email notifications (optional, SMTP-based) ----
-// Entirely optional, same pattern as Stripe/getAddress/Anthropic: if these
+// Entirely optional, same pattern as Stripe/Ideal Postcodes/Anthropic: if these
 // env vars aren't set, email sending just silently no-ops everywhere it's
 // called, so nothing breaks — the app works exactly the same without it.
 const nodemailer = require('nodemailer');
@@ -1286,7 +1286,7 @@ app.get('/api/config', (req, res) => {
 // available places to buy it — anything from a small local shop up to a
 // major retailer — found via Claude with web search. Gated behind
 // ANTHROPIC_API_KEY so it's entirely optional, same pattern as Stripe/
-// getAddress.io: if the key isn't set, the frontend just hides the tool.
+// Ideal Postcodes: if the key isn't set, the frontend just hides the tool.
 
 app.post('/api/staff/source-item', requireAuth('staff'), async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {

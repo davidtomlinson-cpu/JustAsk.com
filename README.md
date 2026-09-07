@@ -152,7 +152,7 @@ details (names, addresses) will be traveling over it.
 | `MARKUP_RATE` | `0.2` (20%) | The margin added automatically on top of the direct cost the purchasing team enters. `0.2` = 20%, `0.15` = 15%, and so on. |
 | `STAFF_EMAIL` | `staff@example.com` | The purchasing team's login email. **Change this before deploying anywhere real** — the default is only there so the app runs out of the box locally. |
 | `STAFF_PASSWORD` | `changeme123` | The purchasing team's login password. **Change this too.** If either `STAFF_EMAIL` or `STAFF_PASSWORD` is left unset, the server logs a warning on startup as a reminder. |
-| `ANTHROPIC_API_KEY` | *(unset — item search off)* | Your Anthropic API key. Setting this switches on the staff "Find sourcing options" tool (see below). Each search costs a small amount of API usage, so treat it like the Stripe/getAddress keys — optional, and billed to your own Anthropic account. |
+| `ANTHROPIC_API_KEY` | *(unset — item search off)* | Your Anthropic API key. Setting this switches on the staff "Find sourcing options" tool (see below). Each search costs a small amount of API usage, so treat it like the Stripe/Ideal Postcodes keys — optional, and billed to your own Anthropic account. |
 
 ## Installing it as an app (PWA)
 
@@ -360,7 +360,7 @@ looks realistic.
 
 This is entirely optional and off by default. Until you set
 `ANTHROPIC_API_KEY`, the tool simply doesn't appear in the staff view — same
-pattern as Stripe and getAddress.io. To turn it on:
+pattern as Stripe and Ideal Postcodes. To turn it on:
 
 1. Get an API key from the [Anthropic Console](https://console.anthropic.com)
 2. Set `ANTHROPIC_API_KEY=sk-ant-...` in your environment (or Render's
@@ -422,17 +422,21 @@ Stripe takes its own processing fee per transaction (currently around 1.5%
 since it does change) — that's between you and Stripe, this app doesn't add
 anything on top.
 
-## The getAddress.io key
+## The Ideal Postcodes key
 
 `public/index.html` still has the same postcode-lookup hook from before —
 open it and look for:
 
 ```js
-var GETADDRESS_API_KEY = ''; // <-- paste your getAddress.io API key here
+var IDEAL_POSTCODES_API_KEY = ''; // <-- paste your Ideal Postcodes API key here
 ```
 
+(This used to point at getAddress.io, which shut down in Feb 2026 after
+losing a High Court case over its address database — Ideal Postcodes was
+the winning party in that case, and is the natural replacement.)
+
 Same caveat as before: this key is visible to anyone who views the page
-source, since it's a plain static file. Ask getAddress.io to restrict the
+source, since it's a plain static file. Ask Ideal Postcodes to restrict the
 key to your deployed domain once you have one.
 
 ## Backups
