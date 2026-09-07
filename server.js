@@ -181,6 +181,15 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     token TEXT PRIMARY KEY,
     userId TEXT NOT NULL,
+    expiresAt TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS password_resets (
+    token TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    expiresAt TEXT NOT NULL,
+    usedAt TEXT,
     createdAt TEXT NOT NULL
   );
 
@@ -296,6 +305,18 @@ db.exec(`
   }
 })();
 
+// Sessions used to never expire. Existing sessions from before this column
+// existed have no expiresAt and would never expire under the new check, so
+// rather than backfill a guessed expiry, just clear them out -- anyone
+// currently signed in simply signs in again once.
+(function migrateSessions() {
+  const existingCols = db.prepare('PRAGMA table_info(sessions)').all().map((c) => c.name);
+  if (!existingCols.includes('expiresAt')) {
+    db.exec('ALTER TABLE sessions ADD COLUMN expiresAt TEXT');
+    db.prepare('DELETE FROM sessions').run();
+  }
+})();
+
 // ---- Password hashing (Node's built-in crypto — no extra dependency) ----
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -323,9 +344,19 @@ function verifyPassword(password, stored) {
   }
 })();
 
-function createSession(userId) {
+// Staff sessions are shorter-lived than buyer ones -- a leaked staff token
+// reaches every customer's data and can issue refunds, so it shouldn't sit
+// valid indefinitely the way a "stay signed in" consumer session reasonably can.
+const STAFF_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const BUYER_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function createSession(userId, role) {
   const token = crypto.randomBytes(32).toString('hex');
-  db.prepare('INSERT INTO sessions (token, userId, createdAt) VALUES (?,?,?)').run(token, userId, new Date().toISOString());
+  const ttl = role === 'staff' ? STAFF_SESSION_TTL_MS : BUYER_SESSION_TTL_MS;
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + ttl).toISOString();
+  db.prepare('INSERT INTO sessions (token, userId, expiresAt, createdAt) VALUES (?,?,?,?)')
+    .run(token, userId, expiresAt, now.toISOString());
   return token;
 }
 
@@ -334,11 +365,16 @@ function userFromReq(req) {
   const match = header.match(/^Bearer (.+)$/);
   if (!match) return null;
   const row = db.prepare(`
-    SELECT users.id, users.name, users.email, users.role
+    SELECT users.id, users.name, users.email, users.role, sessions.expiresAt
     FROM sessions JOIN users ON users.id = sessions.userId
     WHERE sessions.token = ?
   `).get(match[1]);
-  return row || null;
+  if (!row) return null;
+  if (new Date(row.expiresAt) < new Date()) {
+    db.prepare('DELETE FROM sessions WHERE token = ?').run(match[1]);
+    return null;
+  }
+  return { id: row.id, name: row.name, email: row.email, role: row.role };
 }
 
 function requireAuth(role) {
@@ -374,7 +410,7 @@ app.post('/api/auth/signup', (req, res) => {
   const now = new Date().toISOString();
   db.prepare('INSERT INTO users (id, name, email, passwordHash, role, createdAt) VALUES (?,?,?,?,?,?)')
     .run(id, b.name.trim(), email, hashPassword(b.password), 'buyer', now);
-  const token = createSession(id);
+  const token = createSession(id, 'buyer');
   res.status(201).json({ token, user: { id, name: b.name.trim(), email, role: 'buyer' } });
 });
 
@@ -385,8 +421,60 @@ app.post('/api/auth/login', (req, res) => {
   if (!row || !verifyPassword(b.password || '', row.passwordHash)) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
-  const token = createSession(row.id);
+  const token = createSession(row.id, row.role);
   res.json({ token, user: { id: row.id, name: row.name, email: row.email, role: row.role } });
+});
+
+// Time-limited, single-use reset token, emailed to the account's address.
+// Works the same for buyer and staff accounts, since they share one users
+// table. Same response whether or not the email matches an account, so this
+// can't be used to check who has one.
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
+
+app.post('/api/auth/forgot-password', (req, res) => {
+  const email = ((req.body || {}).email || '').toLowerCase().trim();
+  if (!isNonEmptyString(email)) return res.status(400).json({ error: 'Email is required' });
+
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (user) {
+    const now = new Date();
+    // Reuse a still-valid token rather than minting a new one on every
+    // click, so retrying doesn't spam the inbox or invalidate a link the
+    // user already has open.
+    const existing = db.prepare(
+      'SELECT * FROM password_resets WHERE userId = ? AND usedAt IS NULL AND expiresAt > ? ORDER BY createdAt DESC LIMIT 1'
+    ).get(user.id, now.toISOString());
+    const token = existing ? existing.token : crypto.randomBytes(32).toString('hex');
+    if (!existing) {
+      db.prepare('INSERT INTO password_resets (token, userId, expiresAt, createdAt) VALUES (?,?,?,?)')
+        .run(token, user.id, new Date(now.getTime() + PASSWORD_RESET_TTL_MS).toISOString(), now.toISOString());
+    }
+    const resetUrl = baseUrlFromReq(req) + '/?resetToken=' + token;
+    sendStatusEmail(user.email, 'Reset your JustAsk.com password', [
+      'We received a request to reset your password.',
+      'Reset it here: ' + resetUrl,
+      "This link expires in 1 hour. If you didn't request this, you can ignore this email."
+    ]);
+  }
+  res.json({ ok: true });
+});
+
+app.post('/api/auth/reset-password', (req, res) => {
+  const b = req.body || {};
+  const token = b.token;
+  const password = b.password || '';
+  if (!isNonEmptyString(token) || password.length < 6) {
+    return res.status(400).json({ error: 'A reset link and a password of at least 6 characters are required' });
+  }
+  const row = db.prepare('SELECT * FROM password_resets WHERE token = ?').get(token);
+  if (!row || row.usedAt || new Date(row.expiresAt) < new Date()) {
+    return res.status(400).json({ error: 'This reset link is invalid or has expired — request a new one.' });
+  }
+  db.prepare('UPDATE users SET passwordHash = ? WHERE id = ?').run(hashPassword(password), row.userId);
+  db.prepare('UPDATE password_resets SET usedAt = ? WHERE token = ?').run(new Date().toISOString(), token);
+  // A reset should also sign out any session still open with the old password.
+  db.prepare('DELETE FROM sessions WHERE userId = ?').run(row.userId);
+  res.json({ ok: true });
 });
 
 app.post('/api/auth/logout', requireAuth(), (req, res) => {

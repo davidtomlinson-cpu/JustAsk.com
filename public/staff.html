@@ -307,6 +307,15 @@
     if (!res.ok) throw new Error(body.error || 'Could not sign you in');
     return body; // { token, user }
   }
+  async function apiForgotPassword(email) {
+    var res = await fetch(apiUrl('/api/auth/forgot-password'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var body = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(body.error || 'Could not send a reset link');
+    return body;
+  }
   async function apiLogout(token) {
     try {
       await fetch(apiUrl('/api/auth/logout'), { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
@@ -954,6 +963,7 @@
   var dashboardGateEl = document.getElementById('dashboardGate');
   var dashboardContentEl = document.getElementById('dashboardContent');
   var staffGateBuilt = false; // guards against the 8s poll wiping out a half-typed password
+  var staffForgotPasswordMode = false;
 
   function renderDashboard() {
     var isStaff = !!(state.authUser && state.authUser.role === 'staff');
@@ -993,13 +1003,58 @@
   function renderStaffGate() {
     if (staffGateBuilt) return;
     staffGateBuilt = true;
+
+    if (staffForgotPasswordMode) {
+      dashboardGateEl.innerHTML =
+        '<p class="hint" style="margin-bottom:12px;">Enter your account email and we\'ll send a link to reset your password. It opens on the customer site — set your new password there, then come back here to sign in.</p>' +
+        '<div class="field"><label for="staff-fp-email">Email</label><input id="staff-fp-email" type="email" autocomplete="username" /></div>' +
+        '<div class="auth-error" id="staffLoginError"></div>' +
+        '<button type="button" class="btn-primary" id="staffForgotSubmitBtn">Send reset link</button>' +
+        '<div class="guest-link-row"><button type="button" id="staffBackToSignInBtn">Back to sign in</button></div>';
+      document.getElementById('staffBackToSignInBtn').addEventListener('click', function () {
+        staffForgotPasswordMode = false;
+        staffGateBuilt = false;
+        renderStaffGate();
+      });
+      document.getElementById('staffForgotSubmitBtn').addEventListener('click', function () {
+        var btn = this;
+        var email = document.getElementById('staff-fp-email').value.trim();
+        var errEl = document.getElementById('staffLoginError');
+        errEl.textContent = '';
+        if (!email) { errEl.textContent = 'Enter your email.'; return; }
+        btn.disabled = true; btn.textContent = 'Sending…';
+        apiForgotPassword(email)
+          .then(function () {
+            dashboardGateEl.innerHTML =
+              '<p class="hint">If an account exists for that email, we\'ve sent a link to reset the password — it opens on the customer site and expires in an hour.</p>' +
+              '<button type="button" class="btn-secondary" id="staffBackToSignInBtn2">Back to sign in</button>';
+            document.getElementById('staffBackToSignInBtn2').addEventListener('click', function () {
+              staffForgotPasswordMode = false;
+              staffGateBuilt = false;
+              renderStaffGate();
+            });
+          })
+          .catch(function (err) {
+            errEl.textContent = err.message || 'Could not send a reset link.';
+            btn.disabled = false; btn.textContent = 'Send reset link';
+          });
+      });
+      return;
+    }
+
     dashboardGateEl.innerHTML =
       '<div class="account-banner">Managing requests — quoting, statuses, and the margin tile — needs the purchasing team\'s login.</div>' +
       '<div class="field"><label for="staff-email">Email</label><input id="staff-email" type="email" autocomplete="username" /></div>' +
       '<div class="field"><label for="staff-password">Password</label><input id="staff-password" type="password" autocomplete="current-password" /></div>' +
       '<div class="auth-error" id="staffLoginError"></div>' +
-      '<button type="button" class="btn-primary" id="staffLoginBtn">Sign in</button>';
+      '<button type="button" class="btn-primary" id="staffLoginBtn">Sign in</button>' +
+      '<div class="guest-link-row"><button type="button" id="staffForgotPasswordLinkBtn">Forgot password?</button></div>';
 
+    document.getElementById('staffForgotPasswordLinkBtn').addEventListener('click', function () {
+      staffForgotPasswordMode = true;
+      staffGateBuilt = false;
+      renderStaffGate();
+    });
     document.getElementById('staffLoginBtn').addEventListener('click', function () {
       var btn = this;
       var email = document.getElementById('staff-email').value.trim();
@@ -1965,11 +2020,14 @@
         state.authUser = me.user;
         saveAuth({ token: state.authToken, user: me.user });
       } catch (err) {
-        // Stored session is no longer valid (server restarted, logged out
-        // elsewhere, etc.) — fall back to signed-out rather than get stuck.
+        // Stored session is no longer valid (expired, server restarted,
+        // logged out elsewhere, etc.) — fall back to signed-out rather than
+        // get stuck.
+        var hadToken = !!state.authToken;
         state.authToken = null;
         state.authUser = null;
         saveAuth(null);
+        if (hadToken) showToast("You've been signed out — sign in again to continue.");
       }
     }
     await refreshRequests();

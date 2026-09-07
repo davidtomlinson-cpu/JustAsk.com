@@ -292,6 +292,16 @@
     </div>
   </div>
 
+  <div class="overlay" id="resetPasswordOverlay">
+    <div class="sheet" id="resetPasswordSheet">
+      <div class="sheet-handle"></div>
+      <h3>Set a new password</h3>
+      <div class="field"><label for="rp-password">New password <span class="hint">(6+ characters)</span></label><input id="rp-password" type="password" autocomplete="new-password" /></div>
+      <div class="auth-error" id="resetPasswordError"></div>
+      <button class="btn-primary" type="button" id="resetPasswordSubmitBtn" style="margin-top:8px;">Set new password</button>
+    </div>
+  </div>
+
   <button type="button" class="chat-fab" id="chatFab" style="display:none;" aria-label="Chat with us">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v12H7l-3 3V4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/></svg>
   </button>
@@ -546,6 +556,24 @@
     var body = await res.json().catch(function () { return {}; });
     if (!res.ok) throw new Error(body.error || 'Could not sign you in');
     return body; // { token, user }
+  }
+  async function apiForgotPassword(email) {
+    var res = await fetch(apiUrl('/api/auth/forgot-password'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var body = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(body.error || 'Could not send a reset link');
+    return body;
+  }
+  async function apiResetPassword(token, password) {
+    var res = await fetch(apiUrl('/api/auth/reset-password'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token, password: password })
+    });
+    var body = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(body.error || 'Could not reset your password');
+    return body;
   }
   async function apiLogout(token) {
     try {
@@ -1702,6 +1730,7 @@
   // ---------- account (My requests) view: buyer sign in/up, or guest ----------
   var accountContentEl = document.getElementById('accountContent');
   var authGateBuilt = false;
+  var forgotPasswordMode = false;
 
   function setAuth(token, user) {
     state.authToken = token;
@@ -1794,6 +1823,7 @@
     accountContentEl.querySelectorAll('.auth-tab').forEach(function (tab) {
       tab.addEventListener('click', function () {
         state.authTab = tab.getAttribute('data-tab');
+        forgotPasswordMode = false;
         authGateBuilt = false;
         renderAuthGate();
       });
@@ -1826,12 +1856,53 @@
           .catch(function (err) { errEl.textContent = err.message || 'Could not create your account.'; })
           .finally(function () { btn.disabled = false; btn.textContent = 'Create account'; });
       });
+    } else if (forgotPasswordMode) {
+      mount.innerHTML =
+        '<p class="hint" style="margin-bottom:12px;">Enter the email on your account and we\'ll send you a link to reset your password.</p>' +
+        '<div class="field"><label for="fp-email">Email</label><input id="fp-email" type="email" autocomplete="username" /></div>' +
+        '<div class="auth-error" id="authError"></div>' +
+        '<button type="button" class="btn-primary" id="forgotSubmitBtn">Send reset link</button>' +
+        '<div class="guest-link-row"><button type="button" id="backToSignInBtn">Back to sign in</button></div>';
+      document.getElementById('backToSignInBtn').addEventListener('click', function () {
+        forgotPasswordMode = false;
+        authGateBuilt = false;
+        renderAuthGate();
+      });
+      document.getElementById('forgotSubmitBtn').addEventListener('click', function () {
+        var btn = this;
+        var email = document.getElementById('fp-email').value.trim();
+        var errEl = document.getElementById('authError');
+        errEl.textContent = '';
+        if (!email) { errEl.textContent = 'Enter your email.'; return; }
+        btn.disabled = true; btn.textContent = 'Sending…';
+        apiForgotPassword(email)
+          .then(function () {
+            mount.innerHTML =
+              '<p class="hint">If an account exists for that email, we\'ve sent a link to reset the password. It expires in an hour.</p>' +
+              '<button type="button" class="btn-secondary" id="backToSignInBtn2">Back to sign in</button>';
+            document.getElementById('backToSignInBtn2').addEventListener('click', function () {
+              forgotPasswordMode = false;
+              authGateBuilt = false;
+              renderAuthGate();
+            });
+          })
+          .catch(function (err) {
+            errEl.textContent = err.message || 'Could not send a reset link.';
+            btn.disabled = false; btn.textContent = 'Send reset link';
+          });
+      });
     } else {
       mount.innerHTML =
         '<div class="field"><label for="si-email">Email</label><input id="si-email" type="email" autocomplete="username" /></div>' +
         '<div class="field"><label for="si-password">Password</label><input id="si-password" type="password" autocomplete="current-password" /></div>' +
         '<div class="auth-error" id="authError"></div>' +
-        '<button type="button" class="btn-primary" id="authSubmitBtn">Sign in</button>';
+        '<button type="button" class="btn-primary" id="authSubmitBtn">Sign in</button>' +
+        '<div class="guest-link-row"><button type="button" id="forgotPasswordLinkBtn">Forgot password?</button></div>';
+      document.getElementById('forgotPasswordLinkBtn').addEventListener('click', function () {
+        forgotPasswordMode = true;
+        authGateBuilt = false;
+        renderAuthGate();
+      });
       document.getElementById('authSubmitBtn').addEventListener('click', function () {
         var btn = this;
         var email = document.getElementById('si-email').value.trim();
@@ -2853,6 +2924,42 @@
     }
   }
 
+  // If this page was opened from a "reset your password" email link, show
+  // the reset form as an overlay over whatever's underneath, rather than
+  // routing to a whole separate view — there's nothing else useful to show
+  // until this is done anyway.
+  async function handlePasswordResetReturn() {
+    var params = new URLSearchParams(location.search);
+    var token = params.get('resetToken');
+    if (!token) return;
+
+    var overlayEl = document.getElementById('resetPasswordOverlay');
+    var passwordInput = document.getElementById('rp-password');
+    var errEl = document.getElementById('resetPasswordError');
+    var submitBtn = document.getElementById('resetPasswordSubmitBtn');
+
+    overlayEl.classList.add('active');
+    submitBtn.addEventListener('click', function () {
+      var password = passwordInput.value;
+      errEl.textContent = '';
+      if (!password || password.length < 6) { errEl.textContent = 'Enter a password of at least 6 characters.'; return; }
+      submitBtn.disabled = true; submitBtn.textContent = 'Setting password…';
+      apiResetPassword(token, password)
+        .then(function () {
+          overlayEl.classList.remove('active');
+          history.replaceState({}, '', location.pathname);
+          showToast('Password updated — sign in with your new password.');
+          state.authTab = 'signin';
+          forgotPasswordMode = false;
+          authGateBuilt = false;
+          showView('view-account');
+          renderAuthGate();
+        })
+        .catch(function (err) { errEl.textContent = err.message || 'Could not reset your password.'; })
+        .finally(function () { submitBtn.disabled = false; submitBtn.textContent = 'Set new password'; });
+    });
+  }
+
   async function init() {
     try {
       var cfg = await apiConfig();
@@ -2875,11 +2982,14 @@
         state.authUser = me.user;
         saveAuth({ token: state.authToken, user: me.user });
       } catch (err) {
-        // Stored session is no longer valid (server restarted, logged out
-        // elsewhere, etc.) — fall back to signed-out rather than get stuck.
+        // Stored session is no longer valid (expired, server restarted,
+        // logged out elsewhere, etc.) — fall back to signed-out rather than
+        // get stuck.
+        var hadToken = !!state.authToken;
         state.authToken = null;
         state.authUser = null;
         saveAuth(null);
+        if (hadToken) showToast("You've been signed out — sign in again to continue.");
       }
     }
     applyAuthToForm();
@@ -2888,6 +2998,7 @@
     updateNewRequestFlow();
     await refreshRequests();
     await handlePaymentReturn();
+    await handlePasswordResetReturn();
     setInterval(function () { refreshRequests({ silent: true }); }, POLL_INTERVAL_MS);
   }
 
