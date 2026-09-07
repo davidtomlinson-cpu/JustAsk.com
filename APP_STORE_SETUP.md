@@ -52,7 +52,7 @@ Android review is usually quick (hours to a couple of days) and generally accept
 
 - App name, short description, full description
 - Screenshots (a few different phone sizes each — Android Studio/Xcode simulators can produce these)
-- A **privacy policy URL** — both stores require this, no exceptions. This isn't currently built anywhere on justask-com.onrender.com; worth flagging that this needs writing (and, given the QA notes on this project, probably needs to happen alongside the terms/refund-policy page work that's already been flagged as outstanding).
+- A **privacy policy URL** — both stores require this, no exceptions. This now exists at `https://justask-com.onrender.com/privacy-policy.html`, but it's still a working draft with placeholders (company details, contact info, data retention periods) pending real facts and a solicitor's review — worth finishing that before submitting, since both stores will actually check the link resolves and reads like a real policy.
 - A content rating questionnaire (both stores ask a series of questions — straightforward for an app like this)
 
 ## Push notifications — next step, not done yet
