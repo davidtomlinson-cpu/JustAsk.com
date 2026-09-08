@@ -1060,6 +1060,8 @@
     margin: 22px 0 4px;
   }
   .important-dates-section { margin-bottom: 6px; }
+  .account-two-col { display: block; }
+  .account-col-requests, .account-col-dates { min-width: 0; }
   .occ-card {
     background: var(--surface-1);
     border: 1px solid var(--border);
@@ -1537,6 +1539,7 @@
     .how-step { flex: 1; flex-direction: column; align-items: flex-start; gap: 10px; }
 
     .form-layout { display: grid; grid-template-columns: 1fr 320px; gap: 28px; align-items: start; }
+    .account-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
     .basket-sidebar { display: block; position: sticky; top: 0; }
     .basket-section { display: none !important; }
     .basket-sidebar-inner {

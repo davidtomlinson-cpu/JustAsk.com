@@ -2069,9 +2069,13 @@
       '<div class="account-banner">Signed in as <strong>' + escapeHtml(state.authUser.name) + '</strong> (' + escapeHtml(state.authUser.email) + ').</div>' +
       '<button type="button" class="btn-secondary" id="accSignOutBtn" style="margin-bottom:16px;">Sign out</button>' +
       (state.smsEnabled ? smsSettingsSectionHtml() : '') +
-      importantDatesSectionHtml() +
-      '<h3 class="account-section-title">My requests</h3>' +
-      '<div class="card-list" id="myReqCardList"></div>' +
+      '<div class="account-two-col">' +
+        '<div class="account-col-requests">' +
+          '<h3 class="account-section-title">My requests</h3>' +
+          '<div class="card-list" id="myReqCardList"></div>' +
+        '</div>' +
+        '<div class="account-col-dates">' + importantDatesSectionHtml() + '</div>' +
+      '</div>' +
       staffLoginPromptHtml();
     document.getElementById('accSignOutBtn').addEventListener('click', function () {
       clearAuth();
