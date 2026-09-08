@@ -1202,7 +1202,7 @@
       }
     },
     {
-      keywords: ['flower', 'flowers', 'bouquet'],
+      keywords: ['flower', 'flowers'],
       suggestions: ['Red roses', 'Mixed seasonal bouquet', 'Tulips', 'Lilies', 'Sunflowers', 'Orchids', 'Pastel bouquet', 'Dried flower bouquet'],
       refine: {
         'rose': ['Dozen red roses', 'Half-dozen red roses', 'Mixed colour roses', 'White roses', 'Pink roses'],
@@ -1494,6 +1494,29 @@
   ];
   var GENERIC_SUGGESTION_HINT = 'No exact match yet — try adding detail like colour, size, length, or quantity for a better match.';
 
+  function wordMatch(value, kw) {
+    // Whole-word/phrase match, not raw substring - otherwise short keywords
+    // like "ring" or "book" wrongly fire inside unrelated words such as
+    // "keyring" or "notebook".
+    return new RegExp('\\b' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(value);
+  }
+
+  function findRefineKey(cat, value) {
+    if (!cat.refine) return null;
+    return Object.keys(cat.refine).find(function (k) { return wordMatch(value, k); });
+  }
+
+  function renderSuggestionList(list, onPick) {
+    var panel = document.getElementById('itemSuggestions');
+    panel.innerHTML = list.map(function (s) {
+      return '<button type="button" class="item-suggestion-chip">' + escapeHtml(s) + '</button>';
+    }).join('');
+    panel.style.display = 'flex';
+    panel.querySelectorAll('.item-suggestion-chip').forEach(function (chip, i) {
+      chip.addEventListener('click', function () { onPick(list[i]); });
+    });
+  }
+
   function renderItemSuggestions() {
     var input = document.getElementById('f-item');
     var panel = document.getElementById('itemSuggestions');
@@ -1501,7 +1524,7 @@
     if (value.length < 3) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
 
     var match = ITEM_SUGGESTIONS.find(function (cat) {
-      return cat.keywords.some(function (kw) { return value.indexOf(kw) !== -1; });
+      return cat.keywords.some(function (kw) { return wordMatch(value, kw); });
     });
 
     if (!match) {
@@ -1520,22 +1543,33 @@
 
     // If the input already contains one of this category's refine trigger
     // words, show the more specific follow-up set instead of the general one.
-    var list = match.suggestions;
-    if (match.refine) {
-      var refineKey = Object.keys(match.refine).find(function (k) { return value.indexOf(k) !== -1; });
-      if (refineKey) list = match.refine[refineKey];
-    }
+    var refineKey = findRefineKey(match, value);
+    var list = refineKey ? match.refine[refineKey] : match.suggestions;
 
-    panel.innerHTML = list.map(function (s) {
-      return '<button type="button" class="item-suggestion-chip">' + escapeHtml(s) + '</button>';
-    }).join('');
-    panel.style.display = 'flex';
-    panel.querySelectorAll('.item-suggestion-chip').forEach(function (chip, i) {
-      chip.addEventListener('click', function () {
-        input.value = list[i];
-        renderItemSuggestions(); // re-check for a more specific refine set now that the text changed
-        input.focus();
-      });
+    renderSuggestionList(list, function (picked) {
+      input.value = picked;
+      // Stay within the category the user already picked from - re-running
+      // the full matcher here previously misfired (e.g. clicking "Red roses"
+      // found no keyword match and wrongly showed "no exact match", and
+      // clicking "Helium balloon bouquet" jumped into the flowers category).
+      var nextRefineKey = findRefineKey(match, picked.toLowerCase());
+      if (nextRefineKey && match.refine[nextRefineKey] !== list) {
+        renderItemSuggestionsForCategory(match, match.refine[nextRefineKey]);
+      } else {
+        panel.style.display = 'none';
+        panel.innerHTML = '';
+      }
+      input.focus();
+    });
+  }
+
+  function renderItemSuggestionsForCategory(cat, list) {
+    var input = document.getElementById('f-item');
+    renderSuggestionList(list, function (picked) {
+      input.value = picked;
+      document.getElementById('itemSuggestions').style.display = 'none';
+      document.getElementById('itemSuggestions').innerHTML = '';
+      input.focus();
     });
   }
   document.getElementById('f-item').addEventListener('input', renderItemSuggestions);
