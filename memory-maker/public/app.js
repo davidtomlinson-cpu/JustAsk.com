@@ -74,7 +74,14 @@ const ICON_PATHS = {
   pot: '<path d="M4 11h16"/><path d="M5 11v5.5A3.5 3.5 0 0 0 8.5 20h7a3.5 3.5 0 0 0 3.5-3.5V11"/><path d="M9 11V7.5a3 3 0 0 1 6 0V11"/><path d="M2.5 9.5c0-1 1-1.8 2-1.3M21.5 9.5c0-1-1-1.8-2-1.3"/>',
   book: '<path d="M4 5.2A2.2 2.2 0 0 1 6.2 3H19v16.8H6.2A2.2 2.2 0 0 0 4 22V5.2Z"/><path d="M19 19.8H6.2A2.2 2.2 0 0 0 4 22"/>',
   cart: '<circle cx="9.5" cy="20" r="1.4"/><circle cx="17.5" cy="20" r="1.4"/><path d="M3 4h2.2l2.1 11a1.8 1.8 0 0 0 1.8 1.5h7.4a1.8 1.8 0 0 0 1.8-1.5L20 8H6.3"/>',
-  utensils: '<path d="M7 3v6.5a1.8 1.8 0 0 0 1.8 1.8H8a1.8 1.8 0 0 0 1.8-1.8V3"/><path d="M8.4 11.3V21"/><path d="M15.5 3c-1.4 0-2.5 1.7-2.5 3.8 0 1.7.8 3.2 2 3.7V21"/>'
+  utensils: '<path d="M7 3v6.5a1.8 1.8 0 0 0 1.8 1.8H8a1.8 1.8 0 0 0 1.8-1.8V3"/><path d="M8.4 11.3V21"/><path d="M15.5 3c-1.4 0-2.5 1.7-2.5 3.8 0 1.7.8 3.2 2 3.7V21"/>',
+  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  send: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+  refresh: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
+  link: '<path d="M18.5 13.5 21 11a5 5 0 0 0-7-7l-2.5 2.5"/><path d="M5.5 10.5 3 13a5 5 0 0 0 7 7l2.5-2.5"/><line x1="8.5" y1="15.5" x2="15.5" y2="8.5"/>',
+  users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'
 };
 function icon(name, size, cls) {
   size = size || 18;
@@ -134,10 +141,15 @@ async function boot() {
   const path = window.location.pathname;
   const dinnerMatch = path.match(/^\/dinner\/([a-f0-9]+)$/);
   const rateMatch = path.match(/^\/rate\/([a-f0-9]+)$/);
+  const joinMatch = path.match(/^\/join\/(family|group)\/([A-Za-z0-9]+)$/);
   if (dinnerMatch) return bootPublicDinner(dinnerMatch[1]);
   if (rateMatch) return bootPublicRating(rateMatch[1]);
+  if (joinMatch) { state.pendingJoin = { kind: joinMatch[1], code: joinMatch[2] }; window.history.replaceState({}, '', '/'); }
 
-  if (!state.token) return showAuthScreen();
+  if (!state.token) {
+    if (state.pendingJoin) return showJoinPreview();
+    return showAuthScreen();
+  }
 
   try {
     const { user } = await api('/api/auth/me');
@@ -145,12 +157,69 @@ async function boot() {
   } catch (e) {
     localStorage.removeItem('mm_token');
     state.token = null;
+    if (state.pendingJoin) return showJoinPreview();
     return showAuthScreen();
   }
 
   try { state.config = await api('/api/config'); } catch (e) { /* defaults are fine */ }
   await loadFamiliesAndGroups();
+
+  if (state.pendingJoin) {
+    await completePendingJoin();
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('googleConnected')) {
+    toast('Google Calendar connected!');
+    window.history.replaceState({}, '', '/');
+  } else if (params.get('googleError')) {
+    toast(params.get('googleError'));
+    window.history.replaceState({}, '', '/');
+  }
+
   showApp();
+}
+
+// A join link (/join/family/:code or /join/group/:code) landed here — the
+// backend serves the app shell for those paths, we read the code
+// client-side. If the visitor isn't logged in yet, show them who they're
+// joining before asking them to sign up/log in; either way, join happens
+// automatically once we have a session.
+async function showJoinPreview() {
+  document.getElementById('app-root').classList.add('hidden');
+  document.getElementById('public-screen').classList.add('hidden');
+  const screen = document.getElementById('auth-screen');
+  screen.classList.remove('hidden');
+  const { kind, code } = state.pendingJoin;
+  try {
+    const preview = await fetch(`/api/${kind === 'family' ? 'families' : 'groups'}/join-preview/${code}`).then((r) => {
+      if (!r.ok) throw new Error();
+      return r.json();
+    });
+    const banner = document.createElement('div');
+    banner.className = 'card';
+    banner.style.marginBottom = '14px';
+    banner.innerHTML = `<div class="row">
+      ${preview.photoUrl ? `<img src="${esc(preview.photoUrl)}" class="photo-avatar" alt="">` : `<div class="avatar avatar-lg" style="background:${AVATAR_FALLBACK}">${icon(kind === 'family' ? 'users' : 'user', 20)}</div>`}
+      <div><strong>You're invited!</strong><p class="muted">Sign up or log in to join "${esc(preview.name)}" (${preview.memberCount} member${preview.memberCount === 1 ? '' : 's'})</p></div>
+    </div>`;
+    screen.querySelector('.card').before(banner);
+  } catch (e) {
+    toast("That invite link isn't valid");
+    state.pendingJoin = null;
+  }
+}
+
+async function completePendingJoin() {
+  const { kind, code } = state.pendingJoin;
+  state.pendingJoin = null;
+  try {
+    await api(`/api/${kind === 'family' ? 'families' : 'groups'}/join`, { method: 'POST', body: { joinCode: code } });
+    await loadFamiliesAndGroups();
+    toast(`Joined! Welcome to the ${kind}.`);
+  } catch (err) {
+    toast(err.message);
+  }
 }
 
 function showAuthScreen() {
@@ -245,7 +314,10 @@ function bindAuthScreen() {
       localStorage.setItem('mm_token', result.token);
       try { state.config = await api('/api/config'); } catch (e2) { /* fine */ }
       await loadFamiliesAndGroups();
-      if (!state.families.length) {
+      if (state.pendingJoin) {
+        await completePendingJoin();
+        showApp();
+      } else if (!state.families.length) {
         showApp();
         openFamilyManager('Welcome! Create or join a family to get started.');
       } else {
@@ -276,10 +348,14 @@ function openProfileModal() {
       <button class="btn btn-primary btn-block" id="profile-save">Save</button>
       <p class="error-text hidden" id="profile-error"></p>
       <div class="divider"></div>
+      <div class="section-title" style="margin-top:0">Google Calendar</div>
+      <div id="google-calendar-status">${loadingHtml('Checking…')}</div>
+      <div class="divider"></div>
       <button class="btn btn-block" onclick="openFamilyManager()">Manage families &amp; friend groups</button>
       <button class="btn btn-bad btn-block" id="profile-logout">Log out</button>
     </div>
   `);
+  loadGoogleCalendarStatus();
   document.getElementById('profile-save').onclick = async () => {
     try {
       const phone = document.getElementById('profile-phone').value.trim();
@@ -303,78 +379,259 @@ function openProfileModal() {
   };
 }
 
+async function loadGoogleCalendarStatus() {
+  const el = document.getElementById('google-calendar-status');
+  if (!el) return;
+  try {
+    const status = await api('/api/integrations/google/status');
+    if (!status.enabled) {
+      el.innerHTML = `<p class="muted">Not set up on this server yet — an admin needs to add Google API credentials.</p>`;
+      return;
+    }
+    if (status.connected) {
+      el.innerHTML = `
+        <p class="muted">Connected as <strong>${esc(status.calendarEmail || 'your Google account')}</strong>${status.lastSyncedAt ? ` · last synced ${relativeTime(status.lastSyncedAt)} ago` : ''}. Your Google events show up on your calendar for conflict-checking.</p>
+        <div class="hstack">
+          <button class="btn btn-sm" id="google-sync-btn">${icon('refresh', 13)} Sync now</button>
+          <button class="btn btn-sm btn-bad" id="google-disconnect-btn">Disconnect</button>
+        </div>`;
+      document.getElementById('google-sync-btn').onclick = async () => {
+        try { await api('/api/integrations/google/sync', { method: 'POST' }); toast('Synced!'); loadGoogleCalendarStatus(); } catch (err) { toast(err.message); }
+      };
+      document.getElementById('google-disconnect-btn').onclick = async () => {
+        if (!confirm('Disconnect Google Calendar? Imported events will be removed.')) return;
+        try { await api('/api/integrations/google', { method: 'DELETE' }); toast('Disconnected'); loadGoogleCalendarStatus(); refreshCurrentView(); } catch (err) { toast(err.message); }
+      };
+    } else {
+      el.innerHTML = `
+        <p class="muted">Connect your Google Calendar so those events count toward conflict-checking too — read-only, nothing here is ever written back to Google.</p>
+        <button class="btn btn-block" id="google-connect-btn">${icon('link', 14)} Connect Google Calendar</button>`;
+      document.getElementById('google-connect-btn').onclick = () => {
+        window.location.href = '/api/integrations/google/connect?token=' + encodeURIComponent(state.token);
+      };
+    }
+  } catch (err) {
+    el.innerHTML = `<p class="error-text">${esc(err.message)}</p>`;
+  }
+}
+
+function entityApiBase(kind) { return kind === 'family' ? '/api/families' : '/api/groups'; }
+
 function openFamilyManager(introMessage) {
   openModal(`
     <div class="modal-head"><h3>Families &amp; friend groups</h3><button onclick="closeModal()">${icon('x')}</button></div>
     ${introMessage ? `<p class="muted">${esc(introMessage)}</p>` : ''}
     <div class="section-title">Your families</div>
-    <div class="stack" id="fam-list">${state.families.map(famRow).join('') || '<p class="muted">None yet.</p>'}</div>
-    <div class="hstack">
-      <input id="new-fam-name" placeholder="New family name" aria-label="New family name" style="flex:1">
-      <button class="btn btn-primary" id="create-fam-btn">Create</button>
-    </div>
+    <div class="stack" id="fam-list">${state.families.map((f) => entityRow('family', f)).join('') || '<p class="muted">None yet.</p>'}</div>
     <div class="hstack" style="margin-top:8px">
-      <input id="join-fam-code" placeholder="Join code" aria-label="Family join code" style="flex:1">
+      <input id="join-fam-code" placeholder="Have a join code for a family?" aria-label="Family join code" style="flex:1">
       <button class="btn" id="join-fam-btn">Join</button>
     </div>
 
     <div class="section-title">Your friend groups</div>
-    <div class="stack" id="grp-list">${state.groups.map(grpRow).join('') || '<p class="muted">None yet.</p>'}</div>
-    <div class="hstack">
-      <input id="new-grp-name" placeholder="New group name" aria-label="New friend group name" style="flex:1">
-      <button class="btn btn-primary" id="create-grp-btn">Create</button>
-    </div>
+    <div class="stack" id="grp-list">${state.groups.map((g) => entityRow('group', g)).join('') || '<p class="muted">None yet.</p>'}</div>
     <div class="hstack" style="margin-top:8px">
-      <input id="join-grp-code" placeholder="Join code" aria-label="Friend group join code" style="flex:1">
+      <input id="join-grp-code" placeholder="Have a join code for a friend group?" aria-label="Friend group join code" style="flex:1">
       <button class="btn" id="join-grp-btn">Join</button>
     </div>
-  `);
-  function famRow(f) { return `<div class="row card-tight card"><div><strong>${esc(f.name)}</strong><p class="muted">Join code: <b>${esc(f.joinCode)}</b></p></div></div>`; }
-  function grpRow(g) { return `<div class="row card-tight card"><div><strong>${esc(g.name)}</strong><p class="muted">Join code: <b>${esc(g.joinCode)}</b></p></div></div>`; }
 
-  document.getElementById('create-fam-btn').onclick = async () => {
-    const name = document.getElementById('new-fam-name').value.trim();
-    if (!name) return;
+    <button class="btn btn-primary btn-block" id="open-create-choice" style="margin-top:16px">${icon('plus', 16)} Create a family or friend group</button>
+  `);
+
+  document.getElementById('open-create-choice').onclick = () => openCreateEntityChoice();
+  document.getElementById('join-fam-btn').onclick = () => joinByCode('family', 'join-fam-code');
+  document.getElementById('join-grp-btn').onclick = () => joinByCode('group', 'join-grp-code');
+
+  document.querySelectorAll('.entity-photo-edit').forEach((btn) => {
+    btn.onclick = () => { pendingPhotoTarget = { kind: btn.dataset.kind, id: btn.dataset.id }; document.getElementById('entity-photo-input').click(); };
+  });
+  document.querySelectorAll('.entity-rename').forEach((btn) => {
+    btn.onclick = async () => {
+      const current = btn.dataset.name;
+      const name = window.prompt('Rename to:', current);
+      if (!name || !name.trim() || name.trim() === current) return;
+      try {
+        await api(`${entityApiBase(btn.dataset.kind)}/${btn.dataset.id}`, { method: 'PATCH', body: { name: name.trim() } });
+        await loadFamiliesAndGroups();
+        renderHeader();
+        openFamilyManager();
+        toast('Renamed');
+      } catch (err) { toast(err.message); }
+    };
+  });
+  document.querySelectorAll('.entity-invite').forEach((btn) => {
+    btn.onclick = () => openInviteForm(btn.dataset.kind, btn.dataset.id, btn.dataset.name);
+  });
+  document.querySelectorAll('.entity-members-toggle').forEach((btn) => {
+    btn.onclick = () => toggleEntityMembers(btn.dataset.kind, btn.dataset.id);
+  });
+}
+
+function entityRow(kind, entity) {
+  const photo = entity.photoUrl
+    ? `<img src="${esc(entity.photoUrl)}" class="photo-avatar" alt="">`
+    : `<div class="avatar avatar-lg" style="background:${AVATAR_FALLBACK}">${icon(kind === 'family' ? 'users' : 'user', 20)}</div>`;
+  return `<div class="card card-tight">
+    <div class="row">
+      <button class="btn-plain entity-photo-edit" data-kind="${kind}" data-id="${entity.id}" aria-label="Change photo" style="padding:0">${photo}</button>
+      <div style="flex:1">
+        <div class="hstack" style="gap:6px">
+          <strong>${esc(entity.name)}</strong>
+          <button class="btn-plain entity-rename" data-kind="${kind}" data-id="${entity.id}" data-name="${esc(entity.name)}" aria-label="Rename">${icon('pencil', 13)}</button>
+        </div>
+        <p class="muted">Join code: <b>${esc(entity.joinCode)}</b></p>
+      </div>
+    </div>
+    <div class="hstack" style="margin-top:8px">
+      <button class="btn btn-sm entity-invite" data-kind="${kind}" data-id="${entity.id}" data-name="${esc(entity.name)}">${icon('link', 13)} Invite by text</button>
+      <button class="btn btn-sm entity-members-toggle" data-kind="${kind}" data-id="${entity.id}">${icon('users', 13)} Members</button>
+    </div>
+    <div id="members-${entity.id}" class="hidden" style="margin-top:8px"></div>
+  </div>`;
+}
+
+async function joinByCode(kind, inputId) {
+  const joinCode = document.getElementById(inputId).value.trim();
+  if (!joinCode) return;
+  try {
+    await api(`${entityApiBase(kind)}/join`, { method: 'POST', body: { joinCode } });
+    await loadFamiliesAndGroups();
+    renderHeader();
+    openFamilyManager();
+    toast(kind === 'family' ? 'Joined family' : 'Joined friend group');
+  } catch (err) { toast(err.message); }
+}
+
+async function toggleEntityMembers(kind, id) {
+  const el = document.getElementById(`members-${id}`);
+  if (!el.classList.contains('hidden')) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.classList.remove('hidden');
+  el.innerHTML = loadingHtml();
+  try {
+    const { members } = await api(`${entityApiBase(kind)}/${id}`);
+    el.innerHTML = `<div class="divider"></div>` + members.map((m) => `
+      <div class="member-row">
+        ${avatarHtml(m)}
+        <span class="name">${esc(m.name)}${m.id === state.user.id ? ' (you)' : ''}</span>
+        ${m.role === 'owner' ? '<span class="role-tag">Owner</span>' : ''}
+        ${m.id !== state.user.id ? `<button class="btn btn-icon-sm dm-start" data-user="${m.id}" aria-label="Message ${esc(m.name)}">${icon('chat', 15)}</button>` : ''}
+      </div>`).join('');
+    el.querySelectorAll('.dm-start').forEach((btn) => {
+      btn.onclick = async () => {
+        try {
+          const { conversation } = await api('/api/conversations/direct', { method: 'POST', body: { userId: btn.dataset.user } });
+          closeModal();
+          goToChatDetail(conversation);
+        } catch (err) { toast(err.message); }
+      };
+    });
+  } catch (err) { el.innerHTML = `<p class="error-text">${esc(err.message)}</p>`; }
+}
+
+function openInviteForm(kind, id, name) {
+  openModal(`
+    <div class="modal-head"><h3>Invite to ${esc(name)}</h3><button onclick="closeModal()">${icon('x')}</button></div>
+    <p class="muted">We'll text them a link to join — no account needed to open it, just to join.</p>
+    <div class="field"><label for="invite-phone">Their mobile number</label><input id="invite-phone" type="tel" placeholder="07... or +447..."></div>
+    ${!state.config.smsEnabled ? '<p class="muted">SMS isn\'t configured on this server yet, so this won\'t actually send — but the join code above works regardless.</p>' : ''}
+    <button class="btn btn-primary btn-block" id="send-invite-btn">Send invite</button>
+    <p class="error-text hidden" id="invite-error"></p>
+  `);
+  document.getElementById('send-invite-btn').onclick = async () => {
+    const phone = document.getElementById('invite-phone').value.trim();
+    if (!phone) return;
     try {
-      await api('/api/families', { method: 'POST', body: { name } });
-      await loadFamiliesAndGroups();
-      renderHeader();
-      openFamilyManager();
-      toast('Family created');
-    } catch (err) { toast(err.message); }
-  };
-  document.getElementById('join-fam-btn').onclick = async () => {
-    const joinCode = document.getElementById('join-fam-code').value.trim();
-    if (!joinCode) return;
-    try {
-      await api('/api/families/join', { method: 'POST', body: { joinCode } });
-      await loadFamiliesAndGroups();
-      renderHeader();
-      openFamilyManager();
-      toast('Joined family');
-    } catch (err) { toast(err.message); }
-  };
-  document.getElementById('create-grp-btn').onclick = async () => {
-    const name = document.getElementById('new-grp-name').value.trim();
-    if (!name) return;
-    try {
-      await api('/api/groups', { method: 'POST', body: { name } });
-      await loadFamiliesAndGroups();
-      openFamilyManager();
-      toast('Friend group created');
-    } catch (err) { toast(err.message); }
-  };
-  document.getElementById('join-grp-btn').onclick = async () => {
-    const joinCode = document.getElementById('join-grp-code').value.trim();
-    if (!joinCode) return;
-    try {
-      await api('/api/groups/join', { method: 'POST', body: { joinCode } });
-      await loadFamiliesAndGroups();
-      openFamilyManager();
-      toast('Joined friend group');
-    } catch (err) { toast(err.message); }
+      await api(`${entityApiBase(kind)}/${id}/invite`, { method: 'POST', body: { phone } });
+      closeModal();
+      toast('Invite sent!');
+    } catch (err) {
+      document.getElementById('invite-error').textContent = err.message;
+      document.getElementById('invite-error').classList.remove('hidden');
+    }
   };
 }
+
+function openCreateEntityChoice() {
+  openModal(`
+    <div class="modal-head"><h3>What would you like to create?</h3><button onclick="closeModal()">${icon('x')}</button></div>
+    <div class="choice-row">
+      <div class="choice-card" id="choice-family">${icon('users', 26)}<div><strong>Family</strong></div><p class="muted" style="font-size:12px;margin:2px 0 0">Your household's shared calendar, memories, meals &amp; to-dos</p></div>
+      <div class="choice-card" id="choice-group">${icon('user', 26)}<div><strong>Friend group</strong></div><p class="muted" style="font-size:12px;margin:2px 0 0">A separate calendar &amp; chat for a friendship circle</p></div>
+    </div>
+  `);
+  document.getElementById('choice-family').onclick = () => openCreateEntityForm('family');
+  document.getElementById('choice-group').onclick = () => openCreateEntityForm('group');
+}
+
+let selectedCreatePhotoFile = null;
+
+function openCreateEntityForm(kind) {
+  selectedCreatePhotoFile = null;
+  openModal(`
+    <div class="modal-head"><h3>New ${kind === 'family' ? 'family' : 'friend group'}</h3><button onclick="closeModal()">${icon('x')}</button></div>
+    <form id="create-entity-form" class="stack">
+      <div class="entity-photo-picker">
+        <div class="preview" id="create-photo-preview">${icon(kind === 'family' ? 'users' : 'user', 22)}</div>
+        <button type="button" class="btn btn-sm" id="create-photo-pick">${icon('camera', 14)} Add a photo (optional)</button>
+      </div>
+      <div class="field"><label for="create-entity-name">${kind === 'family' ? 'Family' : 'Group'} name</label>
+        <input id="create-entity-name" required placeholder="${kind === 'family' ? 'e.g. The Tomlinsons' : 'e.g. Book Club'}"></div>
+      <button type="submit" class="btn btn-primary btn-block">Create</button>
+      <p class="error-text hidden" id="create-entity-error"></p>
+    </form>
+  `);
+  document.getElementById('create-photo-pick').onclick = () => {
+    pendingPhotoTarget = { kind, id: null };
+    document.getElementById('entity-photo-input').click();
+  };
+  document.getElementById('create-entity-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('create-entity-name').value.trim();
+    if (!name) return;
+    try {
+      const result = await api(entityApiBase(kind), { method: 'POST', body: { name } });
+      const entity = kind === 'family' ? result.family : result.group;
+      if (selectedCreatePhotoFile) {
+        const fd = new FormData();
+        fd.append('file', selectedCreatePhotoFile);
+        await api(`${entityApiBase(kind)}/${entity.id}/photo`, { method: 'POST', body: fd });
+      }
+      await loadFamiliesAndGroups();
+      renderHeader();
+      openFamilyManager();
+      toast(`${kind === 'family' ? 'Family' : 'Friend group'} created`);
+    } catch (err) {
+      document.getElementById('create-entity-error').textContent = err.message;
+      document.getElementById('create-entity-error').classList.remove('hidden');
+    }
+  };
+}
+
+// Shared by "add a photo while creating" (uploads once the entity exists)
+// and "change photo on an existing family/group" (uploads immediately).
+let pendingPhotoTarget = null;
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('entity-photo-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file || !pendingPhotoTarget) return;
+    if (!pendingPhotoTarget.id) {
+      selectedCreatePhotoFile = file;
+      const preview = document.getElementById('create-photo-preview');
+      if (preview) preview.innerHTML = `<img src="${URL.createObjectURL(file)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+      return;
+    }
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      await api(`${entityApiBase(pendingPhotoTarget.kind)}/${pendingPhotoTarget.id}/photo`, { method: 'POST', body: fd });
+      await loadFamiliesAndGroups();
+      renderHeader();
+      openFamilyManager();
+      toast('Photo updated');
+    } catch (err) { toast(err.message); }
+  });
+});
 
 /* =========================================================================
    Tabs
@@ -392,7 +649,8 @@ function switchTab(tab) {
 }
 function refreshCurrentView() {
   const root = document.getElementById('view-root');
-  if (!currentFamily() && state.tab !== 'today') {
+  if (state.tab !== 'chat') stopChatPolling();
+  if (!currentFamily() && state.tab !== 'today' && state.tab !== 'chat') {
     root.innerHTML = noFamilyState();
     return;
   }
@@ -401,6 +659,7 @@ function refreshCurrentView() {
     case 'calendar': return renderCalendarTab();
     case 'memories': return renderMemoriesTab();
     case 'todos': return renderTodosTab();
+    case 'chat': return renderChatTab();
     case 'food': return renderFoodTab();
   }
 }
@@ -458,13 +717,16 @@ async function renderToday() {
   root.innerHTML = `<div class="empty-state">${loadingHtml()}</div>`;
   const date = todayStr();
   const familyId = state.currentFamilyId;
-  const [calRes, memRes] = await Promise.all([
+  const [calRes, memRes, todoRes] = await Promise.all([
     api(`/api/calendar?from=${date}&to=${date}`),
-    api(`/api/memories?familyId=${familyId}&date=${date}`)
+    api(`/api/memories?familyId=${familyId}&date=${date}`),
+    api(`/api/todos?familyId=${familyId}&assignedTo=${state.user.id}&status=pending`)
   ]);
   const events = calRes.events;
   const memories = memRes.memories;
   const allMedia = memories.flatMap((m) => m.media);
+  const endOfToday = date + 'T23:59:59.999Z';
+  const todosToday = todoRes.todos.filter((t) => t.dueAt && t.dueAt <= endOfToday);
 
   root.innerHTML = `
     <div class="card" style="text-align:center">
@@ -478,6 +740,9 @@ async function renderToday() {
     <div class="section-title">Today's plans</div>
     ${events.length ? `<div class="card stack">${events.map(eventRowHtml).join('')}</div>` : `<p class="muted">Nothing on the calendar today.</p>`}
 
+    <div class="section-title">Your to-dos</div>
+    ${todosToday.length ? `<div class="card">${todosToday.map(todoItemHtml).join('')}</div>` : `<p class="muted">Nothing due today or overdue — nice.</p>`}
+
     <div class="section-title">Today's memories</div>
     ${allMedia.length
       ? `<div class="card"><div class="media-grid">${allMedia.map(mediaTileHtml).join('')}</div></div>`
@@ -485,6 +750,16 @@ async function renderToday() {
   `;
   document.getElementById('today-camera').onclick = () => openCameraFor(date);
   document.getElementById('today-gallery').onclick = () => openGalleryFor(date);
+  document.querySelectorAll('.todo-check').forEach((el) => {
+    el.onclick = async () => {
+      try { await api(`/api/todos/${el.dataset.id}`, { method: 'PATCH', body: { status: 'complete' } }); renderToday(); } catch (err) { toast(err.message); }
+    };
+  });
+  document.querySelectorAll('.todo-fail').forEach((el) => {
+    el.onclick = async () => {
+      try { await api(`/api/todos/${el.dataset.id}`, { method: 'PATCH', body: { status: 'failed' } }); renderToday(); } catch (err) { toast(err.message); }
+    };
+  });
 }
 
 function mediaTileHtml(m) {
@@ -577,15 +852,22 @@ async function renderDayDetail(events) {
   el.innerHTML = `
     <div class="section-title">${fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}</div>
     <div class="card stack">
-      ${events.length ? events.map((ev) => `
+      ${events.length ? events.map((ev) => {
+        const mine = (ev.attendees || []).find((a) => a.id === state.user.id);
+        const canChat = mine && mine.status === 'accepted';
+        return `
         <div class="row" style="align-items:flex-start">
           <div>
             <strong>${occasionEmoji(ev.occasionType)} ${esc(ev.title)}</strong>
             <p class="muted">${ev.allDay ? 'All day' : fmtTime(ev.startsAt) + '–' + fmtTime(ev.endsAt)}${ev.location ? ' · ' + esc(ev.location) : ''}</p>
             <div class="avatar-stack">${(ev.attendees || []).map((a) => avatarHtml(a)).join('')}</div>
           </div>
-          <button class="btn btn-sm btn-bad" onclick="deleteEvent('${ev.id}')" aria-label="Delete ${esc(ev.title)}">${icon('trash', 14)}</button>
-        </div>`).join('<div class="divider"></div>')
+          <div class="hstack">
+            ${canChat ? `<button class="btn btn-icon-sm event-chat-btn" data-id="${ev.id}" data-title="${esc(ev.title)}" aria-label="Chat about ${esc(ev.title)}">${icon('chat', 14)}</button>` : ''}
+            <button class="btn btn-sm btn-bad" onclick="deleteEvent('${ev.id}')" aria-label="Delete ${esc(ev.title)}">${icon('trash', 14)}</button>
+          </div>
+        </div>`;
+      }).join('<div class="divider"></div>')
         : `<p class="muted">Nothing booked yet.</p>`}
     </div>
 
@@ -600,6 +882,26 @@ async function renderDayDetail(events) {
   `;
   document.getElementById('day-camera').onclick = () => openCameraFor(date);
   document.getElementById('day-gallery').onclick = () => openGalleryFor(date);
+  document.querySelectorAll('.event-chat-btn').forEach((btn) => {
+    btn.onclick = () => openEventConversation(btn.dataset.id, btn.dataset.title);
+  });
+}
+
+async function openEventConversation(eventId, title) {
+  try {
+    const { conversationId } = await api(`/api/events/${eventId}/conversation`, { method: 'POST' });
+    goToChatDetail({ id: conversationId, type: 'event', title });
+  } catch (err) { toast(err.message); }
+}
+
+// Jumps straight to a chat thread from elsewhere in the app (an event, a
+// member's DM button) without going through the conversation-list render —
+// switchTab('chat') would kick off its own async fetch that could resolve
+// after openChatDetail runs and clobber the detail view it just painted.
+function goToChatDetail(conv) {
+  state.tab = 'chat';
+  document.querySelectorAll('#tabbar button').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === 'chat'));
+  openChatDetail(conv);
 }
 
 async function deleteEvent(id) {
@@ -856,6 +1158,173 @@ function openTodoForm(members) {
     }
   };
 }
+
+/* =========================================================================
+   Chat — family/group group chats, event chats, and 1:1 direct messages.
+   Polling-based (no websockets): the open thread refetches every few
+   seconds for anything newer than the last message it has.
+   ========================================================================= */
+
+let chatPollTimer = null;
+let currentChatConversation = null;
+let pendingChatConversationId = null;
+
+function stopChatPolling() {
+  if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
+  currentChatConversation = null;
+}
+
+function relativeTime(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return mins + 'm';
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return hours + 'h';
+  const days = Math.round(hours / 24);
+  if (days < 7) return days + 'd';
+  return fmtDate(iso.slice(0, 10), { day: 'numeric', month: 'short' });
+}
+
+async function renderChatTab() {
+  const root = document.getElementById('view-root');
+  root.innerHTML = loadingHtml();
+  let conversations;
+  try {
+    ({ conversations } = await api('/api/conversations'));
+  } catch (err) {
+    root.innerHTML = `<p class="error-text">${esc(err.message)}</p>`;
+    return;
+  }
+  if (!conversations.length) {
+    root.innerHTML = `<div class="empty-state card"><div class="big">${icon('chat', 22)}</div><h3>No chats yet</h3>
+      <p>Every family and friend group gets an automatic group chat — switch to one from the header, or message someone directly from their family's member list.</p></div>`;
+    return;
+  }
+  root.innerHTML = `<div class="card stack" id="chat-list"></div>`;
+  document.getElementById('chat-list').innerHTML = conversations.map(chatListItemHtml).join('<div class="divider" style="margin:2px 0"></div>');
+  document.querySelectorAll('.chat-list-item').forEach((el) => {
+    el.onclick = () => {
+      const conv = conversations.find((c) => c.id === el.dataset.id);
+      openChatDetail(conv);
+    };
+  });
+}
+
+function chatTypeLabel(type) {
+  return { family: 'Family', group: 'Friend group', event: 'Event', direct: 'Direct' }[type] || '';
+}
+
+function chatListItemHtml(c) {
+  const photo = c.type === 'direct'
+    ? `<div class="avatar avatar-lg" style="background:${esc(c.otherUserColor || AVATAR_FALLBACK)}">${esc((c.title || '?')[0].toUpperCase())}</div>`
+    : c.photoUrl
+      ? `<img src="${esc(c.photoUrl)}" class="photo-avatar" alt="">`
+      : `<div class="avatar avatar-lg" style="background:${AVATAR_FALLBACK}">${icon(c.type === 'event' ? 'chat' : 'users', 18)}</div>`;
+  const preview = c.lastMessage
+    ? `${c.lastMessage.senderId === state.user.id ? 'You: ' : ''}${c.lastMessage.hasMedia && !c.lastMessage.body ? '📷 Photo' : esc(c.lastMessage.body || '')}`
+    : 'Say hello 👋';
+  return `<div class="chat-list-item" data-id="${c.id}">
+    ${photo}
+    <div class="body">
+      <div class="title-row"><strong>${esc(c.title)}</strong>${c.lastMessage ? `<time>${relativeTime(c.lastMessage.createdAt)}</time>` : ''}</div>
+      <p class="preview">${preview}</p>
+    </div>
+  </div>`;
+}
+
+async function openChatDetail(conv) {
+  stopChatPolling();
+  currentChatConversation = conv;
+  const root = document.getElementById('view-root');
+  root.innerHTML = `
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn btn-icon-sm" id="chat-back" aria-label="Back to chats">${icon('chevronLeft', 16)}</button>
+      <strong style="flex:1;text-align:center">${esc(conv.title)} <span class="chat-type-badge">${chatTypeLabel(conv.type)}</span></strong>
+      <span style="width:32px"></span>
+    </div>
+    <div id="chat-detail" class="card" style="padding:10px">
+      <div id="chat-messages">${loadingHtml()}</div>
+      <div id="chat-input-bar">
+        <button class="btn btn-icon-sm" id="chat-attach" aria-label="Attach a photo or video">${icon('camera', 16)}</button>
+        <input type="text" id="chat-text" placeholder="Message…" aria-label="Message">
+        <button class="btn btn-icon-sm btn-primary" id="chat-send" aria-label="Send">${icon('send', 15)}</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('chat-back').onclick = () => { stopChatPolling(); renderChatTab(); };
+  document.getElementById('chat-attach').onclick = () => { pendingChatConversationId = conv.id; document.getElementById('chat-file-input').click(); };
+  document.getElementById('chat-send').onclick = () => sendChatMessage(conv.id);
+  document.getElementById('chat-text').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(conv.id); }
+  });
+
+  await loadChatMessages(conv.id, true);
+  chatPollTimer = setInterval(() => loadChatMessages(conv.id, false), 4000);
+}
+
+let chatMessages = [];
+
+async function loadChatMessages(conversationId, initial) {
+  try {
+    const after = initial ? '' : `?after=${encodeURIComponent(chatMessages.length ? chatMessages[chatMessages.length - 1].createdAt : '')}`;
+    const { messages } = await api(`/api/conversations/${conversationId}/messages${after}`);
+    if (initial) chatMessages = messages;
+    else if (messages.length) chatMessages = chatMessages.concat(messages);
+    else return;
+    renderChatMessages();
+  } catch (err) {
+    if (initial) document.getElementById('chat-messages').innerHTML = `<p class="error-text">${esc(err.message)}</p>`;
+  }
+}
+
+function renderChatMessages() {
+  const el = document.getElementById('chat-messages');
+  if (!el) return;
+  const wasNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  const showSenderNames = currentChatConversation && currentChatConversation.type !== 'direct';
+  el.innerHTML = chatMessages.length ? chatMessages.map((m) => {
+    const mine = m.senderId === state.user.id;
+    return `<div class="bubble-row ${mine ? 'mine' : ''}">
+      ${showSenderNames && !mine ? `<span class="sender">${esc(m.senderName)}</span>` : ''}
+      <div class="bubble">
+        ${(m.media || []).map((med) => med.type === 'video' ? `<video src="${esc(med.url)}" controls></video>` : `<img src="${esc(med.url)}" alt="">`).join('')}
+        ${m.body ? `<p>${esc(m.body)}</p>` : ''}
+        <time>${fmtTime(m.createdAt)}</time>
+      </div>
+    </div>`;
+  }).join('') : `<p class="muted" style="text-align:center;padding:20px 0">No messages yet — say hello 👋</p>`;
+  if (wasNearBottom) el.scrollTop = el.scrollHeight;
+}
+
+async function sendChatMessage(conversationId, file) {
+  const input = document.getElementById('chat-text');
+  const body = input ? input.value.trim() : '';
+  if (!body && !file) return;
+  if (input) { input.value = ''; input.disabled = true; }
+  try {
+    const fd = new FormData();
+    if (body) fd.append('body', body);
+    if (file) fd.append('file', file);
+    const { message } = await api(`/api/conversations/${conversationId}/messages`, { method: 'POST', body: fd });
+    chatMessages.push(message);
+    renderChatMessages();
+    const el = document.getElementById('chat-messages');
+    if (el) el.scrollTop = el.scrollHeight;
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    if (input) input.disabled = false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('chat-file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (file && pendingChatConversationId) sendChatMessage(pendingChatConversationId, file);
+  });
+});
 
 /* =========================================================================
    Food: Dinner plan / Recipes / Shopping list
