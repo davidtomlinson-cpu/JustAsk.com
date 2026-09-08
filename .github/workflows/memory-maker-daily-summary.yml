@@ -1,0 +1,37 @@
+name: Memory Maker daily summary
+
+# Fires the once-a-day "here's what you've got on today, including your
+# to-dos" SMS digest, at a fixed morning time — separate from the hourly
+# reminders sweep (memory-maker-reminders.yml) since this one has to run
+# once, in the morning, not every hour. Uses the same two repository
+# secrets as that workflow:
+#   MEMORY_MAKER_BASE_URL    — e.g. https://memory-maker.onrender.com
+#   MEMORY_MAKER_CRON_SECRET — must match CRON_SECRET on the deployed service
+#
+# 07:00 UTC by default — adjust the cron below to suit where most users
+# actually are; there's no per-user timezone support yet (see README), so
+# this is a single fixed send time for everyone.
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  trigger-daily-summary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the daily-summary cron endpoint
+        run: |
+          if [ -z "${{ secrets.MEMORY_MAKER_BASE_URL }}" ]; then
+            echo "MEMORY_MAKER_BASE_URL secret is not set yet — skipping (set it once the app is deployed)."
+            exit 0
+          fi
+          status=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST "${{ secrets.MEMORY_MAKER_BASE_URL }}/api/cron/daily-summary" \
+            -H "X-Cron-Secret: ${{ secrets.MEMORY_MAKER_CRON_SECRET }}")
+          echo "HTTP status: $status"
+          cat response.json
+          if [ "$status" -ge 300 ]; then
+            echo "Daily summary sweep failed"
+            exit 1
+          fi
