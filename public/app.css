@@ -1052,6 +1052,68 @@
   .staff-login-prompt { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; }
   .staff-login-prompt .link-btn { margin-top: 0; }
   .staff-login-prompt .field { text-align: left; }
+
+  /* ---- Important Dates ---- */
+  .account-section-title {
+    font-family: Georgia, "Iowan Old Style", Palatino, serif;
+    font-size: 17px;
+    margin: 22px 0 4px;
+  }
+  .important-dates-section { margin-bottom: 6px; }
+  .occ-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: 0 2px 10px rgba(11,37,69,0.06);
+  }
+  .occ-card-main { display: flex; gap: 12px; align-items: flex-start; }
+  .occ-icon {
+    font-size: 22px;
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: var(--gold-tint);
+    flex-shrink: 0;
+  }
+  .occ-info { min-width: 0; flex: 1; }
+  .occ-label { font-weight: 700; font-size: 14.5px; }
+  .occ-next { font-size: 13px; color: var(--text-secondary); margin-top: 1px; }
+  .occ-order-line { font-size: 12.5px; color: var(--text-secondary); margin-top: 4px; }
+  .occ-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .occ-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--page-plane);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+  .occ-badge-auto { background: var(--gold-tint); color: var(--gold-text); border-color: rgba(212,175,55,0.35); }
+  .occ-actions {
+    display: flex;
+    gap: 14px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--gridline);
+  }
+  .occ-actions .link-btn { margin: 0; font-size: 12.5px; }
+  .important-dates-section > .card-list { margin-bottom: 12px; }
+  .important-dates-section .empty-state { padding: 20px 14px; margin-bottom: 12px; }
+  #addImportantDateBtn { width: 100%; }
+  .occ-form { margin-top: 4px; }
+  .occ-auto-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    margin: 10px 0 2px;
+    cursor: pointer;
+  }
+  .occ-auto-toggle input { margin-top: 2px; }
+  .occ-form-error { color: var(--status-critical); font-size: 12.5px; margin: 4px 0; min-height: 1em; }
   .btn-quote {
     width: 100%;
     padding: 12px;

@@ -280,6 +280,35 @@ const SCHEMA_SQL = `
     "createdAt" TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_push_subscriptions_requestId ON push_subscriptions("requestId");
+
+  -- Occasions a buyer wants remembered (birthdays, anniversaries, etc). Only
+  -- month/day are stored, not a specific year -- these repeat annually by
+  -- nature. "lastReminded"/"lastRepeated" are guarded by year, not a plain
+  -- boolean, so the same occasion correctly reminds/repeats again next year
+  -- rather than only ever firing once.
+  CREATE TABLE IF NOT EXISTS important_dates (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    label TEXT NOT NULL,
+    occasion TEXT NOT NULL DEFAULT 'other',
+    month INTEGER NOT NULL,
+    day INTEGER NOT NULL,
+    "reminderDaysBefore" INTEGER NOT NULL DEFAULT 7,
+    "autoRepeat" BOOLEAN NOT NULL DEFAULT false,
+    item TEXT,
+    link TEXT,
+    qty INTEGER,
+    "budgetTier" TEXT,
+    recipient TEXT,
+    postcode TEXT,
+    "addressLine" TEXT,
+    notes TEXT,
+    "lastRemindedYear" INTEGER,
+    "lastRepeatedYear" INTEGER,
+    "createdAt" TEXT NOT NULL,
+    "updatedAt" TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_important_dates_userId ON important_dates("userId");
 `;
 
 // Lightweight migration for databases created before payment/account support
@@ -550,6 +579,271 @@ app.post('/api/requests/claim', requireAuth('buyer'), ah(async (req, res) => {
   res.json({ claimed });
 }));
 
+// ---- Important dates (birthdays, anniversaries, etc) ----
+// A signed-in buyer can save a recurring occasion, optionally with a saved
+// "what to order" so it's ready to reuse. We remind them by email
+// `reminderDaysBefore` days ahead of it; if `autoRepeat` is on, we also
+// auto-submit a fresh request on the day itself using those saved details —
+// exactly as if they'd filled the form in again — so it lands with staff
+// ready to source and quote. This deliberately does NOT auto-charge a card:
+// every request, repeated or not, still goes through the normal
+// quote-then-pay flow. Only month/day are stored (not a year), since these
+// repeat annually by nature.
+const IMPORTANT_DATE_OCCASIONS = ['birthday', 'anniversary', 'other'];
+
+function isValidMonthDay(month, day) {
+  if (!Number.isInteger(month) || month < 1 || month > 12) return false;
+  if (!Number.isInteger(day) || day < 1 || day > 31) return false;
+  // Catches Feb 30, Apr 31, etc — 2024 is a leap year, so Feb 29 is allowed.
+  const d = new Date(Date.UTC(2024, month - 1, day));
+  return d.getUTCMonth() === month - 1 && d.getUTCDate() === day;
+}
+
+// This year's occurrence if it hasn't passed yet, otherwise next year's.
+function nextOccurrence(month, day, from) {
+  const now = from || new Date();
+  const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  let year = now.getUTCFullYear();
+  if (Date.UTC(year, month - 1, day) < todayUTC) year += 1;
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function daysUntil(date, from) {
+  const now = from || new Date();
+  const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.round((date.getTime() - todayUTC) / 86400000);
+}
+
+function rowToImportantDate(row) {
+  const next = nextOccurrence(row.month, row.day);
+  const hasOrderDetails = isNonEmptyString(row.item) && isNonEmptyString(row.recipient) &&
+    isNonEmptyString(row.postcode) && isNonEmptyString(row.addressLine);
+  return {
+    id: row.id,
+    label: row.label,
+    occasion: row.occasion,
+    month: row.month,
+    day: row.day,
+    reminderDaysBefore: row.reminderDaysBefore,
+    autoRepeat: row.autoRepeat,
+    item: row.item,
+    link: row.link,
+    qty: row.qty,
+    budgetTier: row.budgetTier,
+    recipient: row.recipient,
+    postcode: row.postcode,
+    addressLine: row.addressLine,
+    notes: row.notes,
+    hasOrderDetails: hasOrderDetails,
+    nextOccurrence: next.toISOString().slice(0, 10),
+    daysUntilNext: daysUntil(next)
+  };
+}
+
+app.get('/api/important-dates', requireAuth('buyer'), ah(async (req, res) => {
+  const rows = await dbAll('SELECT * FROM important_dates WHERE "userId" = $1', [req.user.id]);
+  const out = rows.map(rowToImportantDate).sort((a, b) => a.daysUntilNext - b.daysUntilNext);
+  res.json({ dates: out });
+}));
+
+app.post('/api/important-dates', requireAuth('buyer'), ah(async (req, res) => {
+  const b = req.body || {};
+  if (!isNonEmptyString(b.label)) return res.status(400).json({ error: 'Missing or empty field: label' });
+  const occasion = IMPORTANT_DATE_OCCASIONS.includes(b.occasion) ? b.occasion : 'other';
+  const month = parseInt(b.month, 10);
+  const day = parseInt(b.day, 10);
+  if (!isValidMonthDay(month, day)) return res.status(400).json({ error: 'Invalid or missing month/day' });
+  const reminderDaysBefore = Number.isInteger(b.reminderDaysBefore) ? b.reminderDaysBefore : 7;
+  if (reminderDaysBefore < 0 || reminderDaysBefore > 90) {
+    return res.status(400).json({ error: 'reminderDaysBefore must be between 0 and 90' });
+  }
+  const autoRepeat = !!b.autoRepeat;
+  if (b.budgetTier && !VALID_TIERS.includes(b.budgetTier)) {
+    return res.status(400).json({ error: 'Invalid budgetTier' });
+  }
+  const orderRequiredFields = ['item', 'recipient', 'postcode', 'addressLine'];
+  if (autoRepeat) {
+    for (const field of orderRequiredFields) {
+      if (!isNonEmptyString(b[field])) {
+        return res.status(400).json({ error: 'Automatically repeating an order needs: ' + field });
+      }
+    }
+  }
+
+  const now = new Date().toISOString();
+  const id = 'occ_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  await dbRun(
+    `INSERT INTO important_dates
+      (id, "userId", label, occasion, month, day, "reminderDaysBefore", "autoRepeat",
+       item, link, qty, "budgetTier", recipient, postcode, "addressLine", notes, "createdAt", "updatedAt")
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+    [id, req.user.id, b.label.trim(), occasion, month, day, reminderDaysBefore, autoRepeat,
+     isNonEmptyString(b.item) ? b.item.trim() : null, isNonEmptyString(b.link) ? b.link.trim() : null,
+     Number.isInteger(b.qty) && b.qty > 0 ? b.qty : null, b.budgetTier || null,
+     isNonEmptyString(b.recipient) ? b.recipient.trim() : null, isNonEmptyString(b.postcode) ? b.postcode.trim().toUpperCase() : null,
+     isNonEmptyString(b.addressLine) ? b.addressLine.trim() : null, isNonEmptyString(b.notes) ? b.notes.trim() : null, now, now]
+  );
+  res.status(201).json(rowToImportantDate(await dbGet('SELECT * FROM important_dates WHERE id = $1', [id])));
+}));
+
+app.patch('/api/important-dates/:id', requireAuth('buyer'), ah(async (req, res) => {
+  const existing = await dbGet('SELECT * FROM important_dates WHERE id = $1 AND "userId" = $2', [req.params.id, req.user.id]);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+
+  const b = req.body || {};
+  const next = Object.assign({}, existing);
+  if (b.label !== undefined) {
+    if (!isNonEmptyString(b.label)) return res.status(400).json({ error: 'label cannot be empty' });
+    next.label = b.label.trim();
+  }
+  if (b.occasion !== undefined) next.occasion = IMPORTANT_DATE_OCCASIONS.includes(b.occasion) ? b.occasion : 'other';
+  if (b.month !== undefined || b.day !== undefined) {
+    const month = parseInt(b.month !== undefined ? b.month : next.month, 10);
+    const day = parseInt(b.day !== undefined ? b.day : next.day, 10);
+    if (!isValidMonthDay(month, day)) return res.status(400).json({ error: 'Invalid month/day' });
+    next.month = month;
+    next.day = day;
+  }
+  if (b.reminderDaysBefore !== undefined) {
+    if (!Number.isInteger(b.reminderDaysBefore) || b.reminderDaysBefore < 0 || b.reminderDaysBefore > 90) {
+      return res.status(400).json({ error: 'reminderDaysBefore must be between 0 and 90' });
+    }
+    next.reminderDaysBefore = b.reminderDaysBefore;
+  }
+  if (b.item !== undefined) next.item = isNonEmptyString(b.item) ? b.item.trim() : null;
+  if (b.link !== undefined) next.link = isNonEmptyString(b.link) ? b.link.trim() : null;
+  if (b.qty !== undefined) next.qty = Number.isInteger(b.qty) && b.qty > 0 ? b.qty : null;
+  if (b.budgetTier !== undefined) {
+    if (b.budgetTier && !VALID_TIERS.includes(b.budgetTier)) return res.status(400).json({ error: 'Invalid budgetTier' });
+    next.budgetTier = b.budgetTier || null;
+  }
+  if (b.recipient !== undefined) next.recipient = isNonEmptyString(b.recipient) ? b.recipient.trim() : null;
+  if (b.postcode !== undefined) next.postcode = isNonEmptyString(b.postcode) ? b.postcode.trim().toUpperCase() : null;
+  if (b.addressLine !== undefined) next.addressLine = isNonEmptyString(b.addressLine) ? b.addressLine.trim() : null;
+  if (b.notes !== undefined) next.notes = isNonEmptyString(b.notes) ? b.notes.trim() : null;
+  if (b.autoRepeat !== undefined) next.autoRepeat = !!b.autoRepeat;
+
+  if (next.autoRepeat) {
+    for (const field of ['item', 'recipient', 'postcode', 'addressLine']) {
+      if (!isNonEmptyString(next[field])) {
+        return res.status(400).json({ error: 'Automatically repeating an order needs: ' + field });
+      }
+    }
+  }
+
+  await dbRun(
+    `UPDATE important_dates SET label=$1, occasion=$2, month=$3, day=$4, "reminderDaysBefore"=$5, "autoRepeat"=$6,
+       item=$7, link=$8, qty=$9, "budgetTier"=$10, recipient=$11, postcode=$12, "addressLine"=$13, notes=$14, "updatedAt"=$15
+     WHERE id = $16`,
+    [next.label, next.occasion, next.month, next.day, next.reminderDaysBefore, next.autoRepeat,
+     next.item, next.link, next.qty, next.budgetTier, next.recipient, next.postcode, next.addressLine, next.notes,
+     new Date().toISOString(), req.params.id]
+  );
+  res.json(rowToImportantDate(await dbGet('SELECT * FROM important_dates WHERE id = $1', [req.params.id])));
+}));
+
+app.delete('/api/important-dates/:id', requireAuth('buyer'), ah(async (req, res) => {
+  const result = await dbRun('DELETE FROM important_dates WHERE id = $1 AND "userId" = $2', [req.params.id, req.user.id]);
+  if (!result.rowCount) return res.status(404).json({ error: 'Not found' });
+  res.json({ ok: true });
+}));
+
+// Buyer-triggered "place this order now" from an important date's saved
+// details — the same underlying creation path as the request form, just
+// pre-filled from what was saved against the occasion.
+app.post('/api/important-dates/:id/repeat', requireAuth('buyer'), ah(async (req, res) => {
+  const row = await dbGet('SELECT * FROM important_dates WHERE id = $1 AND "userId" = $2', [req.params.id, req.user.id]);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  for (const field of ['item', 'recipient', 'postcode', 'addressLine']) {
+    if (!isNonEmptyString(row[field])) {
+      return res.status(400).json({ error: 'This important date has no saved order details to repeat — add them first, or use "New request".' });
+    }
+  }
+  const requestId = await createRequestFromItems(req.user.name, req.user.id, req.user.email, [{
+    item: row.item, link: row.link, qty: row.qty || 1, budgetTier: row.budgetTier,
+    recipient: row.recipient, postcode: row.postcode, addressLine: row.addressLine,
+    notes: row.notes, priority: 'Next Day'
+  }]);
+  res.status(201).json(await rowToRequest(await dbGet('SELECT * FROM requests WHERE id = $1', [requestId])));
+}));
+
+// ---- Important-dates reminder/auto-repeat sweep (cron) ----
+// Render's free tier has no built-in scheduler, so this is meant to be
+// triggered once a day by something external (see .github/workflows in this
+// repo) rather than an in-process timer, which would only fire while the
+// service happened to be awake. Shared-secret protected since it has no
+// buyer session of its own and would otherwise let anyone spam reminder
+// emails or create requests.
+const CRON_SECRET = process.env.CRON_SECRET || '';
+app.post('/api/cron/important-dates', ah(async (req, res) => {
+  if (!CRON_SECRET) return res.status(503).json({ error: 'CRON_SECRET is not configured' });
+  if (req.headers['x-cron-secret'] !== CRON_SECRET) return res.status(401).json({ error: 'Unauthorized' });
+
+  const rows = await dbAll(
+    `SELECT important_dates.*, users.email AS "userEmail", users.name AS "userName"
+     FROM important_dates JOIN users ON users.id = important_dates."userId"`
+  );
+  const now = new Date();
+  let reminded = 0;
+  let repeated = 0;
+  const errors = [];
+
+  for (const row of rows) {
+    try {
+      const next = nextOccurrence(row.month, row.day, now);
+      const until = daysUntil(next, now);
+      const occurrenceYear = next.getUTCFullYear();
+
+      if (until === row.reminderDaysBefore && row.lastRemindedYear !== occurrenceYear) {
+        if (row.userEmail) {
+          const dateLabel = next.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+          sendStatusEmail(
+            row.userEmail,
+            'Coming up: ' + row.label + ' (' + dateLabel + ')',
+            [
+              'Hi ' + (row.userName || '') + ',',
+              row.label + ' is coming up on ' + dateLabel + ' — ' + row.reminderDaysBefore + ' days from now.',
+              row.autoRepeat
+                ? "We'll automatically start your usual order for it on the day, using the details you saved — you'll still get to review the quote and pay as normal."
+                : 'Sign in to The JustAsk Club and visit Important Dates to place an order for it.'
+            ]
+          );
+        }
+        await dbRun('UPDATE important_dates SET "lastRemindedYear" = $1 WHERE id = $2', [occurrenceYear, row.id]);
+        reminded++;
+      }
+
+      if (until === 0 && row.autoRepeat && row.lastRepeatedYear !== occurrenceYear &&
+          isNonEmptyString(row.item) && isNonEmptyString(row.recipient) &&
+          isNonEmptyString(row.postcode) && isNonEmptyString(row.addressLine)) {
+        const requestId = await createRequestFromItems(row.userName, row.userId, row.userEmail, [{
+          item: row.item, link: row.link, qty: row.qty || 1, budgetTier: row.budgetTier,
+          recipient: row.recipient, postcode: row.postcode, addressLine: row.addressLine,
+          notes: row.notes, priority: 'Next Day'
+        }]);
+        if (row.userEmail) {
+          sendStatusEmail(
+            row.userEmail,
+            "We've started your " + row.label + ' order',
+            [
+              'Hi ' + (row.userName || '') + ',',
+              "Today's " + row.label + ", so we've started a new request using the details you saved: \"" + row.item + '" for ' + row.recipient + '.',
+              "We'll quote it shortly, same as any other request — sign in to review and pay when it's ready."
+            ]
+          );
+        }
+        await dbRun('UPDATE important_dates SET "lastRepeatedYear" = $1 WHERE id = $2', [occurrenceYear, row.id]);
+        repeated++;
+      }
+    } catch (err) {
+      console.error('important-dates cron: failed for', row.id, err.message);
+      errors.push({ id: row.id, error: err.message });
+    }
+  }
+
+  res.json({ checked: rows.length, reminded, repeated, errors });
+}));
+
 // "Order On Route" and "Order Delivered" are the delivery pipeline a buyer
 // actually cares about tracking once they've paid — each one gets its own
 // status_events row (see recordStatusEvent below) so the buyer can see
@@ -699,6 +993,65 @@ function uid() {
   return 'r_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
 }
 
+// The actual "create a request + its order_items" work, factored out of
+// POST /api/requests so the important-dates auto-repeat flow (which has no
+// HTTP request to validate a body from) can create a request the exact same
+// way a buyer submitting the form does, instead of a second, driftable copy
+// of this logic.
+async function createRequestFromItems(requesterName, userId, buyerEmail, items) {
+  const now = new Date().toISOString();
+  const firstItem = items[0];
+  const uniqueRecipients = Array.from(new Set(items.map((it) => it.recipient.trim())));
+
+  const row = {
+    id: uid(),
+    item: items.length > 1 ? (firstItem.item.trim() + ' +' + (items.length - 1) + ' more') : firstItem.item.trim(),
+    link: isNonEmptyString(firstItem.link) ? firstItem.link.trim() : null,
+    qty: items.reduce((sum, it) => sum + Math.max(1, parseInt(it.qty, 10) || 1), 0),
+    budgetTier: items.length === 1 ? (firstItem.budgetTier || null) : null,
+    recipient: uniqueRecipients.length > 1 ? (uniqueRecipients.length + ' recipients') : uniqueRecipients[0],
+    postcode: firstItem.postcode.trim().toUpperCase(),
+    addressLine: firstItem.addressLine.trim(),
+    neededBy: items.length === 1 ? (isNonEmptyString(firstItem.neededBy) ? firstItem.neededBy : null) : null,
+    priority: isNonEmptyString(firstItem.priority) ? firstItem.priority : 'Next Day',
+    requester: requesterName,
+    notes: items.length === 1 ? (isNonEmptyString(firstItem.notes) ? firstItem.notes.trim() : null) : null,
+    status: 'Processing',
+    paymentStatus: 'unpaid',
+    userId: userId || null,
+    buyerEmail: buyerEmail || null,
+    createdAt: now,
+    updatedAt: now
+  };
+
+  await dbRun(
+    `INSERT INTO requests
+      (id, item, link, qty, "budgetTier", recipient, postcode, "addressLine", "neededBy",
+       priority, requester, notes, status, "paymentStatus", "userId", "buyerEmail", "createdAt", "updatedAt")
+     VALUES
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+    [row.id, row.item, row.link, row.qty, row.budgetTier, row.recipient, row.postcode, row.addressLine, row.neededBy,
+     row.priority, row.requester, row.notes, row.status, row.paymentStatus, row.userId, row.buyerEmail, row.createdAt, row.updatedAt]
+  );
+
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    await dbRun(
+      `INSERT INTO order_items
+        (id, "requestId", item, link, qty, "budgetTier", recipient, postcode, "addressLine", "neededBy", priority, notes, "createdAt")
+       VALUES
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      [row.id + '_item' + i, row.id, it.item.trim(), isNonEmptyString(it.link) ? it.link.trim() : null,
+       Math.max(1, parseInt(it.qty, 10) || 1), it.budgetTier || null, it.recipient.trim(),
+       it.postcode.trim().toUpperCase(), it.addressLine.trim(), isNonEmptyString(it.neededBy) ? it.neededBy : null,
+       isNonEmptyString(it.priority) ? it.priority : 'Next Day', isNonEmptyString(it.notes) ? it.notes.trim() : null, now]
+    );
+  }
+
+  await recordStatusEvent(row.id, row.status, now);
+  return row.id;
+}
+
 // ---- List requests ----
 // Staff see everything. A signed-in buyer sees only their own. Signed-out
 // (guest) callers get nothing from a bare list — pass ?ids=a,b,c (the ids of
@@ -759,62 +1112,12 @@ app.post('/api/requests', ah(async (req, res) => {
   }
 
   const user = await userFromReq(req);
-  const now = new Date().toISOString();
-  const firstItem = items[0];
-  const uniqueRecipients = Array.from(new Set(items.map((it) => it.recipient.trim())));
+  const userId = (user && user.role === 'buyer') ? user.id : null;
+  const buyerEmail = (user && user.role === 'buyer') ? user.email : (isNonEmptyString(b.email) ? b.email.trim() : null);
 
-  // These flat columns are a denormalized preview of the basket, kept only
-  // for backward compatibility with the pre-basket schema (they're NOT NULL
-  // there) — order_items (inserted below) is the real source of truth, and
-  // that's what rowToRequest() actually returns as `items`.
-  const row = {
-    id: uid(),
-    item: items.length > 1 ? (firstItem.item.trim() + ' +' + (items.length - 1) + ' more') : firstItem.item.trim(),
-    link: isNonEmptyString(firstItem.link) ? firstItem.link.trim() : null,
-    qty: items.reduce((sum, it) => sum + Math.max(1, parseInt(it.qty, 10) || 1), 0),
-    budgetTier: items.length === 1 ? (firstItem.budgetTier || null) : null,
-    recipient: uniqueRecipients.length > 1 ? (uniqueRecipients.length + ' recipients') : uniqueRecipients[0],
-    postcode: firstItem.postcode.trim().toUpperCase(),
-    addressLine: firstItem.addressLine.trim(),
-    neededBy: items.length === 1 ? (isNonEmptyString(firstItem.neededBy) ? firstItem.neededBy : null) : null,
-    priority: isNonEmptyString(firstItem.priority) ? firstItem.priority : 'Next Day',
-    requester: b.requester.trim(),
-    notes: items.length === 1 ? (isNonEmptyString(firstItem.notes) ? firstItem.notes.trim() : null) : null,
-    status: 'Processing',
-    paymentStatus: 'unpaid',
-    userId: (user && user.role === 'buyer') ? user.id : null,
-    buyerEmail: (user && user.role === 'buyer') ? user.email : (isNonEmptyString(b.email) ? b.email.trim() : null),
-    createdAt: now,
-    updatedAt: now
-  };
+  const requestId = await createRequestFromItems(b.requester.trim(), userId, buyerEmail, items);
 
-  await dbRun(
-    `INSERT INTO requests
-      (id, item, link, qty, "budgetTier", recipient, postcode, "addressLine", "neededBy",
-       priority, requester, notes, status, "paymentStatus", "userId", "buyerEmail", "createdAt", "updatedAt")
-     VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
-    [row.id, row.item, row.link, row.qty, row.budgetTier, row.recipient, row.postcode, row.addressLine, row.neededBy,
-     row.priority, row.requester, row.notes, row.status, row.paymentStatus, row.userId, row.buyerEmail, row.createdAt, row.updatedAt]
-  );
-
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i];
-    await dbRun(
-      `INSERT INTO order_items
-        (id, "requestId", item, link, qty, "budgetTier", recipient, postcode, "addressLine", "neededBy", priority, notes, "createdAt")
-       VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-      [row.id + '_item' + i, row.id, it.item.trim(), isNonEmptyString(it.link) ? it.link.trim() : null,
-       Math.max(1, parseInt(it.qty, 10) || 1), it.budgetTier || null, it.recipient.trim(),
-       it.postcode.trim().toUpperCase(), it.addressLine.trim(), isNonEmptyString(it.neededBy) ? it.neededBy : null,
-       isNonEmptyString(it.priority) ? it.priority : 'Next Day', isNonEmptyString(it.notes) ? it.notes.trim() : null, now]
-    );
-  }
-
-  await recordStatusEvent(row.id, row.status, now);
-
-  res.status(201).json(await rowToRequest(await dbGet('SELECT * FROM requests WHERE id = $1', [row.id])));
+  res.status(201).json(await rowToRequest(await dbGet('SELECT * FROM requests WHERE id = $1', [requestId])));
 }));
 
 // ---- Update a request: status changes, quotes, tier selection ----

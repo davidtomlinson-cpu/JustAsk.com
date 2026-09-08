@@ -190,6 +190,7 @@ details (names, addresses) will be traveling over it.
 | `STAFF_EMAIL` | `staff@example.com` | The purchasing team's login email. **Change this before deploying anywhere real** — the default is only there so the app runs out of the box locally. |
 | `STAFF_PASSWORD` | `changeme123` | The purchasing team's login password. **Change this too.** If either `STAFF_EMAIL` or `STAFF_PASSWORD` is left unset, the server logs a warning on startup as a reminder. |
 | `ANTHROPIC_API_KEY` | *(unset — item search off)* | Your Anthropic API key. Setting this switches on the staff "Find sourcing options" tool (see below). Each search costs a small amount of API usage, so treat it like the Stripe/Ideal Postcodes keys — optional, and billed to your own Anthropic account. |
+| `CRON_SECRET` | *(unset — endpoint disabled)* | Shared secret for `POST /api/cron/important-dates` (the daily "check important dates, send reminders, auto-repeat orders" sweep — see `.github/workflows/important-dates-reminders.yml`). Set the same value here and as a `CRON_SECRET` GitHub Actions repository secret. |
 
 ## Installing it as an app (PWA)
 

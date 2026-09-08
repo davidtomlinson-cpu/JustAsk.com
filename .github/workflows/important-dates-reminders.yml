@@ -1,0 +1,27 @@
+name: Important dates reminders
+
+# Render's free tier has no built-in scheduler, and an in-process timer would
+# only fire while the service happened to be awake — so this workflow is the
+# actual trigger for the daily "check important dates, send reminders,
+# auto-repeat orders" sweep. Requires a CRON_SECRET repository secret that
+# matches the CRON_SECRET environment variable set on the Render service.
+on:
+  schedule:
+    - cron: '0 7 * * *' # 07:00 UTC daily
+  workflow_dispatch: {} # lets you trigger a run manually from the Actions tab
+
+jobs:
+  trigger-reminder-sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the important-dates cron endpoint
+        run: |
+          status=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST "https://justask-com.onrender.com/api/cron/important-dates" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}")
+          echo "HTTP status: $status"
+          cat response.json
+          if [ "$status" -ge 300 ]; then
+            echo "Reminder sweep failed"
+            exit 1
+          fi
