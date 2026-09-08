@@ -777,6 +777,67 @@
     animation: slideup .2s ease;
   }
   @keyframes slideup { from { transform: translateY(24px); opacity: .4; } to { transform: none; opacity: 1; } }
+
+  /* "Welcome to the Club" — shown once, right after creating an account */
+  .club-welcome-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(11,37,69,0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 60;
+    padding: 20px;
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  .club-welcome-overlay.is-visible { opacity: 1; }
+  .confetti-field { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .confetti-piece {
+    position: absolute;
+    top: -20px;
+    border-radius: 2px;
+    animation-name: confetti-fall;
+    animation-timing-function: ease-in;
+    animation-iteration-count: infinite;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translateY(-20px) translateX(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) translateX(var(--drift)) rotate(540deg); opacity: 0.85; }
+  }
+  .club-welcome-card {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    background: var(--surface-1);
+    border-radius: var(--radius);
+    padding: 30px 24px 24px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    transform: scale(.85);
+    opacity: 0;
+    transition: transform .25s cubic-bezier(.34,1.56,.64,1), opacity .2s ease;
+  }
+  .club-welcome-overlay.is-visible .club-welcome-card { transform: scale(1); opacity: 1; }
+  .club-welcome-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 4px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: linear-gradient(90deg, var(--gold) 0%, var(--jewel-emerald) 65%, var(--jewel-coral) 100%);
+  }
+  .club-welcome-icon { font-size: 44px; margin-bottom: 6px; }
+  .club-welcome-card h2 {
+    font-family: Georgia, "Iowan Old Style", Palatino, serif;
+    font-size: 22px;
+    margin: 0 0 10px;
+    color: var(--gold-text);
+  }
+  .club-welcome-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin: 0 0 20px; }
+  .club-welcome-card .btn-primary { width: 100%; }
+  @media (prefers-reduced-motion: reduce) {
+    .confetti-piece { animation: none; display: none; }
+  }
   .sheet-handle {
     width: 40px; height: 4px; border-radius: 999px;
     background: var(--border);

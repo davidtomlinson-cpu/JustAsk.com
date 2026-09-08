@@ -1990,7 +1990,7 @@
         if (!name || !email || !password) { errEl.textContent = 'Fill in your name, email and password.'; return; }
         btn.disabled = true; btn.textContent = 'Creating account…';
         apiSignup(name, email, password)
-          .then(function (result) { return afterAuthSuccess(result, 'Account created — welcome!'); })
+          .then(function (result) { return afterAuthSuccess(result, null, true); })
           .catch(function (err) { errEl.textContent = err.message || 'Could not create your account.'; })
           .finally(function () { btn.disabled = false; btn.textContent = 'Create account'; });
       });
@@ -2054,7 +2054,7 @@
             if (result.user.role !== 'buyer') {
               throw new Error("That's the staff login — use the \"Staff sign in\" link below instead.");
             }
-            return afterAuthSuccess(result, 'Signed in — welcome back!');
+            return afterAuthSuccess(result, 'Welcome back to the Club!');
           })
           .catch(function (err) { errEl.textContent = err.message || 'Could not sign in.'; })
           .finally(function () { btn.disabled = false; btn.textContent = 'Sign in'; });
@@ -2064,7 +2064,10 @@
 
   // Common tail for a successful buyer sign-in/sign-up: attach whatever this
   // device has submitted as a guest onto the new account, then load their list.
-  function afterAuthSuccess(result, toastMsg) {
+  // isNewAccount gets the full confetti welcome moment (a one-off "you just
+  // joined" celebration); an ordinary sign-in just gets the toast — showing
+  // fireworks every time someone logs back in would cheapen it fast.
+  function afterAuthSuccess(result, toastMsg, isNewAccount) {
     setAuth(result.token, result.user);
     var guestIds = loadGuestIds();
     return apiClaim(guestIds)
@@ -2075,14 +2078,51 @@
         return refreshRequests();
       })
       .then(function () {
-        showToast(toastMsg);
         renderAccountView();
+        if (isNewAccount) {
+          showClubWelcome(result.user.name);
+        } else {
+          showToast(toastMsg);
+        }
       });
+  }
+
+  // ---------- "Welcome to the Club" moment (new account only) ----------
+  var CONFETTI_COLORS = ['#D4AF37', '#0F7B5C', '#E8734A', '#0F5C6B', '#2a78d6', '#7c5cd6'];
+  function showClubWelcome(name) {
+    var overlay = document.createElement('div');
+    overlay.className = 'club-welcome-overlay';
+    var confettiHtml = '';
+    for (var i = 0; i < 60; i++) {
+      var left = Math.random() * 100;
+      var delay = Math.random() * 0.6;
+      var duration = 2.6 + Math.random() * 1.6;
+      var color = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+      var drift = (Math.random() * 60 - 30).toFixed(0);
+      var size = 6 + Math.round(Math.random() * 5);
+      confettiHtml += '<span class="confetti-piece" style="left:' + left + '%; animation-delay:' + delay + 's; animation-duration:' + duration + 's; background:' + color + '; width:' + size + 'px; height:' + (size * 0.4) + 'px; --drift:' + drift + 'px;"></span>';
+    }
+    overlay.innerHTML =
+      '<div class="confetti-field">' + confettiHtml + '</div>' +
+      '<div class="club-welcome-card">' +
+        '<div class="club-welcome-icon">🎉</div>' +
+        '<h2>Welcome to The Club' + (name ? ', ' + escapeHtml(name.split(' ')[0]) : '') + '!</h2>' +
+        '<p>You\'re officially a Club Member. Track every request, save the dates that matter, and see what membership\'s done for you — all right here.</p>' +
+        '<button type="button" class="btn-primary" id="clubWelcomeDismissBtn">Let\'s go</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    requestAnimationFrame(function () { overlay.classList.add('is-visible'); });
+    function dismiss() {
+      overlay.classList.remove('is-visible');
+      setTimeout(function () { overlay.remove(); }, 200);
+    }
+    document.getElementById('clubWelcomeDismissBtn').addEventListener('click', dismiss);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) dismiss(); });
   }
 
   function renderBuyerAccount() {
     accountContentEl.innerHTML =
-      '<div class="account-banner">Signed in as <strong>' + escapeHtml(state.authUser.name) + '</strong> (' + escapeHtml(state.authUser.email) + ').</div>' +
+      '<div class="account-banner">🎫 Club Member: <strong>' + escapeHtml(state.authUser.name) + '</strong> (' + escapeHtml(state.authUser.email) + ').</div>' +
       '<button type="button" class="btn-secondary" id="accSignOutBtn" style="margin-bottom:16px;">Sign out</button>' +
       (state.smsEnabled ? smsSettingsSectionHtml() : '') +
       '<div class="account-two-col">' +
@@ -2287,7 +2327,7 @@
 
   function renderGuestAccount() {
     accountContentEl.innerHTML =
-      '<div class="account-banner is-note">Browsing as a guest — these requests are only tracked on this device. <button type="button" id="switchToAuthBtn" style="background:none;border:none;color:var(--series-blue);font-weight:700;font-family:inherit;cursor:pointer;padding:0;text-decoration:underline;">Sign in or create an account</button> to see them anywhere.</div>' +
+      '<div class="account-banner is-note">Browsing as a guest — these requests are only tracked on this device. <button type="button" id="switchToAuthBtn" style="background:none;border:none;color:var(--series-blue);font-weight:700;font-family:inherit;cursor:pointer;padding:0;text-decoration:underline;">Join the Club</button> to see them anywhere.</div>' +
       '<div class="card-list" id="myReqCardList"></div>' +
       staffLoginPromptHtml();
     document.getElementById('switchToAuthBtn').addEventListener('click', function () {
