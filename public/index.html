@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-<title>JustAsk.com</title>
+<title>The JustAsk Club</title>
 
 <!-- PWA: installability, home-screen icon, and standalone display -->
 <link rel="manifest" href="/manifest.json" />
@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="JustAsk" />
+<meta name="apple-mobile-web-app-title" content="JustAsk Club" />
 <meta name="mobile-web-app-capable" content="yes" />
 <link rel="stylesheet" href="/app.css" />
 </head>
@@ -26,7 +26,7 @@
 
   <header class="topbar">
     <div class="brand">
-      <svg class="brand-logo" viewBox="0 0 760 220" role="img" aria-label="JustAsk.com – Your Personal Concierge">
+      <svg class="brand-logo" viewBox="0 0 760 220" role="img" aria-label="The JustAsk Club – Your Personal Concierge">
         <rect x="0" y="0" width="760" height="220" fill="#0B2545"/>
         <g transform="translate(30,50)">
           <g fill="none" stroke-linecap="round" stroke-width="16">
@@ -35,7 +35,7 @@
             <path d="M 25.36,80 A 40,40 0 0 1 46.32,22.41" stroke="#FFFFFF"/>
           </g>
         </g>
-        <text x="185" y="145" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="80" letter-spacing="1" fill="#FFFFFF">JustAsk<tspan fill="#D4AF37">.com</tspan></text>
+        <text x="185" y="140" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="60" letter-spacing="0.5" fill="#FFFFFF">The JustAsk <tspan fill="#D4AF37">Club</tspan></text>
         <text x="188" y="182" font-family="Arial, Helvetica, sans-serif" font-weight="600" font-size="17" letter-spacing="3.5" fill="#D4AF37">YOUR PERSONAL CONCIERGE</text>
       </svg>
     </div>
@@ -59,7 +59,7 @@
     <section class="view active" id="view-form">
       <div id="newRequestLanding">
       <div class="hero-band">
-        <svg class="hero-logo" viewBox="0 0 760 220" role="img" aria-label="JustAsk.com – Your Personal Concierge">
+        <svg class="hero-logo" viewBox="0 0 760 220" role="img" aria-label="The JustAsk Club – Your Personal Concierge">
           <g transform="translate(30,50)">
             <g fill="none" stroke-linecap="round" stroke-width="16">
               <path d="M 60,20 A 40,40 0 0 1 99.39,66.94" stroke="#FFFFFF"/>
@@ -67,7 +67,7 @@
               <path d="M 25.36,80 A 40,40 0 0 1 46.32,22.41" stroke="#FFFFFF"/>
             </g>
           </g>
-          <text x="185" y="145" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="80" letter-spacing="1" fill="#FFFFFF">JustAsk<tspan fill="#D4AF37">.com</tspan></text>
+          <text x="185" y="140" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="60" letter-spacing="0.5" fill="#FFFFFF">The JustAsk <tspan fill="#D4AF37">Club</tspan></text>
           <text x="188" y="182" font-family="Arial, Helvetica, sans-serif" font-weight="600" font-size="17" letter-spacing="3.5" fill="#D4AF37">YOUR PERSONAL CONCIERGE</text>
         </svg>
         <p class="hero-tagline">Your personal concierge, built for busy people who need a one-stop shop for their daily needs. Just ask — we'll take care of the request for you, on your behalf.</p>
@@ -781,7 +781,7 @@
     panel.style.display = 'flex';
     if (!chatGreeted) {
       chatGreeted = true;
-      chatHistory.push({ role: 'assistant', content: "Hi! I'm here to help with any questions about JustAsk — how it works, requests, delivery, accounts, that sort of thing. What can I help with?" });
+      chatHistory.push({ role: 'assistant', content: "Hi! I'm here to help with any questions about The JustAsk Club — how it works, requests, delivery, accounts, that sort of thing. What can I help with?" });
       renderChatMessages();
     }
     document.getElementById('chatInput').focus();

@@ -1,4 +1,4 @@
-# JustAsk.com — purchase request app + backend
+# The JustAsk Club — purchase request app + backend
 
 This is the small backend for the purchase-request app: a plain Node.js
 (Express) API backed by Postgres, plus the app's frontend served straight
@@ -193,7 +193,7 @@ details (names, addresses) will be traveling over it.
 
 ## Installing it as an app (PWA)
 
-JustAsk.com is a Progressive Web App — buyers and staff can add it to their
+The JustAsk Club is a Progressive Web App — buyers and staff can add it to their
 home screen or dock and open it like a normal app, no App Store required.
 
 **What's in place:**
@@ -407,7 +407,7 @@ pattern as Stripe and Ideal Postcodes. To turn it on:
 
 Each search makes one call to Claude with web search enabled, billed to your
 own Anthropic account at standard API rates — there's no separate charge
-from JustAsk.com itself, but it's real usage, so it's worth keeping an eye on
+from The JustAsk Club itself, but it's real usage, so it's worth keeping an eye on
 if staff use it heavily.
 
 ## Online payment (Stripe)

@@ -1,4 +1,4 @@
-# Getting JustAsk onto the App Store & Google Play
+# Getting The JustAsk Club onto the App Store & Google Play
 
 This covers what's already been set up, and exactly what's left for you to do.
 Nothing here needed code changes to `server.js` or the main app logic — this
@@ -7,7 +7,7 @@ wraps the existing site in a real native app shell.
 ## What's already done
 
 - **Capacitor installed and configured** (`capacitor.config.ts`) — app ID
-  `com.justask.app`, app name "JustAsk"
+  `com.justask.app`, app name "JustAsk Club"
 - **Android project generated** (`android/` folder) — validated with
   `npx cap doctor`, reported healthy
 - **iOS project generated** (`ios/` folder) — the project files are correct,

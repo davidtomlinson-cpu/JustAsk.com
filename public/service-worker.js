@@ -1,9 +1,9 @@
-// JustAsk.com service worker
+// The JustAsk Club service worker
 // Caches the app shell so the app installs cleanly and reopens instantly /
 // shows something useful offline. All /api/ calls always go to the network —
 // order data must never be served stale.
 
-const CACHE_VERSION = 'justask-v1';
+const CACHE_VERSION = 'justask-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -63,7 +63,7 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { /* fall through to defaults below */ }
-  const title = data.title || 'JustAsk.com';
+  const title = data.title || 'The JustAsk Club';
   const options = {
     body: data.body || 'You have an update on your order.',
     icon: '/icons/icon-192.png',
