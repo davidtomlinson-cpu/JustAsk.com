@@ -1512,8 +1512,28 @@
       return '<button type="button" class="item-suggestion-chip">' + escapeHtml(s) + '</button>';
     }).join('');
     panel.style.display = 'flex';
-    panel.querySelectorAll('.item-suggestion-chip').forEach(function (chip, i) {
+    var chips = panel.querySelectorAll('.item-suggestion-chip');
+    chips.forEach(function (chip, i) {
+      // Without this, a mouse click blurs the input before the click fires,
+      // which our focusout handler below would read as "left the field"
+      // and hide the panel out from under the click.
+      chip.addEventListener('mousedown', function (e) { e.preventDefault(); });
       chip.addEventListener('click', function () { onPick(list[i]); });
+      chip.addEventListener('keydown', function (e) {
+        var idx = Array.prototype.indexOf.call(chips, chip);
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          (chips[idx + 1] || chips[0]).focus();
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          (chips[idx - 1] || chips[chips.length - 1]).focus();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          document.getElementById('f-item').focus();
+          panel.style.display = 'none';
+          panel.innerHTML = '';
+        }
+      });
     });
   }
 
@@ -1573,6 +1593,19 @@
     });
   }
   document.getElementById('f-item').addEventListener('input', renderItemSuggestions);
+  document.getElementById('f-item').addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowDown') return;
+    var firstChip = document.querySelector('#itemSuggestions .item-suggestion-chip');
+    if (firstChip) { e.preventDefault(); firstChip.focus(); }
+  });
+  // Close the panel once focus leaves the field entirely (not just moving
+  // between the input and its own suggestion chips).
+  document.getElementById('f-item').closest('.field').addEventListener('focusout', function (e) {
+    var panel = document.getElementById('itemSuggestions');
+    if (e.relatedTarget && (e.relatedTarget === document.getElementById('f-item') || panel.contains(e.relatedTarget))) return;
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+  });
 
   document.getElementById('itemForm').addEventListener('submit', function (e) {
     e.preventDefault();
