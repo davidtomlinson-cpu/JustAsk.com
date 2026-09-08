@@ -322,7 +322,7 @@
   .item-suggestions {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
     margin-top: 8px;
     animation: sourceCardIn .18s ease;
   }
@@ -331,7 +331,8 @@
     border: 1px solid rgba(212,175,55,0.35);
     color: var(--gold-text);
     border-radius: 999px;
-    padding: 6px 12px;
+    padding: 10px 14px;
+    min-height: 36px;
     font-size: 12.5px;
     font-weight: 600;
     font-family: inherit;
@@ -339,6 +340,10 @@
     transition: transform .1s ease;
   }
   .item-suggestion-chip:active { transform: scale(.96); }
+  .item-suggestion-chip:focus-visible {
+    outline: 2px solid var(--series-blue);
+    outline-offset: 1px;
+  }
   .item-suggestion-hint {
     font-size: 12px;
     font-style: italic;
