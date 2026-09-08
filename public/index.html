@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-<title>JustAsk.com</title>
+<title>The JustAsk Club</title>
 
 <!-- PWA: installability, home-screen icon, and standalone display -->
 <link rel="manifest" href="/manifest.json" />
@@ -17,7 +17,7 @@
 <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="JustAsk" />
+<meta name="apple-mobile-web-app-title" content="JustAsk Club" />
 <meta name="mobile-web-app-capable" content="yes" />
 <link rel="stylesheet" href="/app.css" />
 </head>
@@ -26,7 +26,7 @@
 
   <header class="topbar">
     <div class="brand">
-      <svg class="brand-logo" viewBox="0 0 760 220" role="img" aria-label="JustAsk.com – Your Personal Concierge">
+      <svg class="brand-logo" viewBox="0 0 760 220" role="img" aria-label="The JustAsk Club – Your Personal Concierge">
         <rect x="0" y="0" width="760" height="220" fill="#0B2545"/>
         <g transform="translate(30,50)">
           <g fill="none" stroke-linecap="round" stroke-width="16">
@@ -35,8 +35,8 @@
             <path d="M 25.36,80 A 40,40 0 0 1 46.32,22.41" stroke="#FFFFFF"/>
           </g>
         </g>
-        <text x="185" y="145" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="80" letter-spacing="1" fill="#FFFFFF">JustAsk<tspan fill="#D4AF37">.com</tspan></text>
-        <text x="188" y="182" font-family="Arial, Helvetica, sans-serif" font-weight="600" font-size="17" letter-spacing="3.5" fill="#D4AF37">YOUR PERSONAL CONCIERGE</text>
+        <text x="185" y="140" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="60" letter-spacing="0.5" fill="#FFFFFF">The JustAsk <tspan fill="#D4AF37">Club</tspan></text>
+        <text x="188" y="182" font-family="Arial, Helvetica, sans-serif" font-weight="600" font-size="17" letter-spacing="3.5" fill="#D4AF37">YOUR TRUSTED PERSONAL CONCIERGE</text>
       </svg>
     </div>
     <div class="header-actions">
@@ -59,7 +59,7 @@
     <section class="view active" id="view-form">
       <div id="newRequestLanding">
       <div class="hero-band">
-        <svg class="hero-logo" viewBox="0 0 760 220" role="img" aria-label="JustAsk.com – Your Personal Concierge">
+        <svg class="hero-logo" viewBox="0 0 760 220" role="img" aria-label="The JustAsk Club – Your Personal Concierge">
           <g transform="translate(30,50)">
             <g fill="none" stroke-linecap="round" stroke-width="16">
               <path d="M 60,20 A 40,40 0 0 1 99.39,66.94" stroke="#FFFFFF"/>
@@ -67,10 +67,10 @@
               <path d="M 25.36,80 A 40,40 0 0 1 46.32,22.41" stroke="#FFFFFF"/>
             </g>
           </g>
-          <text x="185" y="145" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="80" letter-spacing="1" fill="#FFFFFF">JustAsk<tspan fill="#D4AF37">.com</tspan></text>
-          <text x="188" y="182" font-family="Arial, Helvetica, sans-serif" font-weight="600" font-size="17" letter-spacing="3.5" fill="#D4AF37">YOUR PERSONAL CONCIERGE</text>
+          <text x="185" y="140" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="60" letter-spacing="0.5" fill="#FFFFFF">The JustAsk <tspan fill="#D4AF37">Club</tspan></text>
+          <text x="188" y="182" font-family="Arial, Helvetica, sans-serif" font-weight="600" font-size="17" letter-spacing="3.5" fill="#D4AF37">YOUR TRUSTED PERSONAL CONCIERGE</text>
         </svg>
-        <p class="hero-tagline">Your personal concierge, built for busy people who need a one-stop shop for their daily needs. Just ask — we'll take care of the request for you, on your behalf.</p>
+        <p class="hero-tagline">Join the club and let us be your trusted personal concierge service — built for busy professionals.</p>
       </div>
 
       <div class="how-it-works">
@@ -336,14 +336,14 @@
   // setup). Override with ?api=https://your-api-host if you ever host the
   // frontend and backend separately.
   // Inside the native app (Capacitor), the web assets are bundled locally
-  // rather than served from justask-com.onrender.com, so relative API calls
+  // rather than served from www.justaskclub.com, so relative API calls
   // would have nowhere to go — point them at the live server instead. On
   // the normal web, window.Capacitor doesn't exist, so this falls through
   // to relative URLs exactly as before. The ?api= override still works too
   // (e.g. for local testing).
   var API_BASE = new URLSearchParams(location.search).get('api')
     || ((window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
-      ? 'https://justask-com.onrender.com'
+      ? 'https://www.justaskclub.com'
       : '');
 
   // ---- Ideal Postcodes configuration ----
@@ -586,6 +586,16 @@
     if (!res.ok) throw new Error('Session expired');
     return res.json(); // { user }
   }
+  async function apiUpdateMe(payload) {
+    var res = await fetch(apiUrl('/api/auth/me'), {
+      method: 'PATCH',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify(payload)
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not save (' + res.status + ')');
+    return data; // { user }
+  }
   async function apiClaim(ids) {
     if (!ids.length) return { claimed: 0 };
     var res = await fetch(apiUrl('/api/requests/claim'), {
@@ -594,6 +604,44 @@
       body: JSON.stringify({ ids: ids })
     });
     return res.ok ? res.json() : { claimed: 0 };
+  }
+  async function apiListImportantDates() {
+    var res = await fetch(apiUrl('/api/important-dates'), { headers: authHeaders() });
+    if (!res.ok) throw new Error('Could not load important dates (' + res.status + ')');
+    return res.json(); // { dates }
+  }
+  async function apiCreateImportantDate(payload) {
+    var res = await fetch(apiUrl('/api/important-dates'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify(payload)
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not save this date (' + res.status + ')');
+    return data;
+  }
+  async function apiUpdateImportantDate(id, payload) {
+    var res = await fetch(apiUrl('/api/important-dates/' + encodeURIComponent(id)), {
+      method: 'PATCH',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify(payload)
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not save this date (' + res.status + ')');
+    return data;
+  }
+  async function apiDeleteImportantDate(id) {
+    var res = await fetch(apiUrl('/api/important-dates/' + encodeURIComponent(id)), { method: 'DELETE', headers: authHeaders() });
+    if (!res.ok && res.status !== 404) throw new Error('Could not delete this date (' + res.status + ')');
+  }
+  async function apiRepeatImportantDate(id) {
+    var res = await fetch(apiUrl('/api/important-dates/' + encodeURIComponent(id) + '/repeat'), {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders())
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not place this order (' + res.status + ')');
+    return data;
   }
 
   var requests = [];
@@ -781,7 +829,7 @@
     panel.style.display = 'flex';
     if (!chatGreeted) {
       chatGreeted = true;
-      chatHistory.push({ role: 'assistant', content: "Hi! I'm here to help with any questions about JustAsk — how it works, requests, delivery, accounts, that sort of thing. What can I help with?" });
+      chatHistory.push({ role: 'assistant', content: "Hi! I'm here to help with any questions about The JustAsk Club — how it works, requests, delivery, accounts, that sort of thing. What can I help with?" });
       renderChatMessages();
     }
     document.getElementById('chatInput').focus();
@@ -2020,6 +2068,9 @@
     accountContentEl.innerHTML =
       '<div class="account-banner">Signed in as <strong>' + escapeHtml(state.authUser.name) + '</strong> (' + escapeHtml(state.authUser.email) + ').</div>' +
       '<button type="button" class="btn-secondary" id="accSignOutBtn" style="margin-bottom:16px;">Sign out</button>' +
+      (state.smsEnabled ? smsSettingsSectionHtml() : '') +
+      importantDatesSectionHtml() +
+      '<h3 class="account-section-title">My requests</h3>' +
       '<div class="card-list" id="myReqCardList"></div>' +
       staffLoginPromptHtml();
     document.getElementById('accSignOutBtn').addEventListener('click', function () {
@@ -2027,6 +2078,44 @@
       refreshRequests().then(function () { renderAccountView(); });
     });
     renderMyRequestsList();
+    if (state.smsEnabled) initSmsSettingsSection();
+    initImportantDatesSection();
+  }
+
+  // ---------- SMS order updates (phone number + opt-in) ----------
+  function smsSettingsSectionHtml() {
+    var u = state.authUser;
+    return (
+      '<div class="ticket-card sms-settings">' +
+        '<h3 style="margin-top:0;">📱 SMS order updates</h3>' +
+        '<p class="hint" style="margin:-2px 0 12px;">Add your mobile number to get order-status texts as well as email. Message rates may apply — turn it off any time.</p>' +
+        '<div class="field"><label for="sms-phone">Mobile number</label><input id="sms-phone" type="tel" placeholder="e.g. 07123 456789" value="' + (u.phone ? escapeHtml(u.phone) : '') + '" /></div>' +
+        '<label class="occ-auto-toggle"><input type="checkbox" id="sms-optin"' + (u.smsOptIn ? ' checked' : '') + ' /> Text me order updates</label>' +
+        '<div class="occ-form-error" id="smsSettingsError"></div>' +
+        '<button type="button" class="btn-secondary" id="smsSettingsSaveBtn" style="margin-top:8px;">Save</button>' +
+      '</div>'
+    );
+  }
+
+  function initSmsSettingsSection() {
+    var saveBtn = document.getElementById('smsSettingsSaveBtn');
+    if (!saveBtn) return;
+    saveBtn.addEventListener('click', function () {
+      var errEl = document.getElementById('smsSettingsError');
+      errEl.textContent = '';
+      var phone = document.getElementById('sms-phone').value.trim();
+      var optIn = document.getElementById('sms-optin').checked;
+      if (optIn && !phone) { errEl.textContent = 'Add a phone number before turning on SMS updates.'; return; }
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+      apiUpdateMe({ phone: phone || null, smsOptIn: optIn })
+        .then(function (data) {
+          setAuth(state.authToken, data.user);
+          showToast('SMS settings saved.');
+          renderAccountView();
+        })
+        .catch(function (err) { errEl.textContent = err.message; })
+        .finally(function () { saveBtn.disabled = false; saveBtn.textContent = 'Save'; });
+    });
   }
 
   function renderGuestAccount() {
@@ -2060,6 +2149,217 @@
     }
     listEl.innerHTML = buildBuyerItemCardsHtml(requests);
     wireCardClicks(listEl, 'buyer');
+  }
+
+  // ---------- Important Dates (birthdays, anniversaries, etc) ----------
+  var IMPORTANT_DATE_OCCASION_ICONS = { birthday: '🎂', anniversary: '💍', other: '🎁' };
+  var importantDates = [];
+  var editingImportantDateId = null; // null = form closed, 'new' = adding, else editing this id
+
+  function importantDatesSectionHtml() {
+    return (
+      '<div class="important-dates-section">' +
+        '<h3 class="account-section-title">🎉 Important Dates</h3>' +
+        '<p class="hint" style="margin:-4px 0 12px;">Save a birthday or anniversary and we\'ll email you a reminder before it — or have us start the same order automatically, every year, ready for you to review and pay as usual.</p>' +
+        '<div class="card-list" id="importantDatesList"></div>' +
+        '<div id="importantDateFormMount"></div>' +
+      '</div>'
+    );
+  }
+
+  function formatOccurrence(iso) {
+    var d = new Date(iso + 'T00:00:00Z');
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+  }
+  function relativeDays(n) {
+    if (n === 0) return 'today';
+    if (n === 1) return 'tomorrow';
+    return 'in ' + n + ' days';
+  }
+
+  function importantDateCardHtml(d) {
+    var icon = IMPORTANT_DATE_OCCASION_ICONS[d.occasion] || IMPORTANT_DATE_OCCASION_ICONS.other;
+    var badges = '<span class="occ-badge">🔔 reminds ' + d.reminderDaysBefore + ' days before</span>';
+    if (d.autoRepeat) badges += '<span class="occ-badge occ-badge-auto">↻ repeats automatically</span>';
+    var orderLine = d.hasOrderDetails
+      ? '<div class="occ-order-line">Usually: ' + escapeHtml(d.item) + ' for ' + escapeHtml(d.recipient) + '</div>'
+      : '';
+    return (
+      '<div class="occ-card" data-id="' + escapeHtml(d.id) + '">' +
+        '<div class="occ-card-main">' +
+          '<div class="occ-icon">' + icon + '</div>' +
+          '<div class="occ-info">' +
+            '<div class="occ-label">' + escapeHtml(d.label) + '</div>' +
+            '<div class="occ-next">' + formatOccurrence(d.nextOccurrence) + ' · ' + relativeDays(d.daysUntilNext) + '</div>' +
+            orderLine +
+            '<div class="occ-badges">' + badges + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="occ-actions">' +
+          (d.hasOrderDetails ? '<button type="button" class="link-btn occ-repeat-btn">Place this order now</button>' : '') +
+          '<button type="button" class="link-btn occ-edit-btn">Edit</button>' +
+          '<button type="button" class="link-btn occ-delete-btn" style="color:var(--status-critical);">Delete</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderImportantDatesList() {
+    var listEl = document.getElementById('importantDatesList');
+    if (!listEl) return;
+    var addBtnHtml = '<button type="button" class="btn-secondary" id="addImportantDateBtn">+ Add an important date</button>';
+    if (!importantDates.length) {
+      listEl.innerHTML = '<div class="empty-state"><div class="emoji">🎈</div>No important dates saved yet.</div>' + addBtnHtml;
+    } else {
+      listEl.innerHTML = importantDates.map(importantDateCardHtml).join('') + addBtnHtml;
+    }
+    document.getElementById('addImportantDateBtn').addEventListener('click', function () {
+      editingImportantDateId = 'new';
+      renderImportantDateForm();
+    });
+    listEl.querySelectorAll('.occ-card').forEach(function (card) {
+      var id = card.getAttribute('data-id');
+      var d = importantDates.find(function (x) { return x.id === id; });
+      var editBtn = card.querySelector('.occ-edit-btn');
+      if (editBtn) editBtn.addEventListener('click', function () { editingImportantDateId = id; renderImportantDateForm(); });
+      var delBtn = card.querySelector('.occ-delete-btn');
+      if (delBtn) delBtn.addEventListener('click', function () {
+        if (!confirm('Delete "' + d.label + '"? This can\'t be undone.')) return;
+        apiDeleteImportantDate(id)
+          .then(loadImportantDates)
+          .catch(function (err) { showToast(err.message); });
+      });
+      var repeatBtn = card.querySelector('.occ-repeat-btn');
+      if (repeatBtn) repeatBtn.addEventListener('click', function () {
+        repeatBtn.disabled = true; repeatBtn.textContent = 'Placing order…';
+        apiRepeatImportantDate(id)
+          .then(function () {
+            showToast('Order placed for "' + d.label + '" — see it under My requests.');
+            return refreshRequests();
+          })
+          .catch(function (err) { showToast(err.message); })
+          .finally(function () { repeatBtn.disabled = false; repeatBtn.textContent = 'Place this order now'; });
+      });
+    });
+  }
+
+  function renderImportantDateForm() {
+    var mount = document.getElementById('importantDateFormMount');
+    if (!mount) return;
+    if (editingImportantDateId === null) { mount.innerHTML = ''; return; }
+    var isNew = editingImportantDateId === 'new';
+    var d = isNew ? null : importantDates.find(function (x) { return x.id === editingImportantDateId; });
+    if (!isNew && !d) { editingImportantDateId = null; mount.innerHTML = ''; return; }
+
+    var todayIso = new Date().toISOString().slice(0, 10);
+    var dateValue = d ? (todayIso.slice(0, 4) + '-' + String(d.month).padStart(2, '0') + '-' + String(d.day).padStart(2, '0')) : todayIso;
+
+    mount.innerHTML =
+      '<div class="ticket-card occ-form">' +
+        '<h4 style="margin-top:0;">' + (isNew ? 'Add an important date' : 'Edit important date') + '</h4>' +
+        '<div class="field"><label for="occ-label">What is it? *</label><input id="occ-label" type="text" placeholder="e.g. Sarah\'s birthday" value="' + (d ? escapeHtml(d.label) : '') + '" /></div>' +
+        '<div class="field"><label>Occasion</label><div class="pill-group" id="occOccasionGroup">' +
+          '<button type="button" class="pill-option' + (d && d.occasion === 'birthday' ? ' is-selected' : (!d ? ' is-selected' : '')) + '" data-value="birthday">🎂 Birthday</button>' +
+          '<button type="button" class="pill-option' + (d && d.occasion === 'anniversary' ? ' is-selected' : '') + '" data-value="anniversary">💍 Anniversary</button>' +
+          '<button type="button" class="pill-option' + (d && d.occasion === 'other' ? ' is-selected' : '') + '" data-value="other">🎁 Other</button>' +
+        '</div></div>' +
+        '<div class="field"><label for="occ-date">Date <span class="hint">(the year doesn\'t matter — this repeats every year)</span></label><input id="occ-date" type="date" value="' + dateValue + '" /></div>' +
+        '<div class="field"><label for="occ-remind">Remind me this many days before</label><input id="occ-remind" type="number" min="0" max="90" value="' + (d ? d.reminderDaysBefore : 7) + '" style="max-width:100px;" /></div>' +
+
+        '<h4 style="margin-bottom:4px;">What to order <span class="hint">(optional, but needed for "place this order now" or auto-repeat)</span></h4>' +
+        '<div class="field"><label for="occ-item">Item</label><input id="occ-item" type="text" placeholder="e.g. 6ft Christmas tree" value="' + (d && d.item ? escapeHtml(d.item) : '') + '" /></div>' +
+        '<div class="field"><label for="occ-recipient">Deliver to (recipient name)</label><input id="occ-recipient" type="text" value="' + (d && d.recipient ? escapeHtml(d.recipient) : '') + '" /></div>' +
+        '<div class="field"><label for="occ-postcode">Delivery postcode</label><input id="occ-postcode" type="text" value="' + (d && d.postcode ? escapeHtml(d.postcode) : '') + '" /></div>' +
+        '<div class="field"><label for="occ-address">Address</label><textarea id="occ-address" rows="2">' + (d && d.addressLine ? escapeHtml(d.addressLine) : '') + '</textarea></div>' +
+        '<div class="field"><label>Budget</label><div class="pill-group" id="occBudgetGroup">' +
+          '<button type="button" class="pill-option' + (d && d.budgetTier === 'Basic' ? ' is-selected' : '') + '" data-value="Basic">Basic</button>' +
+          '<button type="button" class="pill-option' + (d && d.budgetTier === 'Standard' ? ' is-selected' : '') + '" data-value="Standard">Standard</button>' +
+          '<button type="button" class="pill-option' + (d && d.budgetTier === 'Premium' ? ' is-selected' : '') + '" data-value="Premium">Premium</button>' +
+        '</div></div>' +
+
+        '<label class="occ-auto-toggle"><input type="checkbox" id="occ-auto"' + (d && d.autoRepeat ? ' checked' : '') + ' /> Automatically repeat this order every year</label>' +
+        '<p class="hint" style="margin:2px 0 14px;">On the day, we\'ll start a fresh request using the details above — you\'ll still see the quote and pay as normal, exactly like any other request. Nothing is ever charged automatically.</p>' +
+
+        '<div class="occ-form-error" id="occFormError"></div>' +
+        '<div style="display:flex; gap:10px;">' +
+          '<button type="button" class="btn-primary" id="occSaveBtn">Save</button>' +
+          '<button type="button" class="btn-secondary" id="occCancelBtn">Cancel</button>' +
+        '</div>' +
+      '</div>';
+
+    document.querySelectorAll('#occOccasionGroup .pill-option, #occBudgetGroup .pill-option').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var group = btn.closest('.pill-group');
+        var allowDeselect = group.id === 'occBudgetGroup';
+        var wasSelected = btn.classList.contains('is-selected');
+        group.querySelectorAll('.pill-option').forEach(function (b) { b.classList.remove('is-selected'); });
+        if (!(wasSelected && allowDeselect)) btn.classList.add('is-selected');
+      });
+    });
+
+    document.getElementById('occCancelBtn').addEventListener('click', function () {
+      editingImportantDateId = null;
+      renderImportantDateForm();
+    });
+
+    document.getElementById('occSaveBtn').addEventListener('click', function () {
+      var btn = this;
+      var errEl = document.getElementById('occFormError');
+      errEl.textContent = '';
+
+      var label = document.getElementById('occ-label').value.trim();
+      var occasion = getPillValue('occOccasionGroup') || 'other';
+      var dateStr = document.getElementById('occ-date').value;
+      var remind = parseInt(document.getElementById('occ-remind').value, 10);
+      var item = document.getElementById('occ-item').value.trim();
+      var recipient = document.getElementById('occ-recipient').value.trim();
+      var postcode = document.getElementById('occ-postcode').value.trim();
+      var addressLine = document.getElementById('occ-address').value.trim();
+      var budgetTier = getPillValue('occBudgetGroup');
+      var autoRepeat = document.getElementById('occ-auto').checked;
+
+      if (!label) { errEl.textContent = 'Give this date a name.'; return; }
+      if (!dateStr) { errEl.textContent = 'Pick a date.'; return; }
+      if (autoRepeat && (!item || !recipient || !postcode || !addressLine)) {
+        errEl.textContent = 'Auto-repeat needs the item, recipient, postcode and address filled in.';
+        return;
+      }
+      var parts = dateStr.split('-');
+      var payload = {
+        label: label, occasion: occasion,
+        month: parseInt(parts[1], 10), day: parseInt(parts[2], 10),
+        reminderDaysBefore: isNaN(remind) ? 7 : remind,
+        autoRepeat: autoRepeat,
+        item: item || null, recipient: recipient || null, postcode: postcode || null, addressLine: addressLine || null,
+        budgetTier: budgetTier || null
+      };
+
+      btn.disabled = true; btn.textContent = 'Saving…';
+      var promise = isNew ? apiCreateImportantDate(payload) : apiUpdateImportantDate(editingImportantDateId, payload);
+      promise
+        .then(function () {
+          editingImportantDateId = null;
+          return loadImportantDates();
+        })
+        .then(function () { showToast(isNew ? 'Important date saved.' : 'Changes saved.'); })
+        .catch(function (err) { errEl.textContent = err.message; })
+        .finally(function () { btn.disabled = false; btn.textContent = 'Save'; });
+    });
+  }
+
+  function loadImportantDates() {
+    return apiListImportantDates()
+      .then(function (data) {
+        importantDates = data.dates || [];
+        renderImportantDatesList();
+        renderImportantDateForm();
+      })
+      .catch(function (err) { showToast(err.message); });
+  }
+
+  function initImportantDatesSection() {
+    editingImportantDateId = null;
+    loadImportantDates();
   }
 
   // ---------- detail sheet ----------
@@ -3042,6 +3342,7 @@
       state.chatEnabled = !!cfg.chatEnabled;
       state.pushEnabled = !!cfg.pushEnabled;
       state.vapidPublicKey = cfg.vapidPublicKey || null;
+      state.smsEnabled = !!cfg.smsEnabled;
       if (typeof cfg.markupRate === 'number') state.markupRate = cfg.markupRate;
     } catch (err) {
       state.paymentsEnabled = false;
@@ -3049,6 +3350,7 @@
       state.chatEnabled = false;
       state.pushEnabled = false;
       state.vapidPublicKey = null;
+      state.smsEnabled = false;
     }
     if (state.authToken) {
       try {

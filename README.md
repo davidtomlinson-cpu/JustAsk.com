@@ -1,4 +1,4 @@
-# JustAsk.com — purchase request app + backend
+# The JustAsk Club — purchase request app + backend
 
 This is the small backend for the purchase-request app: a plain Node.js
 (Express) API backed by Postgres, plus the app's frontend served straight
@@ -190,10 +190,12 @@ details (names, addresses) will be traveling over it.
 | `STAFF_EMAIL` | `staff@example.com` | The purchasing team's login email. **Change this before deploying anywhere real** — the default is only there so the app runs out of the box locally. |
 | `STAFF_PASSWORD` | `changeme123` | The purchasing team's login password. **Change this too.** If either `STAFF_EMAIL` or `STAFF_PASSWORD` is left unset, the server logs a warning on startup as a reminder. |
 | `ANTHROPIC_API_KEY` | *(unset — item search off)* | Your Anthropic API key. Setting this switches on the staff "Find sourcing options" tool (see below). Each search costs a small amount of API usage, so treat it like the Stripe/Ideal Postcodes keys — optional, and billed to your own Anthropic account. |
+| `CRON_SECRET` | *(unset — endpoint disabled)* | Shared secret for `POST /api/cron/important-dates` (the daily "check important dates, send reminders, auto-repeat orders" sweep — see `.github/workflows/important-dates-reminders.yml`). Set the same value here and as a `CRON_SECRET` GitHub Actions repository secret. |
+| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | *(unset — SMS off)* | Twilio credentials and sending number for SMS order updates. All three are required to turn SMS on; sign up at [twilio.com](https://www.twilio.com), buy a number, and copy the Account SID/Auth Token from the console. Real per-message cost applies once this is set — same "optional, billed to your own account" pattern as Stripe/Anthropic. UK mobile numbers only for now. |
 
 ## Installing it as an app (PWA)
 
-JustAsk.com is a Progressive Web App — buyers and staff can add it to their
+The JustAsk Club is a Progressive Web App — buyers and staff can add it to their
 home screen or dock and open it like a normal app, no App Store required.
 
 **What's in place:**
@@ -407,7 +409,7 @@ pattern as Stripe and Ideal Postcodes. To turn it on:
 
 Each search makes one call to Claude with web search enabled, billed to your
 own Anthropic account at standard API rates — there's no separate charge
-from JustAsk.com itself, but it's real usage, so it's worth keeping an eye on
+from The JustAsk Club itself, but it's real usage, so it's worth keeping an eye on
 if staff use it heavily.
 
 ## Online payment (Stripe)

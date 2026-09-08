@@ -2,7 +2,7 @@
   "name": "aaa-purchase-requests-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "Small backend for the JustAsk.com purchase request app",
+  "description": "Small backend for The JustAsk Club purchase request app",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
