@@ -1,6 +1,7 @@
 <title>The Memory Maker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#4F46E5">
+<meta name="theme-color" content="#b25545" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1e1613" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -11,28 +12,28 @@
 <div id="app-root" class="hidden">
   <header id="app-header">
     <div class="brand">
-      <div class="mark">📖</div>
+      <div class="mark"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.2A2.2 2.2 0 0 1 6.2 3H19v16.8H6.2A2.2 2.2 0 0 0 4 22V5.2Z"/><path d="M19 19.8H6.2A2.2 2.2 0 0 0 4 22"/></svg></div>
       <div>
         <h1>The Memory Maker</h1>
-        <select id="family-switcher"></select>
+        <select id="family-switcher" aria-label="Switch family"></select>
       </div>
     </div>
-    <button id="profile-btn" title="Profile"></button>
+    <button id="profile-btn" title="Profile" aria-label="Open your profile"></button>
   </header>
 
   <main id="view-root"></main>
 
   <nav id="tabbar">
-    <button data-tab="today"><span class="icon">🏠</span>Today</button>
-    <button data-tab="calendar"><span class="icon">📅</span>Calendar</button>
-    <button data-tab="memories"><span class="icon">🖼️</span>Memories</button>
-    <button data-tab="todos"><span class="icon">✅</span>To-dos</button>
-    <button data-tab="food"><span class="icon">🍽️</span>Food</button>
+    <button data-tab="today"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9"/></svg>Today</button>
+    <button data-tab="calendar"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg>Calendar</button>
+    <button data-tab="memories"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5 9 12l3.5 3.5L17 11l3.5 4"/></svg>Memories</button>
+    <button data-tab="todos"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12.3l2.4 2.4 4.6-5.2"/></svg>To-dos</button>
+    <button data-tab="food"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v6.5a1.8 1.8 0 0 0 1.8 1.8H8a1.8 1.8 0 0 0 1.8-1.8V3"/><path d="M8.4 11.3V21"/><path d="M15.5 3c-1.4 0-2.5 1.7-2.5 3.8 0 1.7.8 3.2 2 3.7V21"/></svg>Food</button>
   </nav>
 </div>
 
 <div id="auth-screen" class="hidden">
-  <div class="mark">📖</div>
+  <div class="mark"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.2A2.2 2.2 0 0 1 6.2 3H19v16.8H6.2A2.2 2.2 0 0 0 4 22V5.2Z"/><path d="M19 19.8H6.2A2.2 2.2 0 0 0 4 22"/></svg></div>
   <h1>The Memory Maker</h1>
   <p>Your family's calendar, memories, meals and to-dos, all in one place.</p>
   <div class="card">
@@ -42,19 +43,19 @@
     </div>
     <form id="auth-form" class="stack">
       <div class="field hidden" id="auth-name-field">
-        <label>Your name</label>
+        <label for="auth-name">Your name</label>
         <input type="text" id="auth-name" autocomplete="name">
       </div>
       <div class="field">
-        <label>Email</label>
+        <label for="auth-email">Email</label>
         <input type="email" id="auth-email" autocomplete="email" required>
       </div>
       <div class="field">
-        <label>Password</label>
+        <label for="auth-password">Password</label>
         <input type="password" id="auth-password" autocomplete="current-password" required>
       </div>
       <div class="field hidden" id="auth-phone-field">
-        <label>Mobile number (optional, for SMS reminders)</label>
+        <label for="auth-phone">Mobile number (optional, for SMS reminders)</label>
         <input type="tel" id="auth-phone" placeholder="07... or +447...">
       </div>
       <button type="submit" class="btn btn-primary btn-block" id="auth-submit">Log in</button>

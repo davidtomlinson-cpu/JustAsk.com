@@ -8,7 +8,7 @@
    pure overhead for it.
    ========================================================================= */
 
-const AVATAR_FALLBACK = '#4F46E5';
+const AVATAR_FALLBACK = '#b25545';
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_LABELS = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
 const DAY_LABELS_FULL = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
@@ -57,6 +57,30 @@ function fmtDateTime(iso) {
 }
 function fmtTime(iso) { return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+// ---- icons ----
+// Inline SVG for primary nav / key actions — emoji glyphs render inconsistently across
+// platforms (a wrong glyph has been observed for 🍳), so anything that's core UI (not
+// decorative flavour text) is drawn instead.
+const ICON_PATHS = {
+  camera: '<path d="M4 8.2a1.5 1.5 0 0 1 1.5-1.5H8l1.6-2.2h4.8L16 6.7h2.5A1.5 1.5 0 0 1 20 8.2v9.3a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5Z"/><circle cx="12" cy="12.6" r="3.4"/>',
+  images: '<rect x="3" y="4.5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5 9 12l3.5 3.5L17 11l3.5 4"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  chevronLeft: '<polyline points="14,5 8,12 14,19"/>',
+  chevronRight: '<polyline points="10,5 16,12 10,19"/>',
+  x: '<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>',
+  trash: '<path d="M4.5 7h15"/><path d="M9.5 7V4.8A1 1 0 0 1 10.5 3.8h3a1 1 0 0 1 1 1V7"/><path d="M6.5 7l.9 12a1.6 1.6 0 0 0 1.6 1.5h6a1.6 1.6 0 0 0 1.6-1.5l.9-12"/>',
+  check: '<polyline points="5,13 10,18 19,7"/>',
+  pot: '<path d="M4 11h16"/><path d="M5 11v5.5A3.5 3.5 0 0 0 8.5 20h7a3.5 3.5 0 0 0 3.5-3.5V11"/><path d="M9 11V7.5a3 3 0 0 1 6 0V11"/><path d="M2.5 9.5c0-1 1-1.8 2-1.3M21.5 9.5c0-1-1-1.8-2-1.3"/>',
+  book: '<path d="M4 5.2A2.2 2.2 0 0 1 6.2 3H19v16.8H6.2A2.2 2.2 0 0 0 4 22V5.2Z"/><path d="M19 19.8H6.2A2.2 2.2 0 0 0 4 22"/>',
+  cart: '<circle cx="9.5" cy="20" r="1.4"/><circle cx="17.5" cy="20" r="1.4"/><path d="M3 4h2.2l2.1 11a1.8 1.8 0 0 0 1.8 1.5h7.4a1.8 1.8 0 0 0 1.8-1.5L20 8H6.3"/>',
+  utensils: '<path d="M7 3v6.5a1.8 1.8 0 0 0 1.8 1.8H8a1.8 1.8 0 0 0 1.8-1.8V3"/><path d="M8.4 11.3V21"/><path d="M15.5 3c-1.4 0-2.5 1.7-2.5 3.8 0 1.7.8 3.2 2 3.7V21"/>'
+};
+function icon(name, size, cls) {
+  size = size || 18;
+  return `<svg class="i ${cls || ''}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ''}</svg>`;
+}
+function loadingHtml(msg) { return `<div class="loading-row"><div class="spinner"></div><span>${esc(msg || 'Loading…')}</span></div>`; }
 
 // ---- API ----
 async function api(path, opts) {
@@ -240,11 +264,11 @@ function bindAuthScreen() {
 function openProfileModal() {
   const u = state.user;
   openModal(`
-    <div class="modal-head"><h3>Your profile</h3><button onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>Your profile</h3><button onclick="closeModal()">${icon('x')}</button></div>
     <div class="stack">
       <div class="row">${avatarHtml(u, 'lg')}<div style="flex:1"><strong>${esc(u.name)}</strong><p class="muted">${esc(u.email)}</p></div></div>
       <div class="field">
-        <label>Mobile number (for SMS reminders)</label>
+        <label for="profile-phone">Mobile number (for SMS reminders)</label>
         <input type="tel" id="profile-phone" value="${esc(u.phone || '')}" placeholder="07... or +447...">
       </div>
       <label class="hstack"><input type="checkbox" id="profile-sms" ${u.smsOptIn ? 'checked' : ''} style="width:auto"> Send me SMS reminders</label>
@@ -281,27 +305,27 @@ function openProfileModal() {
 
 function openFamilyManager(introMessage) {
   openModal(`
-    <div class="modal-head"><h3>Families &amp; friend groups</h3><button onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>Families &amp; friend groups</h3><button onclick="closeModal()">${icon('x')}</button></div>
     ${introMessage ? `<p class="muted">${esc(introMessage)}</p>` : ''}
     <div class="section-title">Your families</div>
     <div class="stack" id="fam-list">${state.families.map(famRow).join('') || '<p class="muted">None yet.</p>'}</div>
     <div class="hstack">
-      <input id="new-fam-name" placeholder="New family name" style="flex:1">
+      <input id="new-fam-name" placeholder="New family name" aria-label="New family name" style="flex:1">
       <button class="btn btn-primary" id="create-fam-btn">Create</button>
     </div>
     <div class="hstack" style="margin-top:8px">
-      <input id="join-fam-code" placeholder="Join code" style="flex:1">
+      <input id="join-fam-code" placeholder="Join code" aria-label="Family join code" style="flex:1">
       <button class="btn" id="join-fam-btn">Join</button>
     </div>
 
     <div class="section-title">Your friend groups</div>
     <div class="stack" id="grp-list">${state.groups.map(grpRow).join('') || '<p class="muted">None yet.</p>'}</div>
     <div class="hstack">
-      <input id="new-grp-name" placeholder="New group name" style="flex:1">
+      <input id="new-grp-name" placeholder="New group name" aria-label="New friend group name" style="flex:1">
       <button class="btn btn-primary" id="create-grp-btn">Create</button>
     </div>
     <div class="hstack" style="margin-top:8px">
-      <input id="join-grp-code" placeholder="Join code" style="flex:1">
+      <input id="join-grp-code" placeholder="Join code" aria-label="Friend group join code" style="flex:1">
       <button class="btn" id="join-grp-btn">Join</button>
     </div>
   `);
@@ -381,7 +405,7 @@ function refreshCurrentView() {
   }
 }
 function noFamilyState() {
-  return `<div class="empty-state card"><div class="big">👋</div><h3>Create or join a family first</h3>
+  return `<div class="empty-state card"><div class="big">${icon('images', 22)}</div><h3>Create or join a family first</h3>
     <p>Everything in The Memory Maker — calendars, memories, meals — is shared with a family.</p>
     <button class="btn btn-primary" onclick="openFamilyManager()">Set up a family</button></div>`;
 }
@@ -431,7 +455,7 @@ async function ensureMemoryForDate(date) {
 async function renderToday() {
   const root = document.getElementById('view-root');
   if (!currentFamily()) { root.innerHTML = noFamilyState(); return; }
-  root.innerHTML = `<div class="empty-state"><p>Loading…</p></div>`;
+  root.innerHTML = `<div class="empty-state">${loadingHtml()}</div>`;
   const date = todayStr();
   const familyId = state.currentFamilyId;
   const [calRes, memRes] = await Promise.all([
@@ -445,10 +469,10 @@ async function renderToday() {
   root.innerHTML = `
     <div class="card" style="text-align:center">
       <p class="muted" style="margin-bottom:2px">${fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-      <h2 style="margin-bottom:14px">Today with the ${esc(currentFamily().name)}</h2>
-      <button class="btn-camera" id="today-camera">📷</button>
+      <h2 style="margin-bottom:14px">Today with ${esc(currentFamily().name)}</h2>
+      <button class="btn-camera" id="today-camera" aria-label="Capture today's memory">${icon('camera', 28)}</button>
       <p class="muted" style="margin-top:10px">Capture today's memory</p>
-      <button class="btn btn-sm" id="today-gallery" style="margin-top:2px">or choose from gallery</button>
+      <button class="btn btn-sm" id="today-gallery" style="margin-top:2px">${icon('images', 14)} Choose from gallery</button>
     </div>
 
     <div class="section-title">Today's plans</div>
@@ -464,8 +488,8 @@ async function renderToday() {
 }
 
 function mediaTileHtml(m) {
-  if (m.type === 'video') return `<div class="tile video"><video src="${esc(m.url)}" muted></video></div>`;
-  return `<div class="tile"><img src="${esc(m.url)}" loading="lazy"></div>`;
+  if (m.type === 'video') return `<div class="tile video"><video src="${esc(m.url)}" muted aria-label="Family video"></video></div>`;
+  return `<div class="tile"><img src="${esc(m.url)}" loading="lazy" alt="Family photo"></div>`;
 }
 function eventRowHtml(ev) {
   const time = ev.allDay ? 'All day' : `${fmtTime(ev.startsAt)}–${fmtTime(ev.endsAt)}`;
@@ -515,9 +539,9 @@ async function renderCalendarMonth() {
   container.innerHTML = `
     <div class="card">
       <div class="row" style="margin-bottom:10px">
-        <button class="btn btn-sm" id="cal-prev">◀</button>
+        <button class="btn btn-icon-sm" id="cal-prev" aria-label="Previous month">${icon('chevronLeft', 16)}</button>
         <strong>${firstOfMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</strong>
-        <button class="btn btn-sm" id="cal-next">▶</button>
+        <button class="btn btn-icon-sm" id="cal-next" aria-label="Next month">${icon('chevronRight', 16)}</button>
       </div>
       <div class="month-grid">
         ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => `<div class="dow">${d}</div>`).join('')}
@@ -532,7 +556,7 @@ async function renderCalendarMonth() {
         }).join('')}
       </div>
     </div>
-    <button class="btn btn-primary btn-block" id="cal-add-event">+ Add event</button>
+    <button class="btn btn-primary btn-block" id="cal-add-event">${icon('plus', 16)} Add event</button>
     <div id="day-detail"></div>
   `;
   document.getElementById('cal-prev').onclick = () => { calendarMonthCursor = new Date(year, month - 1, 1); renderCalendarMonth(); };
@@ -560,7 +584,7 @@ async function renderDayDetail(events) {
             <p class="muted">${ev.allDay ? 'All day' : fmtTime(ev.startsAt) + '–' + fmtTime(ev.endsAt)}${ev.location ? ' · ' + esc(ev.location) : ''}</p>
             <div class="avatar-stack">${(ev.attendees || []).map((a) => avatarHtml(a)).join('')}</div>
           </div>
-          <button class="btn btn-sm" onclick="deleteEvent('${ev.id}')">Delete</button>
+          <button class="btn btn-sm btn-bad" onclick="deleteEvent('${ev.id}')" aria-label="Delete ${esc(ev.title)}">${icon('trash', 14)}</button>
         </div>`).join('<div class="divider"></div>')
         : `<p class="muted">Nothing booked yet.</p>`}
     </div>
@@ -568,8 +592,8 @@ async function renderDayDetail(events) {
     <div class="section-title">Memories from this day</div>
     <div class="card">
       <div class="hstack" style="margin-bottom:${allMedia.length ? '10px' : '0'}">
-        <button class="btn btn-sm btn-primary" id="day-camera">📷 Add photo/video</button>
-        <button class="btn btn-sm" id="day-gallery">Choose from gallery</button>
+        <button class="btn btn-sm btn-primary" id="day-camera">${icon('camera', 14)} Add photo/video</button>
+        <button class="btn btn-sm" id="day-gallery">${icon('images', 14)} Choose from gallery</button>
       </div>
       ${allMedia.length ? `<div class="media-grid">${allMedia.map(mediaTileHtml).join('')}</div>` : `<p class="muted">No memories saved for this day yet.</p>`}
     </div>
@@ -593,20 +617,20 @@ async function openEventForm(opts) {
   const date = (opts && opts.date) || todayStr();
 
   openModal(`
-    <div class="modal-head"><h3>Add event</h3><button onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>Add event</h3><button onclick="closeModal()">${icon('x')}</button></div>
     <form id="event-form" class="stack">
-      <div class="field"><label>Title</label><input id="ev-title" required placeholder="e.g. Dentist appointment"></div>
+      <div class="field"><label for="ev-title">Title</label><input id="ev-title" required placeholder="e.g. Dentist appointment"></div>
       <div class="hstack">
-        <div class="field" style="flex:1"><label>Date</label><input id="ev-date" type="date" value="${date}" required></div>
+        <div class="field" style="flex:1"><label for="ev-date">Date</label><input id="ev-date" type="date" value="${date}" required></div>
         <label class="hstack" style="margin-top:20px"><input type="checkbox" id="ev-allday" style="width:auto"> All day</label>
       </div>
       <div class="hstack" id="ev-time-row">
-        <div class="field" style="flex:1"><label>Start</label><input id="ev-start" type="time" value="09:00"></div>
-        <div class="field" style="flex:1"><label>End</label><input id="ev-end" type="time" value="10:00"></div>
+        <div class="field" style="flex:1"><label for="ev-start">Start</label><input id="ev-start" type="time" value="09:00"></div>
+        <div class="field" style="flex:1"><label for="ev-end">End</label><input id="ev-end" type="time" value="10:00"></div>
       </div>
-      <div class="field"><label>Location</label><input id="ev-location" placeholder="Optional"></div>
+      <div class="field"><label for="ev-location">Location</label><input id="ev-location" placeholder="Optional"></div>
       <div class="field">
-        <label>Type</label>
+        <label for="ev-occasion">Type</label>
         <select id="ev-occasion">
           <option value="event">Regular event</option>
           <option value="birthday">🎂 Birthday</option>
@@ -699,10 +723,10 @@ async function openEventForm(opts) {
 
 async function renderMemoriesTab() {
   const root = document.getElementById('view-root');
-  root.innerHTML = `<div class="empty-state"><p>Loading…</p></div>`;
+  root.innerHTML = `<div class="empty-state">${loadingHtml()}</div>`;
   const { memories } = await api(`/api/memories?familyId=${state.currentFamilyId}&from=2000-01-01&to=2100-01-01`);
   if (!memories.length) {
-    root.innerHTML = `<div class="empty-state card"><div class="big">🖼️</div><h3>No memories yet</h3><p>Tap today's date and use the camera to start your family's album.</p></div>`;
+    root.innerHTML = `<div class="empty-state card"><div class="big">${icon('images', 22)}</div><h3>No memories yet</h3><p>Tap today's date and use the camera to start your family's album.</p></div>`;
     return;
   }
   root.innerHTML = memories.map((m) => `
@@ -713,7 +737,7 @@ async function renderMemoriesTab() {
       </div>
       ${m.media.length ? `<div class="media-grid">${m.media.map(mediaTileHtml).join('')}</div>` : `<p class="muted">No photos yet.</p>`}
       <div class="hstack" style="margin-top:10px">
-        <button class="btn btn-sm" onclick="openCameraFor('${m.date}')">📷 Add more</button>
+        <button class="btn btn-sm" onclick="openCameraFor('${m.date}')">${icon('camera', 14)} Add more</button>
       </div>
     </div>
   `).join('');
@@ -725,7 +749,7 @@ async function renderMemoriesTab() {
 
 async function renderTodosTab() {
   const root = document.getElementById('view-root');
-  root.innerHTML = `<div class="empty-state"><p>Loading…</p></div>`;
+  root.innerHTML = `<div class="empty-state">${loadingHtml()}</div>`;
   const familyId = state.currentFamilyId;
   const [{ members }, { todos }] = await Promise.all([api(`/api/families/${familyId}`), api(`/api/todos?familyId=${familyId}`)]);
   const byUser = {};
@@ -733,7 +757,7 @@ async function renderTodosTab() {
   for (const t of todos) { if (byUser[t.assignedTo]) byUser[t.assignedTo].todos.push(t); }
 
   root.innerHTML = `
-    <button class="btn btn-primary btn-block" id="add-todo-btn" style="margin-bottom:14px">+ New to-do</button>
+    <button class="btn btn-primary btn-block" id="add-todo-btn" style="margin-bottom:14px">${icon('plus', 16)} New to-do</button>
     ${Object.values(byUser).map((group) => `
       <div class="card">
         <div class="row" style="margin-bottom:6px">${avatarHtml(group.user)}<strong style="flex:1;margin-left:8px">${esc(group.user.name)}</strong></div>
@@ -766,7 +790,7 @@ function todoItemHtml(t) {
   const mine = t.assignedTo === state.user.id;
   const canHighFive = t.status === 'complete' && !mine && !(t.highFives || []).some((h) => h.fromUserId === state.user.id);
   return `<div class="todo-item ${t.status}">
-    <div class="check todo-check" data-id="${t.id}" data-status="${t.status}">${t.status === 'complete' ? '✓' : t.status === 'failed' ? '✕' : ''}</div>
+    <div class="check todo-check" data-id="${t.id}" data-status="${t.status}" role="button" aria-label="${t.status === 'pending' ? 'Mark complete' : 'Mark pending'}">${t.status === 'complete' ? icon('check') : t.status === 'failed' ? icon('x') : ''}</div>
     <div style="flex:1">
       <div class="title">${esc(t.title)}</div>
       ${t.notes ? `<div class="meta">${esc(t.notes)}</div>` : ''}
@@ -782,16 +806,16 @@ function todoItemHtml(t) {
 
 function openTodoForm(members) {
   openModal(`
-    <div class="modal-head"><h3>New to-do</h3><button onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>New to-do</h3><button onclick="closeModal()">${icon('x')}</button></div>
     <form id="todo-form" class="stack">
-      <div class="field"><label>Task</label><input id="todo-title" required placeholder="e.g. Pack swimming kit"></div>
-      <div class="field"><label>Notes</label><textarea id="todo-notes" placeholder="Optional"></textarea></div>
-      <div class="field"><label>Assign to</label>
+      <div class="field"><label for="todo-title">Task</label><input id="todo-title" required placeholder="e.g. Pack swimming kit"></div>
+      <div class="field"><label for="todo-notes">Notes</label><textarea id="todo-notes" placeholder="Optional"></textarea></div>
+      <div class="field"><label for="todo-assignee">Assign to</label>
         <select id="todo-assignee">${members.map((m) => `<option value="${m.id}" ${m.id === state.user.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select>
       </div>
-      <div class="field"><label>Due</label><input id="todo-due" type="datetime-local"></div>
+      <div class="field"><label for="todo-due">Due</label><input id="todo-due" type="datetime-local"></div>
       <div class="field">
-        <label>Remind</label>
+        <label for="todo-reminder-hours">Remind</label>
         <select id="todo-reminder-hours">
           <option value="">No reminder</option>
           <option value="1">1 hour before</option>
@@ -799,7 +823,7 @@ function openTodoForm(members) {
           <option value="72">3 days before</option>
         </select>
       </div>
-      <div class="field"><label>Reminder channel</label>
+      <div class="field"><label for="todo-reminder-channel">Reminder channel</label>
         <select id="todo-reminder-channel"><option value="app">In-app only</option><option value="sms">SMS only</option><option value="both">In-app + SMS</option></select>
       </div>
       <button type="submit" class="btn btn-primary btn-block">Add to-do</button>
@@ -841,9 +865,9 @@ function renderFoodTab() {
   const root = document.getElementById('view-root');
   root.innerHTML = `
     <div class="hstack" style="margin-bottom:14px">
-      <button class="chip ${state.foodTab === 'dinner' ? '' : 'off'}" id="food-tab-dinner">🍽️ Dinner plan</button>
-      <button class="chip ${state.foodTab === 'recipes' ? '' : 'off'}" id="food-tab-recipes">📖 Recipes</button>
-      <button class="chip ${state.foodTab === 'shopping' ? '' : 'off'}" id="food-tab-shopping">🛒 Shopping list</button>
+      <button class="chip ${state.foodTab === 'dinner' ? '' : 'off'}" id="food-tab-dinner">${icon('utensils')} Dinner plan</button>
+      <button class="chip ${state.foodTab === 'recipes' ? '' : 'off'}" id="food-tab-recipes">${icon('book')} Recipes</button>
+      <button class="chip ${state.foodTab === 'shopping' ? '' : 'off'}" id="food-tab-shopping">${icon('cart')} Shopping list</button>
     </div>
     <div id="food-content"></div>
   `;
@@ -857,9 +881,9 @@ function renderFoodTab() {
 
 function weekPickerHtml() {
   return `<div class="row card-tight card">
-    <button class="btn btn-sm" id="week-prev">◀</button>
+    <button class="btn btn-icon-sm" id="week-prev" aria-label="Previous week">${icon('chevronLeft', 16)}</button>
     <strong>Week of ${fmtDate(state.weekStart, { day: 'numeric', month: 'long' })}</strong>
-    <button class="btn btn-sm" id="week-next">▶</button>
+    <button class="btn btn-icon-sm" id="week-next" aria-label="Next week">${icon('chevronRight', 16)}</button>
   </div>`;
 }
 function bindWeekPicker(onChange) {
@@ -869,7 +893,7 @@ function bindWeekPicker(onChange) {
 
 async function renderDinnerPlan() {
   const el = document.getElementById('food-content');
-  el.innerHTML = weekPickerHtml() + `<p class="muted">Loading…</p>`;
+  el.innerHTML = weekPickerHtml() + loadingHtml();
   bindWeekPicker(renderDinnerPlan);
 
   const familyId = state.currentFamilyId;
@@ -889,7 +913,7 @@ async function renderDinnerPlan() {
         <div class="day-label">${DAY_LABELS[p.day]}</div>
         <div>${p.inFor.map((u) => avatarHtml(u)).join('') || '<span class="muted">—</span>'}</div>
         <div class="muted" style="font-size:11px;margin-top:4px">${mealByDay[p.day] ? esc(mealByDay[p.day].recipeTitle || '') : ''}</div>
-        <button class="btn btn-sm" style="margin-top:4px;padding:4px 8px" data-assign-day="${p.day}">🍳</button>
+        <button class="btn btn-icon-sm" style="margin-top:4px" data-assign-day="${p.day}" aria-label="Assign a recipe to ${DAY_LABELS_FULL[p.day]}">${icon('pot', 15)}</button>
       </div>`).join('')}</div>`;
 
     const me = poll.recipients.find((r) => r.userId === state.user.id);
@@ -899,7 +923,7 @@ async function renderDinnerPlan() {
         <div class="card">
           <p class="muted">Tap the nights you're in for dinner this week.</p>
           <div class="day-toggle-list">
-            ${DAYS.map((d) => `<div class="day-toggle-row ${me.days[d] ? 'on' : ''}" data-day="${d}"><span>${DAY_LABELS_FULL[d]}</span><span>${me.days[d] ? '✓' : ''}</span></div>`).join('')}
+            ${DAYS.map((d) => `<div class="day-toggle-row ${me.days[d] ? 'on' : ''}" data-day="${d}"><span>${DAY_LABELS_FULL[d]}</span><span>${me.days[d] ? icon('check', 15) : ''}</span></div>`).join('')}
           </div>
         </div>`;
     }
@@ -942,7 +966,7 @@ async function renderDinnerPlan() {
 async function openAssignRecipeModal(day) {
   const { recipes } = await api(`/api/recipes?familyId=${state.currentFamilyId}`);
   openModal(`
-    <div class="modal-head"><h3>${DAY_LABELS_FULL[day]}'s meal</h3><button onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>${DAY_LABELS_FULL[day]}'s meal</h3><button onclick="closeModal()">${icon('x')}</button></div>
     <div class="stack">
       ${recipes.length ? recipes.map((r) => `<button class="btn btn-block" data-recipe="${r.id}">${esc(r.title)}</button>`).join('') : `<p class="muted">No saved recipes yet — add one from the Recipes tab first.</p>`}
       <button class="btn btn-bad btn-block" data-recipe="">Clear this day</button>
@@ -961,12 +985,12 @@ async function openAssignRecipeModal(day) {
 
 async function renderRecipes() {
   const el = document.getElementById('food-content');
-  el.innerHTML = `<p class="muted">Loading…</p>`;
+  el.innerHTML = loadingHtml();
   const { recipes } = await api(`/api/recipes?familyId=${state.currentFamilyId}`);
   el.innerHTML = `
     <div class="hstack" style="margin-bottom:12px">
       <button class="btn btn-primary" id="gen-recipe-btn">✨ Generate with AI</button>
-      <button class="btn" id="add-recipe-btn">+ Add manually / link</button>
+      <button class="btn" id="add-recipe-btn">${icon('plus', 16)} Add manually / link</button>
     </div>
     ${recipes.length ? recipes.map(recipeCardHtml).join('') : `<p class="muted">No recipes saved yet.</p>`}
   `;
@@ -993,18 +1017,18 @@ function recipeCardHtml(r) {
     </div>
     ${r.sourceUrl ? `<p><a href="${esc(r.sourceUrl)}" target="_blank" rel="noopener">${esc(r.sourceUrl)}</a></p>` : ''}
     ${r.ingredients.length ? `<p class="muted">${r.ingredients.map((i) => esc(i.item)).join(', ')}</p>` : ''}
-    <div class="hstack" style="margin-top:8px"><button class="btn btn-sm btn-bad recipe-delete" data-id="${r.id}">Delete</button></div>
+    <div class="hstack" style="margin-top:8px"><button class="btn btn-sm btn-bad recipe-delete" data-id="${r.id}" aria-label="Delete ${esc(r.title)}">${icon('trash', 14)} Delete</button></div>
   </div>`;
 }
 
 function openGenerateRecipeModal() {
   if (!state.config.recipeGenerationEnabled) {
-    openModal(`<div class="modal-head"><h3>AI recipes</h3><button onclick="closeModal()">✕</button></div><p class="muted">AI recipe generation isn't configured on this server yet (needs an ANTHROPIC_API_KEY).</p>`);
+    openModal(`<div class="modal-head"><h3>AI recipes</h3><button onclick="closeModal()">${icon('x')}</button></div><p class="muted">AI recipe generation isn't configured on this server yet (needs an ANTHROPIC_API_KEY).</p>`);
     return;
   }
   openModal(`
-    <div class="modal-head"><h3>Generate a recipe</h3><button onclick="closeModal()">✕</button></div>
-    <div class="field"><label>Describe what you want to cook</label><textarea id="gen-prompt" placeholder="e.g. chicken thigh recipe for 4 people with a tomato sauce"></textarea></div>
+    <div class="modal-head"><h3>Generate a recipe</h3><button onclick="closeModal()">${icon('x')}</button></div>
+    <div class="field"><label for="gen-prompt">Describe what you want to cook</label><textarea id="gen-prompt" placeholder="e.g. chicken thigh recipe for 4 people with a tomato sauce"></textarea></div>
     <button class="btn btn-primary btn-block" id="gen-btn">Generate</button>
     <div id="gen-result" style="margin-top:14px"></div>
     <p class="error-text hidden" id="gen-error"></p>
@@ -1045,16 +1069,16 @@ function openGenerateRecipeModal() {
 
 function openRecipeForm() {
   openModal(`
-    <div class="modal-head"><h3>Add a recipe</h3><button onclick="closeModal()">✕</button></div>
+    <div class="modal-head"><h3>Add a recipe</h3><button onclick="closeModal()">${icon('x')}</button></div>
     <form id="recipe-form" class="stack">
-      <div class="field"><label>Title</label><input id="rcp-title" required></div>
-      <div class="field"><label>Servings</label><input id="rcp-servings" type="number" min="1"></div>
-      <div class="field"><label>Link (optional — if this is a recipe from elsewhere)</label><input id="rcp-url" type="url" placeholder="https://…"></div>
+      <div class="field"><label for="rcp-title">Title</label><input id="rcp-title" required></div>
+      <div class="field"><label for="rcp-servings">Servings</label><input id="rcp-servings" type="number" min="1"></div>
+      <div class="field"><label for="rcp-url">Link (optional — if this is a recipe from elsewhere)</label><input id="rcp-url" type="url" placeholder="https://…"></div>
       <div class="field">
-        <label>Ingredients (one per line — e.g. "400g chicken thighs")</label>
+        <label for="rcp-ingredients">Ingredients (one per line — e.g. "400g chicken thighs")</label>
         <textarea id="rcp-ingredients" placeholder="400g chicken thighs&#10;1 tin chopped tomatoes"></textarea>
       </div>
-      <div class="field"><label>Instructions</label><textarea id="rcp-instructions"></textarea></div>
+      <div class="field"><label for="rcp-instructions">Instructions</label><textarea id="rcp-instructions"></textarea></div>
       <button type="submit" class="btn btn-primary btn-block">Save recipe</button>
       <p class="error-text hidden" id="recipe-error"></p>
     </form>
@@ -1090,7 +1114,7 @@ function openRecipeForm() {
 
 async function renderShoppingList() {
   const el = document.getElementById('food-content');
-  el.innerHTML = weekPickerHtml() + `<p class="muted">Loading…</p>`;
+  el.innerHTML = weekPickerHtml() + loadingHtml();
   bindWeekPicker(renderShoppingList);
 
   const familyId = state.currentFamilyId;
@@ -1127,7 +1151,7 @@ async function bootPublicDinner(token) {
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('app-root').classList.add('hidden');
   screen.classList.remove('hidden');
-  screen.innerHTML = `<div class="card"><p class="muted">Loading…</p></div>`;
+  screen.innerHTML = `<div class="card">${loadingHtml()}</div>`;
   try {
     const data = await fetch(`/api/dinner-response/${token}`).then((r) => { if (!r.ok) throw new Error('This link is not valid or has expired.'); return r.json(); });
     let selected = new Set(DAYS.filter((d) => data.days[d]));
@@ -1136,7 +1160,7 @@ async function bootPublicDinner(token) {
         <h2>Hi ${esc(data.user.name)} 👋</h2>
         <p class="muted">Which nights are you in for dinner the week of ${fmtDate(data.weekStart, { day: 'numeric', month: 'long' })}?</p>
         <div class="day-toggle-list">
-          ${DAYS.map((d) => `<div class="day-toggle-row ${selected.has(d) ? 'on' : ''}" data-day="${d}"><span>${DAY_LABELS_FULL[d]}</span><span>${selected.has(d) ? '✓' : ''}</span></div>`).join('')}
+          ${DAYS.map((d) => `<div class="day-toggle-row ${selected.has(d) ? 'on' : ''}" data-day="${d}"><span>${DAY_LABELS_FULL[d]}</span><span>${selected.has(d) ? icon('check', 15) : ''}</span></div>`).join('')}
         </div>
         <button class="btn btn-primary btn-block" style="margin-top:14px" id="submit-days">Save</button>
         <p class="muted" id="saved-msg" style="text-align:center;margin-top:8px"></p>
@@ -1160,7 +1184,7 @@ async function bootPublicRating(token) {
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('app-root').classList.add('hidden');
   screen.classList.remove('hidden');
-  screen.innerHTML = `<div class="card"><p class="muted">Loading…</p></div>`;
+  screen.innerHTML = `<div class="card">${loadingHtml()}</div>`;
   try {
     const data = await fetch(`/api/meal-rating/${token}`).then((r) => { if (!r.ok) throw new Error('This link is not valid or has expired.'); return r.json(); });
     const options = [
