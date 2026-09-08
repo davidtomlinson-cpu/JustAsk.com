@@ -51,6 +51,8 @@
       <div id="dashboardContent" style="display:none;">
         <div class="account-banner is-note" id="staffWhoAmI"></div>
 
+        <button type="button" class="btn-secondary" id="viewStaffAnalyticsBtn" style="margin-bottom:16px;">📊 Analytics</button>
+
         <div class="manage-tabs" id="manageTabs" style="display:none;">
           <button type="button" class="manage-tab is-active" data-pane="requests">Requests</button>
           <button type="button" class="manage-tab" data-pane="search">Search for items</button>
@@ -104,6 +106,14 @@
       <h2 class="view-title">Monthly reports</h2>
       <p class="view-sub">Orders fulfilled and margin earned, by month of completion.</p>
       <div id="reportsContent"></div>
+    </section>
+
+    <!-- ANALYTICS (reached from Manage) -->
+    <section class="view" id="view-staff-analytics">
+      <button type="button" class="link-btn" id="backToManageFromAnalyticsBtn">← Back to Manage</button>
+      <h2 class="view-title">Analytics</h2>
+      <p class="view-sub">The business, over the last 12 months.</p>
+      <div id="staffAnalyticsContent"></div>
     </section>
   </main>
 
@@ -407,6 +417,12 @@
   document.getElementById('backToManageBtn').addEventListener('click', function () {
     showView('view-dashboard');
   });
+  document.getElementById('viewStaffAnalyticsBtn').addEventListener('click', function () {
+    showView('view-staff-analytics');
+  });
+  document.getElementById('backToManageFromAnalyticsBtn').addEventListener('click', function () {
+    showView('view-dashboard');
+  });
 
   // ---------- standalone item sourcing search (Manage dashboard) ----------
   // Populates the "Which request is this for?" dropdown from whatever's
@@ -639,11 +655,12 @@
     }
   })();
 
-  // ---------- nav (just two views here: Manage and Monthly reports) ----------
+  // ---------- nav (Manage, Monthly reports, Analytics) ----------
   function showView(id) {
     document.querySelectorAll('.view').forEach(function (v) { v.classList.toggle('active', v.id === id); });
     if (id === 'view-dashboard') renderDashboard();
     if (id === 'view-reports') renderReportsView();
+    if (id === 'view-staff-analytics') renderStaffAnalyticsView();
   }
 
   // ---------- toast ----------
@@ -957,6 +974,148 @@
         '</div>';
       }).join('') +
       '</div>';
+  }
+
+  // ---------- Analytics (business-wide, last 12 months) ----------
+  // Computed client-side from the already-loaded `requests` array — same
+  // approach as renderReportsView above, and just as valid here: staff
+  // already fetch every request (no pagination in this app), so there's no
+  // separate endpoint to keep in sync or extra round trip to wait on.
+  function renderStaffAnalyticsView() {
+    var contentEl = document.getElementById('staffAnalyticsContent');
+    if (!contentEl) return;
+    if (!state.authUser || state.authUser.role !== 'staff') { showView('view-dashboard'); return; }
+
+    var cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+    var inWindow = requests.filter(function (r) { return new Date(r.createdAt) >= cutoff; });
+
+    if (!inWindow.length) {
+      contentEl.innerHTML = '<div class="empty-state"><div class="emoji">📊</div><p>No requests in the last 12 months yet — analytics will build up as orders come in.</p></div>';
+      return;
+    }
+
+    var marginTotal = 0;
+    inWindow.forEach(function (r) {
+      if (r.paymentStatus === 'paid' && r.quotes && r.directCosts && r.selectedTier) marginTotal += computeOrderMargin(r);
+    });
+
+    var now = new Date();
+    var monthlyOrders = [];
+    for (var i = 11; i >= 0; i--) {
+      var bucket = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+      monthlyOrders.push({ month: bucket.toISOString().slice(0, 7), count: 0 });
+    }
+    var bucketIndex = {};
+    monthlyOrders.forEach(function (b, i) { bucketIndex[b.month] = i; });
+    inWindow.forEach(function (r) {
+      var key = r.createdAt.slice(0, 7);
+      if (bucketIndex.hasOwnProperty(key)) monthlyOrders[bucketIndex[key]].count++;
+    });
+
+    var statusCounts = {};
+    STATUSES.forEach(function (s) { statusCounts[s.key] = 0; });
+    inWindow.forEach(function (r) { if (statusCounts.hasOwnProperty(r.status)) statusCounts[r.status]++; });
+
+    var tierCounts = {};
+    BUDGET_TIERS.forEach(function (t) { tierCounts[t] = 0; });
+    inWindow.forEach(function (r) { if (r.selectedTier && tierCounts.hasOwnProperty(r.selectedTier)) tierCounts[r.selectedTier]++; });
+    var tierTotal = BUDGET_TIERS.reduce(function (sum, t) { return sum + tierCounts[t]; }, 0);
+
+    var itemCounts = {};
+    inWindow.forEach(function (r) {
+      var key = r.item.trim().toLowerCase();
+      if (!itemCounts[key]) itemCounts[key] = { text: r.item.trim(), count: 0 };
+      itemCounts[key].count++;
+    });
+    var topItems = Object.keys(itemCounts).map(function (k) { return itemCounts[k]; })
+      .sort(function (a, b) { return b.count - a.count; }).slice(0, 5);
+
+    var turnarounds = [];
+    inWindow.forEach(function (r) {
+      var delivered = (r.statusHistory || []).find(function (h) { return h.status === 'Order Delivered'; });
+      if (delivered) turnarounds.push((new Date(delivered.createdAt) - new Date(r.createdAt)) / 86400000);
+    });
+    var avgTurnaroundDays = turnarounds.length
+      ? Math.round((turnarounds.reduce(function (a, b) { return a + b; }, 0) / turnarounds.length) * 10) / 10
+      : null;
+
+    var monthLabel = function (m) { return new Date(m.month + '-01T00:00:00Z').toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' }); };
+    var maxMonth = Math.max.apply(null, monthlyOrders.map(function (m) { return m.count; })) || 1;
+    var maxStatus = Math.max.apply(null, STATUSES.map(function (s) { return statusCounts[s.key]; })) || 1;
+
+    contentEl.innerHTML =
+      '<div class="analytics-hero">' +
+        '<div class="analytics-hero-value">' + fmtMoney(marginTotal) + '</div>' +
+        '<div class="analytics-hero-label">margin earned in the last 12 months</div>' +
+      '</div>' +
+      '<div class="metric-tile-grid">' +
+        '<div class="metric-tile"><div class="metric-tile-value">' + inWindow.length + '</div><div class="metric-tile-label">Orders placed</div><div class="metric-tile-sub">last 12 months</div></div>' +
+        (avgTurnaroundDays !== null
+          ? '<div class="metric-tile"><div class="metric-tile-value">' + avgTurnaroundDays + (avgTurnaroundDays === 1 ? ' day' : ' days') + '</div><div class="metric-tile-label">Average turnaround</div><div class="metric-tile-sub">ask to delivered</div></div>'
+          : '') +
+        '<div class="metric-tile"><div class="metric-tile-value">' + statusCounts['Cancelled'] + '</div><div class="metric-tile-label">Cancelled</div><div class="metric-tile-sub">last 12 months</div></div>' +
+      '</div>' +
+      '<div class="chart-card" style="margin-bottom:16px;">' +
+        '<div class="chart-card-head"><h3>Orders by month</h3></div>' +
+        '<div class="bar-chart" id="staffMonthlyBarChart">' +
+          monthlyOrders.map(function (m) {
+            var pct = Math.round((m.count / maxMonth) * 100);
+            return '<div class="bar-chart-col" data-month="' + m.month + '" data-count="' + m.count + '" tabindex="0">' +
+              '<div class="bar-chart-track"><div class="bar-chart-bar" style="height:' + pct + '%;"></div></div>' +
+              '<div class="bar-chart-tick">' + monthLabel(m) + '</div>' +
+            '</div>';
+          }).join('') +
+          '<div class="bar-chart-tooltip" id="staffBarChartTooltip" hidden></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="chart-card" style="margin-bottom:16px;">' +
+        '<div class="chart-card-head"><h3>Where orders stand</h3></div>' +
+        '<div class="bar-chart bar-chart-horizontal">' +
+          STATUSES.map(function (s) {
+            var pct = Math.max(4, Math.round((statusCounts[s.key] / maxStatus) * 100));
+            return '<div class="hbar-row"><div class="hbar-label">' + s.key + '</div><div class="hbar-track"><div class="hbar-fill" style="width:' + pct + '%;background:' + s.color + ';"></div></div><div class="hbar-value">' + statusCounts[s.key] + '</div></div>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+      (tierTotal
+        ? '<div class="chart-card" style="margin-bottom:16px;">' +
+            '<div class="chart-card-head"><h3>Budget tier mix</h3></div>' +
+            '<div class="bar-chart bar-chart-horizontal">' +
+              BUDGET_TIERS.map(function (t) {
+                var pct = Math.max(4, Math.round((tierCounts[t] / tierTotal) * 100));
+                return '<div class="hbar-row"><div class="hbar-label">' + t + '</div><div class="hbar-track"><div class="hbar-fill" style="width:' + pct + '%;"></div></div><div class="hbar-value">' + tierCounts[t] + '</div></div>';
+              }).join('') +
+            '</div>' +
+          '</div>'
+        : '') +
+      (topItems.length
+        ? '<div class="chart-card">' +
+            '<div class="chart-card-head"><h3>Most requested</h3></div>' +
+            '<div class="analytics-table-wrap"><table class="analytics-table"><thead><tr><th>Item</th><th>Requests</th></tr></thead><tbody>' +
+              topItems.map(function (it) { return '<tr><td>' + escapeHtml(it.text) + '</td><td>' + it.count + '</td></tr>'; }).join('') +
+            '</tbody></table></div>' +
+          '</div>'
+        : '');
+
+    var monthChartEl = document.getElementById('staffMonthlyBarChart');
+    var monthTooltip = document.getElementById('staffBarChartTooltip');
+    if (monthChartEl && monthTooltip) {
+      monthChartEl.querySelectorAll('.bar-chart-col').forEach(function (col) {
+        var show = function () {
+          var count = col.getAttribute('data-count');
+          var monthText = new Date(col.getAttribute('data-month') + '-01T00:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+          monthTooltip.textContent = count + (count === '1' ? ' order' : ' orders') + ' · ' + monthText;
+          monthTooltip.hidden = false;
+          var colRect = col.getBoundingClientRect();
+          var chartRect = monthChartEl.getBoundingClientRect();
+          monthTooltip.style.left = Math.max(0, Math.min(chartRect.width - monthTooltip.offsetWidth, colRect.left - chartRect.left - monthTooltip.offsetWidth / 2 + colRect.width / 2)) + 'px';
+        };
+        col.addEventListener('mouseenter', show);
+        col.addEventListener('focus', show);
+        col.addEventListener('mouseleave', function () { monthTooltip.hidden = true; });
+        col.addEventListener('blur', function () { monthTooltip.hidden = true; });
+      });
+    }
   }
 
   // ---------- staff gate (Manage) ----------

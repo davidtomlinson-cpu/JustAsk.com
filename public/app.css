@@ -777,6 +777,67 @@
     animation: slideup .2s ease;
   }
   @keyframes slideup { from { transform: translateY(24px); opacity: .4; } to { transform: none; opacity: 1; } }
+
+  /* "Welcome to the Club" — shown once, right after creating an account */
+  .club-welcome-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(11,37,69,0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 60;
+    padding: 20px;
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  .club-welcome-overlay.is-visible { opacity: 1; }
+  .confetti-field { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .confetti-piece {
+    position: absolute;
+    top: -20px;
+    border-radius: 2px;
+    animation-name: confetti-fall;
+    animation-timing-function: ease-in;
+    animation-iteration-count: infinite;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translateY(-20px) translateX(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) translateX(var(--drift)) rotate(540deg); opacity: 0.85; }
+  }
+  .club-welcome-card {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    background: var(--surface-1);
+    border-radius: var(--radius);
+    padding: 30px 24px 24px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    transform: scale(.85);
+    opacity: 0;
+    transition: transform .25s cubic-bezier(.34,1.56,.64,1), opacity .2s ease;
+  }
+  .club-welcome-overlay.is-visible .club-welcome-card { transform: scale(1); opacity: 1; }
+  .club-welcome-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 4px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: linear-gradient(90deg, var(--gold) 0%, var(--jewel-emerald) 65%, var(--jewel-coral) 100%);
+  }
+  .club-welcome-icon { font-size: 44px; margin-bottom: 6px; }
+  .club-welcome-card h2 {
+    font-family: Georgia, "Iowan Old Style", Palatino, serif;
+    font-size: 22px;
+    margin: 0 0 10px;
+    color: var(--gold-text);
+  }
+  .club-welcome-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin: 0 0 20px; }
+  .club-welcome-card .btn-primary { width: 100%; }
+  @media (prefers-reduced-motion: reduce) {
+    .confetti-piece { animation: none; display: none; }
+  }
   .sheet-handle {
     width: 40px; height: 4px; border-radius: 999px;
     background: var(--border);
@@ -1060,6 +1121,121 @@
     margin: 22px 0 4px;
   }
   .important-dates-section { margin-bottom: 6px; }
+  .account-two-col { display: block; }
+  .account-col-requests, .account-col-dates { min-width: 0; }
+
+  /* ---- Analytics ---- */
+  .analytics-hero {
+    text-align: center;
+    background: linear-gradient(180deg, var(--gold-tint), transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 26px 20px 20px;
+    margin-bottom: 16px;
+  }
+  .analytics-hero-value {
+    font-family: Georgia, "Iowan Old Style", Palatino, serif;
+    font-size: 52px;
+    font-weight: 700;
+    color: var(--gold-text);
+    line-height: 1;
+  }
+  .analytics-hero-unit { font-size: 22px; font-weight: 600; margin-left: 4px; }
+  .analytics-hero-label { font-size: 13.5px; color: var(--text-secondary); margin-top: 6px; font-weight: 600; }
+
+  .metric-tile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .metric-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+  }
+  .metric-tile-value { font-size: 26px; font-weight: 700; color: var(--text-primary); line-height: 1.1; }
+  .metric-tile-label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); margin-top: 2px; }
+  .metric-tile-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+  .analytics-callout {
+    background: var(--gold-tint);
+    border: 1px solid rgba(212,175,55,0.35);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 13.5px;
+    margin-bottom: 16px;
+  }
+  .analytics-callout strong { color: var(--gold-text); }
+
+  .chart-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 16px 14px;
+  }
+  .chart-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .chart-card-head h3 { margin: 0; font-size: 15px; font-family: Georgia, "Iowan Old Style", Palatino, serif; }
+
+  .bar-chart { position: relative; display: flex; align-items: flex-end; gap: 4px; height: 150px; }
+  .bar-chart-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    cursor: pointer;
+    outline: none;
+  }
+  .bar-chart-track {
+    width: 100%;
+    max-width: 22px;
+    height: 120px;
+    display: flex;
+    align-items: flex-end;
+    border-bottom: 1px solid var(--gridline);
+  }
+  .bar-chart-bar {
+    width: 100%;
+    min-height: 3px;
+    background: var(--series-blue);
+    border-radius: 4px 4px 0 0;
+    transition: opacity .12s ease;
+  }
+  .bar-chart-col:hover .bar-chart-bar, .bar-chart-col:focus .bar-chart-bar { opacity: 0.75; }
+  .bar-chart-tick { font-size: 10px; color: var(--text-muted); margin-top: 6px; white-space: nowrap; }
+  .bar-chart-tooltip {
+    position: absolute;
+    top: -6px;
+    transform: translateY(-100%);
+    background: var(--text-primary);
+    color: var(--surface-1);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 9px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .analytics-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .analytics-table th, .analytics-table td { text-align: left; padding: 7px 4px; border-bottom: 1px solid var(--gridline); }
+  .analytics-table th { color: var(--text-secondary); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .3px; }
+  .analytics-table td:last-child, .analytics-table th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .analytics-table-wrap { overflow-x: auto; }
+
+  .bar-chart-horizontal { height: auto; display: block; }
+  .hbar-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+  .hbar-label { width: 108px; flex-shrink: 0; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+  .hbar-track { flex: 1; height: 14px; background: var(--page-plane); border-radius: 999px; overflow: hidden; }
+  .hbar-fill { height: 100%; border-radius: 999px; background: var(--series-blue); min-width: 4px; }
+  .hbar-value { width: 28px; text-align: right; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  @media (min-width: 480px) {
+    .metric-tile-grid { grid-template-columns: repeat(4, 1fr); }
+  }
   .occ-card {
     background: var(--surface-1);
     border: 1px solid var(--border);
@@ -1537,6 +1713,7 @@
     .how-step { flex: 1; flex-direction: column; align-items: flex-start; gap: 10px; }
 
     .form-layout { display: grid; grid-template-columns: 1fr 320px; gap: 28px; align-items: start; }
+    .account-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
     .basket-sidebar { display: block; position: sticky; top: 0; }
     .basket-section { display: none !important; }
     .basket-sidebar-inner {

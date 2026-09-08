@@ -263,6 +263,12 @@
       </div>
     </section>
 
+    <section class="view" id="view-analytics">
+      <h2 class="view-title">Analytics</h2>
+      <p class="view-sub">What being a member of the club has done for you.</p>
+      <div id="analyticsContent"></div>
+    </section>
+
   </main>
 
   <nav class="bottomnav">
@@ -274,6 +280,10 @@
       <button type="button" class="nav-btn" data-view="view-account">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c1-3.6 4-5.6 7.5-5.6s6.5 2 7.5 5.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
         My requests
+      </button>
+      <button type="button" class="nav-btn" data-view="view-analytics">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M11 20V4M18 20v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Analytics
       </button>
     </div>
   </nav>
@@ -634,6 +644,11 @@
     var res = await fetch(apiUrl('/api/important-dates/' + encodeURIComponent(id)), { method: 'DELETE', headers: authHeaders() });
     if (!res.ok && res.status !== 404) throw new Error('Could not delete this date (' + res.status + ')');
   }
+  async function apiAnalyticsMe() {
+    var res = await fetch(apiUrl('/api/analytics/me'), { headers: authHeaders() });
+    if (!res.ok) throw new Error('Could not load analytics (' + res.status + ')');
+    return res.json();
+  }
   async function apiRepeatImportantDate(id) {
     var res = await fetch(apiUrl('/api/important-dates/' + encodeURIComponent(id) + '/repeat'), {
       method: 'POST',
@@ -912,6 +927,7 @@
     document.querySelectorAll('.view').forEach(function (v) { v.classList.toggle('active', v.id === id); });
     navBtns.forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-view') === id); });
     if (id === 'view-account') renderAccountView();
+    if (id === 'view-analytics') renderAnalyticsView();
     if (id === 'view-form') updateNewRequestFlow();
     updateChatFabVisibility(id);
   }
@@ -1974,7 +1990,7 @@
         if (!name || !email || !password) { errEl.textContent = 'Fill in your name, email and password.'; return; }
         btn.disabled = true; btn.textContent = 'Creating account…';
         apiSignup(name, email, password)
-          .then(function (result) { return afterAuthSuccess(result, 'Account created — welcome!'); })
+          .then(function (result) { return afterAuthSuccess(result, null, true); })
           .catch(function (err) { errEl.textContent = err.message || 'Could not create your account.'; })
           .finally(function () { btn.disabled = false; btn.textContent = 'Create account'; });
       });
@@ -2038,7 +2054,7 @@
             if (result.user.role !== 'buyer') {
               throw new Error("That's the staff login — use the \"Staff sign in\" link below instead.");
             }
-            return afterAuthSuccess(result, 'Signed in — welcome back!');
+            return afterAuthSuccess(result, 'Welcome back to the Club!');
           })
           .catch(function (err) { errEl.textContent = err.message || 'Could not sign in.'; })
           .finally(function () { btn.disabled = false; btn.textContent = 'Sign in'; });
@@ -2048,7 +2064,10 @@
 
   // Common tail for a successful buyer sign-in/sign-up: attach whatever this
   // device has submitted as a guest onto the new account, then load their list.
-  function afterAuthSuccess(result, toastMsg) {
+  // isNewAccount gets the full confetti welcome moment (a one-off "you just
+  // joined" celebration); an ordinary sign-in just gets the toast — showing
+  // fireworks every time someone logs back in would cheapen it fast.
+  function afterAuthSuccess(result, toastMsg, isNewAccount) {
     setAuth(result.token, result.user);
     var guestIds = loadGuestIds();
     return apiClaim(guestIds)
@@ -2059,19 +2078,60 @@
         return refreshRequests();
       })
       .then(function () {
-        showToast(toastMsg);
         renderAccountView();
+        if (isNewAccount) {
+          showClubWelcome(result.user.name);
+        } else {
+          showToast(toastMsg);
+        }
       });
+  }
+
+  // ---------- "Welcome to the Club" moment (new account only) ----------
+  var CONFETTI_COLORS = ['#D4AF37', '#0F7B5C', '#E8734A', '#0F5C6B', '#2a78d6', '#7c5cd6'];
+  function showClubWelcome(name) {
+    var overlay = document.createElement('div');
+    overlay.className = 'club-welcome-overlay';
+    var confettiHtml = '';
+    for (var i = 0; i < 60; i++) {
+      var left = Math.random() * 100;
+      var delay = Math.random() * 0.6;
+      var duration = 2.6 + Math.random() * 1.6;
+      var color = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+      var drift = (Math.random() * 60 - 30).toFixed(0);
+      var size = 6 + Math.round(Math.random() * 5);
+      confettiHtml += '<span class="confetti-piece" style="left:' + left + '%; animation-delay:' + delay + 's; animation-duration:' + duration + 's; background:' + color + '; width:' + size + 'px; height:' + (size * 0.4) + 'px; --drift:' + drift + 'px;"></span>';
+    }
+    overlay.innerHTML =
+      '<div class="confetti-field">' + confettiHtml + '</div>' +
+      '<div class="club-welcome-card">' +
+        '<div class="club-welcome-icon">🎉</div>' +
+        '<h2>Welcome to The Club' + (name ? ', ' + escapeHtml(name.split(' ')[0]) : '') + '!</h2>' +
+        '<p>You\'re officially a Club Member. Track every request, save the dates that matter, and see what membership\'s done for you — all right here.</p>' +
+        '<button type="button" class="btn-primary" id="clubWelcomeDismissBtn">Let\'s go</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    requestAnimationFrame(function () { overlay.classList.add('is-visible'); });
+    function dismiss() {
+      overlay.classList.remove('is-visible');
+      setTimeout(function () { overlay.remove(); }, 200);
+    }
+    document.getElementById('clubWelcomeDismissBtn').addEventListener('click', dismiss);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) dismiss(); });
   }
 
   function renderBuyerAccount() {
     accountContentEl.innerHTML =
-      '<div class="account-banner">Signed in as <strong>' + escapeHtml(state.authUser.name) + '</strong> (' + escapeHtml(state.authUser.email) + ').</div>' +
+      '<div class="account-banner">🎫 Club Member: <strong>' + escapeHtml(state.authUser.name) + '</strong> (' + escapeHtml(state.authUser.email) + ').</div>' +
       '<button type="button" class="btn-secondary" id="accSignOutBtn" style="margin-bottom:16px;">Sign out</button>' +
       (state.smsEnabled ? smsSettingsSectionHtml() : '') +
-      importantDatesSectionHtml() +
-      '<h3 class="account-section-title">My requests</h3>' +
-      '<div class="card-list" id="myReqCardList"></div>' +
+      '<div class="account-two-col">' +
+        '<div class="account-col-requests">' +
+          '<h3 class="account-section-title">My requests</h3>' +
+          '<div class="card-list" id="myReqCardList"></div>' +
+        '</div>' +
+        '<div class="account-col-dates">' + importantDatesSectionHtml() + '</div>' +
+      '</div>' +
       staffLoginPromptHtml();
     document.getElementById('accSignOutBtn').addEventListener('click', function () {
       clearAuth();
@@ -2080,6 +2140,153 @@
     renderMyRequestsList();
     if (state.smsEnabled) initSmsSettingsSection();
     initImportantDatesSection();
+  }
+
+  // ---------- Analytics ("what being a member has done for you") ----------
+  var analyticsContentEl = document.getElementById('analyticsContent');
+  var analyticsLoaded = false; // avoid re-fetching every time the tab is revisited this session
+  var TIME_SAVED_MINUTES_LABEL = '30 minutes'; // kept in sync with TIME_SAVED_MINUTES_PER_ORDER in server.js
+
+  function renderAnalyticsView() {
+    if (state.authUser && state.authUser.role === 'buyer') {
+      renderBuyerAnalytics();
+    } else if (state.authUser && state.authUser.role === 'staff') {
+      analyticsContentEl.innerHTML =
+        '<div class="account-banner is-note">Staff logins don\'t have personal analytics — this tracks an individual buyer\'s own activity.</div>';
+    } else {
+      analyticsContentEl.innerHTML =
+        '<div class="account-banner is-note">Sign in to see your own analytics — orders placed, time saved, and more, tracked on your account.</div>';
+    }
+  }
+
+  function renderBuyerAnalytics() {
+    if (!analyticsLoaded) {
+      analyticsContentEl.innerHTML = '<div class="empty-state"><div class="emoji">📊</div>Loading your analytics…</div>';
+    }
+    apiAnalyticsMe()
+      .then(function (data) {
+        analyticsLoaded = true;
+        analyticsContentEl.innerHTML = analyticsContentHtml(data);
+        initAnalyticsChart(data);
+      })
+      .catch(function (err) {
+        analyticsContentEl.innerHTML = '<div class="empty-state"><div class="emoji">📊</div>' + escapeHtml(err.message) + '</div>';
+      });
+  }
+
+  function formatHours(minutes) {
+    var hours = minutes / 60;
+    return (hours >= 10 || Number.isInteger(hours)) ? Math.round(hours) : Math.round(hours * 10) / 10;
+  }
+  function memberSince(iso) {
+    var joined = new Date(iso);
+    var months = Math.max(0, Math.round((Date.now() - joined.getTime()) / (30.4 * 86400000)));
+    var years = Math.round(months / 12);
+    var value = months < 1 ? 'New' : months === 1 ? '1 month' : months < 24 ? months + ' months' : years + (years === 1 ? ' year' : ' years');
+    return { value: value, sub: 'joined ' + joined.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) };
+  }
+
+  function statTileHtml(label, value, sub) {
+    return (
+      '<div class="metric-tile">' +
+        '<div class="metric-tile-value">' + value + '</div>' +
+        '<div class="metric-tile-label">' + label + '</div>' +
+        (sub ? '<div class="metric-tile-sub">' + sub + '</div>' : '') +
+      '</div>'
+    );
+  }
+
+  function analyticsContentHtml(data) {
+    var hoursSaved = formatHours(data.timeSavedMinutes);
+    var tiles =
+      statTileHtml('Orders placed', String(data.ordersLast12Months), 'last 12 months') +
+      statTileHtml('Recipients helped', String(data.recipientsHelped), 'last 12 months') +
+      (data.avgTurnaroundDays !== null
+        ? statTileHtml('Average turnaround', data.avgTurnaroundDays + (data.avgTurnaroundDays === 1 ? ' day' : ' days'), 'ask to delivered')
+        : '') +
+      statTileHtml('In the club', memberSince(data.memberSince).value, memberSince(data.memberSince).sub);
+
+    return (
+      '<div class="analytics-hero">' +
+        '<div class="analytics-hero-value">' + hoursSaved + '<span class="analytics-hero-unit">' + (hoursSaved === 1 ? ' hour' : ' hours') + '</span></div>' +
+        '<div class="analytics-hero-label">saved in the last 12 months</div>' +
+        '<p class="hint" style="margin:6px 0 0;">Based on roughly ' + TIME_SAVED_MINUTES_LABEL + ' saved per order versus sourcing and buying it yourself — an estimate, not a stopwatch.</p>' +
+      '</div>' +
+      '<div class="metric-tile-grid">' + tiles + '</div>' +
+      (data.topItem
+        ? '<div class="analytics-callout">🎯 You\'ve asked us for <strong>' + escapeHtml(data.topItem.text) + '</strong> the most — ' + data.topItem.count + ' times in the last 12 months.</div>'
+        : '') +
+      '<div class="chart-card">' +
+        '<div class="chart-card-head">' +
+          '<h3>Orders by month</h3>' +
+          '<button type="button" class="link-btn" id="analyticsTableToggle" style="margin:0;">View as table</button>' +
+        '</div>' +
+        '<div id="analyticsBarChart"></div>' +
+        '<div id="analyticsTableView" hidden></div>' +
+      '</div>'
+    );
+  }
+
+  function initAnalyticsChart(data) {
+    var chartEl = document.getElementById('analyticsBarChart');
+    var tableEl = document.getElementById('analyticsTableView');
+    var toggleBtn = document.getElementById('analyticsTableToggle');
+    if (!chartEl) return;
+
+    var months = data.monthlyOrders;
+    var max = Math.max(1, Math.max.apply(null, months.map(function (m) { return m.count; })));
+    var monthLabel = function (m) {
+      return new Date(m.month + '-01T00:00:00Z').toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
+    };
+
+    chartEl.innerHTML =
+      '<div class="bar-chart">' +
+        months.map(function (m) {
+          var pct = Math.round((m.count / max) * 100);
+          return (
+            '<div class="bar-chart-col" data-month="' + m.month + '" data-count="' + m.count + '">' +
+              '<div class="bar-chart-track"><div class="bar-chart-bar" style="height:' + pct + '%;"></div></div>' +
+              '<div class="bar-chart-tick">' + monthLabel(m) + '</div>' +
+            '</div>'
+          );
+        }).join('') +
+      '</div>' +
+      '<div class="bar-chart-tooltip" id="barChartTooltip" hidden></div>';
+
+    var tooltip = document.getElementById('barChartTooltip');
+    chartEl.querySelectorAll('.bar-chart-col').forEach(function (col) {
+      var show = function () {
+        var count = col.getAttribute('data-count');
+        var month = new Date(col.getAttribute('data-month') + '-01T00:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+        tooltip.textContent = count + (count === '1' ? ' order' : ' orders') + ' · ' + month;
+        tooltip.hidden = false;
+        var colRect = col.getBoundingClientRect();
+        var chartRect = chartEl.getBoundingClientRect();
+        tooltip.style.left = Math.max(0, Math.min(chartRect.width - tooltip.offsetWidth, colRect.left - chartRect.left - tooltip.offsetWidth / 2 + colRect.width / 2)) + 'px';
+      };
+      col.addEventListener('mouseenter', show);
+      col.addEventListener('focus', show);
+      col.addEventListener('mouseleave', function () { tooltip.hidden = true; });
+      col.addEventListener('blur', function () { tooltip.hidden = true; });
+      col.setAttribute('tabindex', '0');
+    });
+
+    tableEl.innerHTML =
+      '<table class="analytics-table"><thead><tr><th>Month</th><th>Orders</th></tr></thead><tbody>' +
+      months.map(function (m) {
+        var label = new Date(m.month + '-01T00:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+        return '<tr><td>' + label + '</td><td>' + m.count + '</td></tr>';
+      }).join('') +
+      '</tbody></table>';
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function () {
+        var showingTable = !tableEl.hidden;
+        tableEl.hidden = showingTable;
+        chartEl.hidden = !showingTable;
+        toggleBtn.textContent = showingTable ? 'View as table' : 'View as chart';
+      });
+    }
   }
 
   // ---------- SMS order updates (phone number + opt-in) ----------
@@ -2120,7 +2327,7 @@
 
   function renderGuestAccount() {
     accountContentEl.innerHTML =
-      '<div class="account-banner is-note">Browsing as a guest — these requests are only tracked on this device. <button type="button" id="switchToAuthBtn" style="background:none;border:none;color:var(--series-blue);font-weight:700;font-family:inherit;cursor:pointer;padding:0;text-decoration:underline;">Sign in or create an account</button> to see them anywhere.</div>' +
+      '<div class="account-banner is-note">Browsing as a guest — these requests are only tracked on this device. <button type="button" id="switchToAuthBtn" style="background:none;border:none;color:var(--series-blue);font-weight:700;font-family:inherit;cursor:pointer;padding:0;text-decoration:underline;">Join the Club</button> to see them anywhere.</div>' +
       '<div class="card-list" id="myReqCardList"></div>' +
       staffLoginPromptHtml();
     document.getElementById('switchToAuthBtn').addEventListener('click', function () {
