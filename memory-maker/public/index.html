@@ -1,0 +1,79 @@
+<title>The Memory Maker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4F46E5">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Memory Maker">
+<link rel="stylesheet" href="/styles.css">
+
+<div id="app-root" class="hidden">
+  <header id="app-header">
+    <div class="brand">
+      <div class="mark">📖</div>
+      <div>
+        <h1>The Memory Maker</h1>
+        <select id="family-switcher"></select>
+      </div>
+    </div>
+    <button id="profile-btn" title="Profile"></button>
+  </header>
+
+  <main id="view-root"></main>
+
+  <nav id="tabbar">
+    <button data-tab="today"><span class="icon">🏠</span>Today</button>
+    <button data-tab="calendar"><span class="icon">📅</span>Calendar</button>
+    <button data-tab="memories"><span class="icon">🖼️</span>Memories</button>
+    <button data-tab="todos"><span class="icon">✅</span>To-dos</button>
+    <button data-tab="food"><span class="icon">🍽️</span>Food</button>
+  </nav>
+</div>
+
+<div id="auth-screen" class="hidden">
+  <div class="mark">📖</div>
+  <h1>The Memory Maker</h1>
+  <p>Your family's calendar, memories, meals and to-dos, all in one place.</p>
+  <div class="card">
+    <div class="tabs">
+      <button id="auth-tab-login" class="active">Log in</button>
+      <button id="auth-tab-signup">Sign up</button>
+    </div>
+    <form id="auth-form" class="stack">
+      <div class="field hidden" id="auth-name-field">
+        <label>Your name</label>
+        <input type="text" id="auth-name" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="auth-email" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="auth-password" autocomplete="current-password" required>
+      </div>
+      <div class="field hidden" id="auth-phone-field">
+        <label>Mobile number (optional, for SMS reminders)</label>
+        <input type="tel" id="auth-phone" placeholder="07... or +447...">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="auth-submit">Log in</button>
+      <p class="error-text hidden" id="auth-error"></p>
+    </form>
+  </div>
+</div>
+
+<div id="public-screen" class="hidden"></div>
+
+<div id="modal-root"></div>
+<div id="toast"></div>
+
+<input type="file" id="camera-input" accept="image/*,video/*" capture="environment" class="hidden">
+<input type="file" id="file-input" accept="image/*,video/*" class="hidden">
+
+<script src="/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
+  }
+</script>
