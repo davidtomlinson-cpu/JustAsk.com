@@ -191,6 +191,7 @@ details (names, addresses) will be traveling over it.
 | `STAFF_PASSWORD` | `changeme123` | The purchasing team's login password. **Change this too.** If either `STAFF_EMAIL` or `STAFF_PASSWORD` is left unset, the server logs a warning on startup as a reminder. |
 | `ANTHROPIC_API_KEY` | *(unset — item search off)* | Your Anthropic API key. Setting this switches on the staff "Find sourcing options" tool (see below). Each search costs a small amount of API usage, so treat it like the Stripe/Ideal Postcodes keys — optional, and billed to your own Anthropic account. |
 | `CRON_SECRET` | *(unset — endpoint disabled)* | Shared secret for `POST /api/cron/important-dates` (the daily "check important dates, send reminders, auto-repeat orders" sweep — see `.github/workflows/important-dates-reminders.yml`). Set the same value here and as a `CRON_SECRET` GitHub Actions repository secret. |
+| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | *(unset — SMS off)* | Twilio credentials and sending number for SMS order updates. All three are required to turn SMS on; sign up at [twilio.com](https://www.twilio.com), buy a number, and copy the Account SID/Auth Token from the console. Real per-message cost applies once this is set — same "optional, billed to your own account" pattern as Stripe/Anthropic. UK mobile numbers only for now. |
 
 ## Installing it as an app (PWA)
 

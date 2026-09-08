@@ -586,6 +586,16 @@
     if (!res.ok) throw new Error('Session expired');
     return res.json(); // { user }
   }
+  async function apiUpdateMe(payload) {
+    var res = await fetch(apiUrl('/api/auth/me'), {
+      method: 'PATCH',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify(payload)
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not save (' + res.status + ')');
+    return data; // { user }
+  }
   async function apiClaim(ids) {
     if (!ids.length) return { claimed: 0 };
     var res = await fetch(apiUrl('/api/requests/claim'), {
@@ -2058,6 +2068,7 @@
     accountContentEl.innerHTML =
       '<div class="account-banner">Signed in as <strong>' + escapeHtml(state.authUser.name) + '</strong> (' + escapeHtml(state.authUser.email) + ').</div>' +
       '<button type="button" class="btn-secondary" id="accSignOutBtn" style="margin-bottom:16px;">Sign out</button>' +
+      (state.smsEnabled ? smsSettingsSectionHtml() : '') +
       importantDatesSectionHtml() +
       '<h3 class="account-section-title">My requests</h3>' +
       '<div class="card-list" id="myReqCardList"></div>' +
@@ -2067,7 +2078,44 @@
       refreshRequests().then(function () { renderAccountView(); });
     });
     renderMyRequestsList();
+    if (state.smsEnabled) initSmsSettingsSection();
     initImportantDatesSection();
+  }
+
+  // ---------- SMS order updates (phone number + opt-in) ----------
+  function smsSettingsSectionHtml() {
+    var u = state.authUser;
+    return (
+      '<div class="ticket-card sms-settings">' +
+        '<h3 style="margin-top:0;">📱 SMS order updates</h3>' +
+        '<p class="hint" style="margin:-2px 0 12px;">Add your mobile number to get order-status texts as well as email. Message rates may apply — turn it off any time.</p>' +
+        '<div class="field"><label for="sms-phone">Mobile number</label><input id="sms-phone" type="tel" placeholder="e.g. 07123 456789" value="' + (u.phone ? escapeHtml(u.phone) : '') + '" /></div>' +
+        '<label class="occ-auto-toggle"><input type="checkbox" id="sms-optin"' + (u.smsOptIn ? ' checked' : '') + ' /> Text me order updates</label>' +
+        '<div class="occ-form-error" id="smsSettingsError"></div>' +
+        '<button type="button" class="btn-secondary" id="smsSettingsSaveBtn" style="margin-top:8px;">Save</button>' +
+      '</div>'
+    );
+  }
+
+  function initSmsSettingsSection() {
+    var saveBtn = document.getElementById('smsSettingsSaveBtn');
+    if (!saveBtn) return;
+    saveBtn.addEventListener('click', function () {
+      var errEl = document.getElementById('smsSettingsError');
+      errEl.textContent = '';
+      var phone = document.getElementById('sms-phone').value.trim();
+      var optIn = document.getElementById('sms-optin').checked;
+      if (optIn && !phone) { errEl.textContent = 'Add a phone number before turning on SMS updates.'; return; }
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+      apiUpdateMe({ phone: phone || null, smsOptIn: optIn })
+        .then(function (data) {
+          setAuth(state.authToken, data.user);
+          showToast('SMS settings saved.');
+          renderAccountView();
+        })
+        .catch(function (err) { errEl.textContent = err.message; })
+        .finally(function () { saveBtn.disabled = false; saveBtn.textContent = 'Save'; });
+    });
   }
 
   function renderGuestAccount() {
@@ -3294,6 +3342,7 @@
       state.chatEnabled = !!cfg.chatEnabled;
       state.pushEnabled = !!cfg.pushEnabled;
       state.vapidPublicKey = cfg.vapidPublicKey || null;
+      state.smsEnabled = !!cfg.smsEnabled;
       if (typeof cfg.markupRate === 'number') state.markupRate = cfg.markupRate;
     } catch (err) {
       state.paymentsEnabled = false;
@@ -3301,6 +3350,7 @@
       state.chatEnabled = false;
       state.pushEnabled = false;
       state.vapidPublicKey = null;
+      state.smsEnabled = false;
     }
     if (state.authToken) {
       try {

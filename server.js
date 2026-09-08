@@ -149,6 +149,47 @@ async function sendPushToRequest(requestId, payload) {
   }
 }
 
+// ---- SMS (optional, via Twilio's plain REST API) ----
+// Same silent-no-op-when-unconfigured pattern as email/push/Stripe. Calls
+// Twilio directly over HTTPS (Basic Auth + form-encoded body) rather than
+// pulling in their SDK — it's a single endpoint, and Node 18+ has fetch
+// built in, so there's nothing an extra dependency would buy here.
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || '';
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
+const TWILIO_FROM_NUMBER = process.env.TWILIO_FROM_NUMBER || '';
+const smsEnabled = !!(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_NUMBER);
+
+// Accepts common UK mobile formats (07..., +447..., 447..., 00447...) and
+// normalizes to E.164 (+447...), which is what Twilio (and SMS generally)
+// requires. Returns null for anything that doesn't parse as a UK number —
+// this app only has UK delivery addresses today, so international numbers
+// aren't supported yet.
+function normalizeUkPhone(raw) {
+  if (!isNonEmptyString(raw)) return null;
+  const digits = raw.replace(/[\s\-()]/g, '');
+  if (/^\+44\d{10}$/.test(digits)) return digits;
+  if (/^0044\d{10}$/.test(digits)) return '+44' + digits.slice(4);
+  if (/^44\d{10}$/.test(digits)) return '+' + digits;
+  if (/^0\d{10}$/.test(digits)) return '+44' + digits.slice(1);
+  return null;
+}
+
+// Fire-and-forget, same spirit as sendStatusEmail/sendPushToRequest — never
+// lets a failed text break the request that triggered it.
+function sendSms(toE164, body) {
+  if (!smsEnabled || !isNonEmptyString(toE164)) return;
+  const url = 'https://api.twilio.com/2010-04-01/Accounts/' + TWILIO_ACCOUNT_SID + '/Messages.json';
+  const auth = Buffer.from(TWILIO_ACCOUNT_SID + ':' + TWILIO_AUTH_TOKEN).toString('base64');
+  const params = new URLSearchParams({ To: toE164, From: TWILIO_FROM_NUMBER, Body: body });
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': 'Basic ' + auth, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString()
+  }).then(async (res) => {
+    if (!res.ok) console.error('SMS send failed:', res.status, await res.text().catch(() => ''));
+  }).catch((err) => console.error('SMS send failed:', err.message));
+}
+
 // ---- Staff login ----
 // There's no self-signup for the purchasing team — you set one login here.
 // Change these before deploying anywhere real; the fallback values below
@@ -218,6 +259,8 @@ const SCHEMA_SQL = `
     email TEXT NOT NULL UNIQUE,
     "passwordHash" TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'buyer',
+    phone TEXT,
+    "smsOptIn" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TEXT NOT NULL
   );
 
@@ -382,6 +425,11 @@ async function migrateSessions() {
   }
 }
 
+async function migrateUsers() {
+  await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT');
+  await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS "smsOptIn" BOOLEAN NOT NULL DEFAULT false');
+}
+
 // ---- Password hashing (Node's built-in crypto — no extra dependency) ----
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -434,7 +482,7 @@ async function userFromReq(req) {
   const match = header.match(/^Bearer (.+)$/);
   if (!match) return null;
   const row = await dbGet(
-    `SELECT users.id, users.name, users.email, users.role, sessions."expiresAt"
+    `SELECT users.id, users.name, users.email, users.role, users.phone, users."smsOptIn", sessions."expiresAt"
      FROM sessions JOIN users ON users.id = sessions."userId"
      WHERE sessions.token = $1`,
     [match[1]]
@@ -444,7 +492,7 @@ async function userFromReq(req) {
     await dbRun('DELETE FROM sessions WHERE token = $1', [match[1]]);
     return null;
   }
-  return { id: row.id, name: row.name, email: row.email, role: row.role };
+  return { id: row.id, name: row.name, email: row.email, role: row.role, phone: row.phone, smsOptIn: row.smsOptIn };
 }
 
 function requireAuth(role) {
@@ -483,7 +531,7 @@ app.post('/api/auth/signup', ah(async (req, res) => {
     [id, b.name.trim(), email, hashPassword(b.password), 'buyer', now]
   );
   const token = await createSession(id, 'buyer');
-  res.status(201).json({ token, user: { id, name: b.name.trim(), email, role: 'buyer' } });
+  res.status(201).json({ token, user: { id, name: b.name.trim(), email, role: 'buyer', phone: null, smsOptIn: false } });
 }));
 
 app.post('/api/auth/login', ah(async (req, res) => {
@@ -494,7 +542,7 @@ app.post('/api/auth/login', ah(async (req, res) => {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
   const token = await createSession(row.id, row.role);
-  res.json({ token, user: { id: row.id, name: row.name, email: row.email, role: row.role } });
+  res.json({ token, user: { id: row.id, name: row.name, email: row.email, role: row.role, phone: row.phone, smsOptIn: row.smsOptIn } });
 }));
 
 // Time-limited, single-use reset token, emailed to the account's address.
@@ -560,6 +608,32 @@ app.post('/api/auth/logout', requireAuth(), ah(async (req, res) => {
 
 app.get('/api/auth/me', requireAuth(), ah(async (req, res) => {
   res.json({ user: req.user });
+}));
+
+// Buyer-only: add/update the phone number SMS order updates go to, and turn
+// that on or off. Opt-in is explicit and off by default — saving a phone
+// number alone does not turn SMS on; smsOptIn has to be sent (and true)
+// separately. UK numbers only for now (see normalizeUkPhone).
+app.patch('/api/auth/me', requireAuth('buyer'), ah(async (req, res) => {
+  const b = req.body || {};
+  const current = await dbGet('SELECT phone, "smsOptIn" FROM users WHERE id = $1', [req.user.id]);
+
+  let phone = current.phone;
+  if (b.phone !== undefined) {
+    if (b.phone === null || b.phone === '') {
+      phone = null;
+    } else {
+      phone = normalizeUkPhone(b.phone);
+      if (!phone) return res.status(400).json({ error: 'That doesn\'t look like a valid UK mobile number.' });
+    }
+  }
+
+  let smsOptIn = current.smsOptIn;
+  if (b.smsOptIn !== undefined) smsOptIn = !!b.smsOptIn;
+  if (smsOptIn && !phone) return res.status(400).json({ error: 'Add a phone number before turning on SMS updates.' });
+
+  await dbRun('UPDATE users SET phone = $1, "smsOptIn" = $2 WHERE id = $3', [phone, smsOptIn, req.user.id]);
+  res.json({ user: Object.assign({}, req.user, { phone, smsOptIn }) });
 }));
 
 // Attaches any of "this device"'s guest-submitted requests (not yet owned by
@@ -780,7 +854,8 @@ app.post('/api/cron/important-dates', ah(async (req, res) => {
   if (req.headers['x-cron-secret'] !== CRON_SECRET) return res.status(401).json({ error: 'Unauthorized' });
 
   const rows = await dbAll(
-    `SELECT important_dates.*, users.email AS "userEmail", users.name AS "userName"
+    `SELECT important_dates.*, users.email AS "userEmail", users.name AS "userName",
+            users.phone AS "userPhone", users."smsOptIn" AS "userSmsOptIn"
      FROM important_dates JOIN users ON users.id = important_dates."userId"`
   );
   const now = new Date();
@@ -809,6 +884,11 @@ app.post('/api/cron/important-dates', ah(async (req, res) => {
             ]
           );
         }
+        if (row.userSmsOptIn && row.userPhone) {
+          const dateLabelShort = next.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+          sendSms(row.userPhone, 'The JustAsk Club: ' + row.label + ' is coming up on ' + dateLabelShort + ' (' + row.reminderDaysBefore + ' days from now).' +
+            (row.autoRepeat ? " We'll start your usual order for it automatically." : ' Sign in to place an order for it.'));
+        }
         await dbRun('UPDATE important_dates SET "lastRemindedYear" = $1 WHERE id = $2', [occurrenceYear, row.id]);
         reminded++;
       }
@@ -831,6 +911,9 @@ app.post('/api/cron/important-dates', ah(async (req, res) => {
               "We'll quote it shortly, same as any other request — sign in to review and pay when it's ready."
             ]
           );
+        }
+        if (row.userSmsOptIn && row.userPhone) {
+          sendSms(row.userPhone, "The JustAsk Club: today's " + row.label + " — we've started your usual order (\"" + row.item + '"). Sign in to review and pay once it\'s quoted.');
         }
         await dbRun('UPDATE important_dates SET "lastRepeatedYear" = $1 WHERE id = $2', [occurrenceYear, row.id]);
         repeated++;
@@ -882,11 +965,18 @@ async function recordStatusEvent(requestId, status, when) {
     ['se_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8), requestId, status, when]
   );
 
-  // Fire off a status-change email if we have somewhere to send it and email
-  // is configured. This is the one place every status change flows through
-  // (creation, staff edits, /pay, markPaid, the Stripe webhook), so hooking
-  // in here covers all of them without touching any of those call sites.
-  const row = await dbGet('SELECT item, "buyerEmail" FROM requests WHERE id = $1', [requestId]);
+  // Fire off a status-change email/text if we have somewhere to send it and
+  // it's configured. This is the one place every status change flows
+  // through (creation, staff edits, /pay, markPaid, the Stripe webhook), so
+  // hooking in here covers all of them without touching any of those call
+  // sites. SMS only applies to signed-in buyers who've added a phone number
+  // and opted in — guest requests have no userId to look one up from.
+  const row = await dbGet(
+    `SELECT requests.item, requests."buyerEmail", users.phone, users."smsOptIn"
+     FROM requests LEFT JOIN users ON users.id = requests."userId"
+     WHERE requests.id = $1`,
+    [requestId]
+  );
   if (row && row.buyerEmail) {
     sendStatusEmail(
       row.buyerEmail,
@@ -897,6 +987,9 @@ async function recordStatusEvent(requestId, status, when) {
         'You can see the full details any time by signing in to The JustAsk Club and going to My Requests.'
       ]
     );
+  }
+  if (row && row.smsOptIn && row.phone) {
+    sendSms(row.phone, 'The JustAsk Club: "' + row.item + '" is now ' + status + '. justaskclub.com');
   }
 }
 
@@ -1425,6 +1518,12 @@ app.post('/api/requests/:id/messages', ah(async (req, res) => {
         ['Hi,', senderName + ' sent you a message about "' + existing.item + '":', '"' + content + '"', 'Reply any time from My Requests on The JustAsk Club.']
       );
     }
+    if (existing.userId) {
+      const buyer = await dbGet('SELECT phone, "smsOptIn" FROM users WHERE id = $1', [existing.userId]);
+      if (buyer && buyer.smsOptIn && buyer.phone) {
+        sendSms(buyer.phone, 'The JustAsk Club: new message about "' + existing.item + '" — open the app to reply.');
+      }
+    }
     sendPushToRequest(existing.id, {
       title: 'New message about your order',
       body: content.length > 100 ? content.slice(0, 97) + '...' : content,
@@ -1615,7 +1714,8 @@ app.get('/api/config', (req, res) => {
     emailEnabled: !!mailTransport,
     chatEnabled: !!process.env.ANTHROPIC_API_KEY,
     pushEnabled: pushEnabled,
-    vapidPublicKey: pushEnabled ? VAPID_PUBLIC_KEY : null
+    vapidPublicKey: pushEnabled ? VAPID_PUBLIC_KEY : null,
+    smsEnabled: smsEnabled
   });
 });
 
@@ -1970,6 +2070,7 @@ async function start() {
   await migrateOrderItems();
   await renameLegacyStatuses();
   await migrateSessions();
+  await migrateUsers();
   await ensureStaffAccount();
 
   app.listen(PORT, () => {
