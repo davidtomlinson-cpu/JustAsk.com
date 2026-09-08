@@ -42,8 +42,21 @@ async function listConversationsFor(userId) {
      WHERE me."userId" = $1`,
     [userId]
   );
+  // Event chats only show up once someone's actually opened one (see
+  // POST /api/events/:id/conversation) — membership tracks event_attendees
+  // live, so this only lists ones where the caller is still a confirmed
+  // ("accepted") attendee right now.
+  const eventConvos = await dbAll(
+    `SELECT conversations.id, conversations.type, events.title as title, NULL as "photoUrl",
+            NULL as "otherUserId", NULL as "otherUserColor", events."startsAt" as "eventStartsAt"
+     FROM conversations
+     JOIN events ON events.id = conversations."eventId"
+     JOIN event_attendees ON event_attendees."eventId" = events.id AND event_attendees."userId" = $1 AND event_attendees.status = 'accepted'
+     WHERE conversations.type = 'event'`,
+    [userId]
+  );
 
-  const all = [...familyConvos, ...groupConvos, ...directConvos];
+  const all = [...familyConvos, ...groupConvos, ...directConvos, ...eventConvos];
   if (!all.length) return [];
   const ids = all.map((c) => c.id);
   const lastMessages = await dbAll(
@@ -115,6 +128,9 @@ async function loadConversationForUser(req, res) {
     allowed = !!(await dbGet('SELECT 1 FROM family_members WHERE "familyId" = $1 AND "userId" = $2', [convo.familyId, req.user.id]));
   } else if (convo.type === 'group') {
     allowed = !!(await dbGet('SELECT 1 FROM friend_group_members WHERE "groupId" = $1 AND "userId" = $2', [convo.groupId, req.user.id]));
+  } else if (convo.type === 'event') {
+    const attendee = await dbGet('SELECT status FROM event_attendees WHERE "eventId" = $1 AND "userId" = $2', [convo.eventId, req.user.id]);
+    allowed = !!attendee && attendee.status === 'accepted';
   } else {
     allowed = !!(await dbGet('SELECT 1 FROM conversation_participants WHERE "conversationId" = $1 AND "userId" = $2', [convo.id, req.user.id]));
   }

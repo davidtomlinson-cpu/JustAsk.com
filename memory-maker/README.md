@@ -72,18 +72,52 @@ PWA frontend), not a mock-up:
   cupboard/fridge.
 - **Post-meal ratings** — after a night's dinner, send everyone who said
   they were in a quick vote: Delicious / Edible / Takeaway next time please.
+- **Family/group photos and renaming** — give a family or friend group a
+  name and a photo (`PATCH`/`POST .../photo`), same pattern for both.
+- **SMS invite links** — any member can text someone a join link
+  (`POST .../invite`); the link shows a preview (name + photo, no member
+  list) before the invitee even signs in, then joins them once they do.
+- **Messaging** — an automatic group chat per family and per friend group
+  (every member's already in it, nothing to set up), 1:1 direct messages
+  restricted to people who share a family/group with you, and **event
+  chat**: once you've confirmed you're attending something, you can open a
+  chat scoped to just that event's confirmed attendees
+  (`POST /api/events/:id/conversation`) — leaves automatically if you later
+  decline. All three support text and a shared photo/video per message.
+- **Google Calendar sync** — connect your real Google Calendar and its
+  events get pulled in for conflict-checking (see "Google Calendar sync"
+  below for exactly what this does and doesn't do).
+- **Daily morning summary** — a once-a-day SMS with today's events plus any
+  to-dos due today or overdue, sent automatically (see "Reminders" below).
 
-## Two things that are honestly simplified, on purpose
+## Google Calendar sync — what it actually does
 
-**"Sync calendars with family members"** — there's no live, two-way OAuth
-integration with Google Calendar / Apple Calendar / Outlook (that's a real
-per-provider integration project on its own — API credentials, refresh
-tokens, webhook subscriptions per provider). What's built instead: every
-family/friend-group member automatically sees the same shared calendar in
-this app (that's the actual "sync" that matters day to day), plus a
-`GET /api/calendar.ics` export so it can be pulled into any external
-calendar app that supports subscribing to an `.ics` URL. Wiring up real
-Google/Apple two-way sync would be the natural next step if that's wanted.
+This is a **one-way, read-only pull**, not a two-way live sync: once you
+connect your Google account (`GET /api/integrations/google/connect`, OAuth2
+with a `calendar.readonly` scope), the next 30 days of your primary Google
+Calendar get imported into your Memory Maker calendar so they show up
+alongside family/group events and get checked for conflicts — nothing is
+ever created, edited, or deleted on your actual Google Calendar. Imported
+events are personal (marked `private`): only you see the real title in your
+own calendar view; anyone else who'd conflict with one just sees "Busy",
+never the details. Re-syncing (hourly, via the cron sweep — see
+"Reminders" — or on demand via `POST /api/integrations/google/sync`)
+updates and removes imported events to match what's currently on Google,
+so cancellations disappear on the next sync too.
+
+To turn it on: create an OAuth client (type "Web application") in
+[Google Cloud Console](https://console.cloud.google.com/), enable the
+Calendar API, add `<your-public-url>/api/integrations/google/callback` as
+an authorized redirect URI, and set `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
+Until both are set, `/api/config` reports `googleCalendarEnabled: false`
+and the connect endpoint 501s — same optional/gated pattern as Twilio/Claude.
+
+A genuinely two-way sync (creating/editing events on Google Calendar from
+here too) is a reasonable next step if wanted, but wasn't necessary for the
+actual goal — avoiding double-booking against commitments that live outside
+this app — so it wasn't built. The universal `GET /api/calendar.ics` export
+still covers the opposite direction (subscribing to your Memory Maker
+calendar from Google/Apple/Outlook).
 
 **The camera button** — pressing it opens `<input type="file" capture>`,
 which triggers the device's native camera on iOS/Android/desktop browsers
@@ -103,17 +137,19 @@ memory-maker/
   src/
     db.js                 Postgres pool + schema
     auth.js                sessions, password hashing, /api/auth/*
-    helpers.js              shared small utilities
-    sms.js / ai.js           Twilio + Claude, both optional/gated
-    reminders-cron.js         the sweep POST /api/cron/sweep runs
+    helpers.js              shared small utilities + shared upload storage
+    sms.js / ai.js / google.js  Twilio + Claude + Google Calendar, all optional/gated
+    reminders-cron.js         sweeps POST /api/cron/sweep and /api/cron/daily-summary run
     routes/
-      families.js           families + friend groups + membership
-      calendar.js             events, attendees, conflicts, .ics export
+      families.js           families + friend groups + membership, photos, SMS invites
+      calendar.js             events, attendees, conflicts, .ics export, event chat
       memories.js               memory albums + photo/video upload
       todos.js                    to-dos + high-fives
       dinner.js                     weekly dinner poll + public response
       recipes.js                     AI/manual/link recipes
       shopping.js                     weekly meal days, shopping list, ratings
+      messaging.js                    family/group/event/direct chat
+      integrations.js                 Google Calendar OAuth connect/sync
   public/
     index.html / app.js / styles.css   the whole frontend (no build step)
     manifest.json / service-worker.js  PWA install support
@@ -132,25 +168,39 @@ memory-maker/
 | `PUBLIC_BASE_URL` | *(auto-detected)* | Used to build the SMS magic links (dinner poll, meal rating) |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | *(unset — SMS off)* | All three needed to turn SMS on. UK numbers only for now. |
 | `ANTHROPIC_API_KEY` | *(unset — AI recipes off)* | Turns on `/api/recipes/generate` |
-| `CRON_SECRET` | *(unset — sweep disabled)* | Shared secret for `POST /api/cron/sweep` — set the same value here and as a GitHub Actions secret (see below) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | *(unset — Google sync off)* | Both needed to turn on Google Calendar sync — see that section above |
+| `CRON_SECRET` | *(unset — sweeps disabled)* | Shared secret for `POST /api/cron/sweep` and `POST /api/cron/daily-summary` — set the same value here and as a GitHub Actions secret (see below) |
 
 `/api/config` reports which of these are switched on so the frontend can
 hide/disable the relevant bits rather than erroring.
 
-## Reminders — the sweep needs an external trigger
+## Reminders — the sweeps need an external trigger
 
 Like its sibling app, this server has no built-in scheduler (a `setInterval`
 only fires while the process happens to be awake, which isn't guaranteed on
-most free/small hosting tiers). `.github/workflows/memory-maker-reminders.yml`
-calls `POST /api/cron/sweep` once an hour via GitHub Actions. Once you've
-deployed:
+most free/small hosting tiers). Two GitHub Actions workflows drive
+everything time-based:
+
+- `.github/workflows/memory-maker-reminders.yml` calls `POST /api/cron/sweep`
+  **hourly** — sends due event/to-do SMS reminders, and re-syncs everyone's
+  connected Google Calendar.
+- `.github/workflows/memory-maker-daily-summary.yml` calls
+  `POST /api/cron/daily-summary` **once a day at a fixed UTC time** (07:00
+  UTC by default — edit the workflow's cron expression if your users are
+  mostly in a different timezone) — sends the "here's what you've got on
+  today" SMS digest. There's no per-user timezone support yet, so this is
+  one send time for everyone, not each user's local morning; the
+  `daily_summary_log` table stops it double-sending if the workflow ever
+  runs twice in a day.
+
+Once you've deployed:
 
 1. Set `CRON_SECRET` on the deployed service.
 2. Add two repository secrets: `MEMORY_MAKER_BASE_URL` (e.g.
    `https://memory-maker.onrender.com`) and `MEMORY_MAKER_CRON_SECRET`
-   (same value as `CRON_SECRET`).
+   (same value as `CRON_SECRET`) — both workflows share them.
 
-Until those secrets are set, the workflow just no-ops rather than failing.
+Until those secrets are set, the workflows just no-op rather than failing.
 
 ## Photo/video storage
 

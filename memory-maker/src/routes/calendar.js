@@ -21,7 +21,8 @@ async function findConflicts(userIds, startsAt, endsAt, excludeEventId) {
   const conflicts = {};
   for (const userId of userIds) {
     const rows = await dbAll(
-      `SELECT events.id, events.title, events."startsAt", events."endsAt"
+      `SELECT events.id, CASE WHEN events.private THEN 'Busy' ELSE events.title END as title,
+              events."startsAt", events."endsAt"
        FROM event_attendees JOIN events ON events.id = event_attendees."eventId"
        WHERE event_attendees."userId" = $1 AND event_attendees.status != 'declined'
          AND events.id != $2
@@ -185,6 +186,30 @@ router.post('/events/:id/rsvp', ah(async (req, res) => {
   await dbRun('UPDATE event_attendees SET status = $1, "respondedAt" = $2 WHERE "eventId" = $3 AND "userId" = $4',
     [status, new Date().toISOString(), req.params.id, req.user.id]);
   res.json({ ok: true });
+}));
+
+// Opens (or returns the existing) chat scoped to this event's confirmed
+// attendees — "select a date with confirmed attendees" and message just
+// them, separate from the whole family/group thread. Membership is
+// implicit and live: it's derived from event_attendees.status = 'accepted'
+// at read time (src/routes/messaging.js), same pattern as family/group
+// chats deriving membership from their own membership tables, so someone
+// who later declines loses access and a newly-accepted attendee gains it.
+router.post('/events/:id/conversation', ah(async (req, res) => {
+  const event = await loadEventForUser(req, res);
+  if (!event) return;
+  const attendee = await dbGet('SELECT status FROM event_attendees WHERE "eventId" = $1 AND "userId" = $2', [event.id, req.user.id]);
+  if (!attendee || attendee.status !== 'accepted') {
+    return res.status(403).json({ error: "Only confirmed attendees can open this event's chat" });
+  }
+  let convo = await dbGet(`SELECT * FROM conversations WHERE "eventId" = $1 AND type = 'event'`, [event.id]);
+  if (!convo) {
+    const id = newId('conv');
+    await dbRun(`INSERT INTO conversations (id, type, "eventId", "createdAt") VALUES ($1,'event',$2,$3)`,
+      [id, event.id, new Date().toISOString()]);
+    convo = await dbGet('SELECT * FROM conversations WHERE id = $1', [id]);
+  }
+  res.json({ conversationId: convo.id });
 }));
 
 // Quick check for the "explore the calendar / avoid double-booking" view:

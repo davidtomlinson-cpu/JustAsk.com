@@ -101,7 +101,10 @@ const SCHEMA_SQL = `
     "reminderOffsetsHours" TEXT,
     "createdBy" TEXT NOT NULL,
     "createdAt" TEXT NOT NULL,
-    "updatedAt" TEXT NOT NULL
+    "updatedAt" TEXT NOT NULL,
+    private BOOLEAN NOT NULL DEFAULT false,
+    "externalSource" TEXT,
+    "externalId" TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_events_family ON events("familyId");
   CREATE INDEX IF NOT EXISTS idx_events_group ON events("groupId");
@@ -276,6 +279,7 @@ const SCHEMA_SQL = `
     type TEXT NOT NULL,
     "familyId" TEXT,
     "groupId" TEXT,
+    "eventId" TEXT,
     "createdAt" TEXT NOT NULL
   );
   CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_family ON conversations("familyId") WHERE type = 'family';
@@ -306,6 +310,32 @@ const SCHEMA_SQL = `
     "createdAt" TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_message_media_message ON message_media("messageId");
+
+  -- One connected external calendar per user per provider (currently just
+  -- Google). accessToken/refreshToken are OAuth2 tokens; imported events
+  -- live in the regular events table, tagged via events."externalSource".
+  CREATE TABLE IF NOT EXISTS calendar_connections (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'google',
+    "accessToken" TEXT NOT NULL,
+    "refreshToken" TEXT,
+    "expiresAt" TEXT NOT NULL,
+    "calendarEmail" TEXT,
+    "lastSyncedAt" TEXT,
+    "createdAt" TEXT NOT NULL,
+    UNIQUE ("userId", provider)
+  );
+
+  -- Dedupe guard so a daily-summary cron that fires more than once (a
+  -- manual re-trigger, an overlapping schedule) never double-texts someone
+  -- on the same day.
+  CREATE TABLE IF NOT EXISTS daily_summary_log (
+    "userId" TEXT NOT NULL,
+    date TEXT NOT NULL,
+    "sentAt" TEXT NOT NULL,
+    PRIMARY KEY ("userId", date)
+  );
 `;
 
 async function initDb() {
@@ -314,6 +344,16 @@ async function initDb() {
   // already have data — safe to re-run every boot.
   await pool.query('ALTER TABLE families ADD COLUMN IF NOT EXISTS "photoUrl" TEXT');
   await pool.query('ALTER TABLE friend_groups ADD COLUMN IF NOT EXISTS "photoUrl" TEXT');
+  await pool.query('ALTER TABLE conversations ADD COLUMN IF NOT EXISTS "eventId" TEXT');
+  await pool.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS private BOOLEAN NOT NULL DEFAULT false');
+  await pool.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS "externalSource" TEXT');
+  await pool.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS "externalId" TEXT');
+  // These indexes reference columns only guaranteed to exist after the
+  // ALTERs above run (an already-existing table from before this feature
+  // wouldn't have had them yet), so they can't live in the CREATE TABLE
+  // block above — that runs first, before the ALTERs.
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_event ON conversations("eventId") WHERE type = 'event'`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_events_external ON events("createdBy", "externalSource", "externalId") WHERE "externalSource" IS NOT NULL`);
   await backfillConversations();
 }
 

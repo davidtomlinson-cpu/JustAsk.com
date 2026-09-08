@@ -19,8 +19,10 @@ const { router: dinnerRouter, publicRouter: dinnerPublicRouter } = require('./sr
 const { router: recipesRouter } = require('./src/routes/recipes');
 const { router: shoppingRouter, publicRouter: shoppingPublicRouter } = require('./src/routes/shopping');
 const { router: messagingRouter } = require('./src/routes/messaging');
-const { runSweep } = require('./src/reminders-cron');
+const { router: integrationsRouter, publicRouter: integrationsPublicRouter } = require('./src/routes/integrations');
+const { runSweep, sweepDailySummaries } = require('./src/reminders-cron');
 const { smsEnabled } = require('./src/sms');
+const { googleCalendarEnabled } = require('./src/google');
 
 const PORT = process.env.PORT || 3100;
 
@@ -35,13 +37,15 @@ app.use('/api/auth', authRouter); // signup/login are public; logout/me require 
 app.use('/api', dinnerPublicRouter); // GET/POST /api/dinner-response/:token
 app.use('/api', shoppingPublicRouter); // GET/POST /api/meal-rating/:token
 app.use('/api', familiesPublicRouter); // GET /api/families|groups/join-preview/:code
+app.use('/api', integrationsPublicRouter); // GET /api/integrations/google/connect|callback
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 app.get('/api/config', (req, res) => {
   res.json({
     smsEnabled,
-    recipeGenerationEnabled: !!process.env.ANTHROPIC_API_KEY
+    recipeGenerationEnabled: !!process.env.ANTHROPIC_API_KEY,
+    googleCalendarEnabled
   });
 });
 
@@ -54,6 +58,17 @@ app.post('/api/cron/sweep', ah(async (req, res) => {
   res.json({ ok: true, ...result });
 }));
 
+// The once-a-day "here's what you've got on today" SMS digest — its own
+// endpoint/schedule (see .github/workflows/memory-maker-daily-summary.yml)
+// rather than piggybacking on the hourly sweep above, since it needs to
+// fire at a specific morning time, not every hour.
+app.post('/api/cron/daily-summary', ah(async (req, res) => {
+  if (!process.env.CRON_SECRET) return res.status(501).json({ error: 'CRON_SECRET is not configured on this server' });
+  if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) return res.status(401).json({ error: 'Invalid cron secret' });
+  const sent = await sweepDailySummaries();
+  res.json({ ok: true, sent });
+}));
+
 // ---- Authenticated API ----
 
 app.use('/api', requireAuth(), familiesRouter);
@@ -64,6 +79,7 @@ app.use('/api', requireAuth(), dinnerRouter);
 app.use('/api', requireAuth(), recipesRouter);
 app.use('/api', requireAuth(), shoppingRouter);
 app.use('/api', requireAuth(), messagingRouter);
+app.use('/api', requireAuth(), integrationsRouter);
 
 // ---- Static files ----
 
