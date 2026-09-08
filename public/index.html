@@ -2148,10 +2148,10 @@
 
   function statTileHtml(label, value, sub) {
     return (
-      '<div class="stat-tile">' +
-        '<div class="stat-tile-value">' + value + '</div>' +
-        '<div class="stat-tile-label">' + label + '</div>' +
-        (sub ? '<div class="stat-tile-sub">' + sub + '</div>' : '') +
+      '<div class="metric-tile">' +
+        '<div class="metric-tile-value">' + value + '</div>' +
+        '<div class="metric-tile-label">' + label + '</div>' +
+        (sub ? '<div class="metric-tile-sub">' + sub + '</div>' : '') +
       '</div>'
     );
   }
@@ -2172,7 +2172,7 @@
         '<div class="analytics-hero-label">saved in the last 12 months</div>' +
         '<p class="hint" style="margin:6px 0 0;">Based on roughly ' + TIME_SAVED_MINUTES_LABEL + ' saved per order versus sourcing and buying it yourself — an estimate, not a stopwatch.</p>' +
       '</div>' +
-      '<div class="stat-tile-grid">' + tiles + '</div>' +
+      '<div class="metric-tile-grid">' + tiles + '</div>' +
       (data.topItem
         ? '<div class="analytics-callout">🎯 You\'ve asked us for <strong>' + escapeHtml(data.topItem.text) + '</strong> the most — ' + data.topItem.count + ' times in the last 12 months.</div>'
         : '') +
