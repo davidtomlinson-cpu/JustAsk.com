@@ -17,14 +17,44 @@ wraps the existing site in a real native app shell.
   existing navy/gold ring logo (from `public/icons/icon-512.png`)
 - **The app correctly talks to your live server.** When running inside the
   native app, it automatically points API calls at
-  `https://justask-com.onrender.com` instead of relying on relative URLs
+  `https://www.justaskclub.com` instead of relying on relative URLs
   (which only work when the page is served from that same domain). This is
   handled automatically in `public/index.html` — no manual step needed.
+  **This does depend on `www.justaskclub.com` actually being live** — see
+  "Custom domain" below. Don't build/archive the native app until that's
+  confirmed working, or it'll ship pointed at a URL that doesn't resolve.
 - **Push notifications plugin installed** (`@capacitor/push-notifications`)
   and synced into both platforms, ready to wire up once you have real
   Firebase/Apple push credentials (see the "Push notifications" section below
   — this is the one piece intentionally left unfinished, since it needs
   accounts that don't exist yet).
+
+## Custom domain — steps for you
+
+You've bought `justaskclub.com`. The site currently lives at
+`https://justask-com.onrender.com`, which will keep working throughout this —
+adding a custom domain is additive, it doesn't touch or risk the live Stripe
+integration or anything else already running.
+
+1. In the Render dashboard, open the web service → **Settings → Custom
+   Domains** → **Add Custom Domain**. Add both `www.justaskclub.com` and the
+   bare `justaskclub.com` (recommended so people who type the domain without
+   "www" don't hit a dead end — Render will let you pick one as primary and
+   redirect the other to it; `www.justaskclub.com` matches what's already in
+   the code, so make that the primary).
+2. Render will show you the exact DNS record(s) to add for each domain
+   (typically a CNAME for `www`, and either an ALIAS/ANAME or an A record for
+   the bare domain, depending what your registrar supports). Copy those
+   values into your domain registrar's DNS settings — send me a screenshot of
+   what Render shows if you want a second pair of eyes matching it up.
+3. DNS changes can take anywhere from a few minutes to a few hours to
+   propagate. Render auto-issues an SSL certificate once it verifies the
+   record, and the dashboard will show the domain's status flip from
+   "Pending" to "Verified" — no manual certificate step needed.
+4. Confirm `https://www.justaskclub.com` actually loads the site before
+   relying on it for anything (the native app build, App Store listing URLs,
+   etc.) — the app's native builds are hardcoded to that URL now, so if it's
+   not live yet, a native build made in the meantime would ship broken.
 
 ## Android — steps for you
 
@@ -52,7 +82,7 @@ Android review is usually quick (hours to a couple of days) and generally accept
 
 - App name, short description, full description
 - Screenshots (a few different phone sizes each — Android Studio/Xcode simulators can produce these)
-- A **privacy policy URL** — both stores require this, no exceptions. This now exists at `https://justask-com.onrender.com/privacy-policy.html`, but it's still a working draft with placeholders (company details, contact info, data retention periods) pending real facts and a solicitor's review — worth finishing that before submitting, since both stores will actually check the link resolves and reads like a real policy.
+- A **privacy policy URL** — both stores require this, no exceptions. This now exists at `https://www.justaskclub.com/privacy-policy.html` (once the custom domain is live — `https://justask-com.onrender.com/privacy-policy.html` still works in the meantime), but it's still a working draft with placeholders (company details, contact info, data retention periods) pending real facts and a solicitor's review — worth finishing that before submitting, since both stores will actually check the link resolves and reads like a real policy.
 - A content rating questionnaire (both stores ask a series of questions — straightforward for an app like this)
 
 ## Push notifications — next step, not done yet
