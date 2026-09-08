@@ -927,6 +927,77 @@ app.post('/api/cron/important-dates', ah(async (req, res) => {
   res.json({ checked: rows.length, reminded, repeated, errors });
 }));
 
+// ---- Buyer-facing analytics ("what being a member has done for you") ----
+// Deliberately personal, not a business dashboard — everything here is
+// scoped to req.user.id and the trailing 12 months. TIME_SAVED_MINUTES is a
+// stated assumption (roughly how long sourcing, comparing and buying an item
+// yourself would take), not a measured figure — it's presented as an
+// estimate on the frontend, not a precise stat.
+const TIME_SAVED_MINUTES_PER_ORDER = 30;
+
+app.get('/api/analytics/me', requireAuth('buyer'), ah(async (req, res) => {
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+  const cutoffIso = cutoff.toISOString();
+
+  const user = await dbGet('SELECT "createdAt" FROM users WHERE id = $1', [req.user.id]);
+  const rows = await dbAll(
+    'SELECT id, item, recipient, "createdAt" FROM requests WHERE "userId" = $1 AND "createdAt" >= $2',
+    [req.user.id, cutoffIso]
+  );
+
+  // 12 monthly buckets, oldest first, including months with zero orders —
+  // a bar chart with gaps silently skipped would misread as "no data" rather
+  // than "zero that month".
+  const monthlyOrders = [];
+  for (let i = 11; i >= 0; i--) {
+    const bucket = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    monthlyOrders.push({ month: bucket.toISOString().slice(0, 7), count: 0 });
+  }
+  const bucketIndex = new Map(monthlyOrders.map((b, i) => [b.month, i]));
+  for (const r of rows) {
+    const key = r.createdAt.slice(0, 7);
+    if (bucketIndex.has(key)) monthlyOrders[bucketIndex.get(key)].count++;
+  }
+
+  const recipientsHelped = new Set(rows.map((r) => r.recipient.trim().toLowerCase())).size;
+
+  const itemCounts = new Map();
+  for (const r of rows) {
+    const key = r.item.trim().toLowerCase();
+    const existing = itemCounts.get(key);
+    if (existing) existing.count++;
+    else itemCounts.set(key, { text: r.item.trim(), count: 1 });
+  }
+  let topItem = null;
+  for (const entry of itemCounts.values()) {
+    if (entry.count > 1 && (!topItem || entry.count > topItem.count)) topItem = entry;
+  }
+
+  const deliveredRows = await dbAll(
+    `SELECT r."createdAt" AS created, MIN(se."createdAt") AS delivered
+     FROM requests r JOIN status_events se ON se."requestId" = r.id AND se.status = 'Order Delivered'
+     WHERE r."userId" = $1 AND r."createdAt" >= $2
+     GROUP BY r.id, r."createdAt"`,
+    [req.user.id, cutoffIso]
+  );
+  let avgTurnaroundDays = null;
+  if (deliveredRows.length) {
+    const totalDays = deliveredRows.reduce((sum, r) => sum + (new Date(r.delivered) - new Date(r.created)) / 86400000, 0);
+    avgTurnaroundDays = Math.round((totalDays / deliveredRows.length) * 10) / 10;
+  }
+
+  res.json({
+    memberSince: user.createdAt,
+    ordersLast12Months: rows.length,
+    timeSavedMinutes: rows.length * TIME_SAVED_MINUTES_PER_ORDER,
+    recipientsHelped,
+    avgTurnaroundDays,
+    topItem,
+    monthlyOrders
+  });
+}));
+
 // "Order On Route" and "Order Delivered" are the delivery pipeline a buyer
 // actually cares about tracking once they've paid — each one gets its own
 // status_events row (see recordStatusEvent below) so the buyer can see
