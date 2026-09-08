@@ -1,30 +1,10 @@
-const path = require('path');
 const express = require('express');
-const multer = require('multer');
 const { dbGet, dbAll, dbRun } = require('../db');
-const { ah, isNonEmptyString, newId } = require('../helpers');
+const { ah, isNonEmptyString, newId, UPLOAD_DIR, makeUploader } = require('../helpers');
 const { assertFamilyMember, assertGroupMember } = require('./families');
 
 const router = express.Router();
-
-const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
-const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50MB — generous enough for a phone photo/video clip
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname || '').slice(0, 10);
-    cb(null, newId('media') + ext);
-  }
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: MAX_UPLOAD_BYTES },
-  fileFilter: (req, file, cb) => {
-    if (/^image\//.test(file.mimetype) || /^video\//.test(file.mimetype)) cb(null, true);
-    else cb(new Error('Only photo or video files can be uploaded'));
-  }
-});
+const upload = makeUploader();
 
 async function mediaOf(memoryId) {
   return dbAll('SELECT * FROM memory_media WHERE "memoryId" = $1 ORDER BY "createdAt" ASC', [memoryId]);

@@ -1,8 +1,11 @@
 const express = require('express');
 const { dbGet, dbAll, dbRun } = require('../db');
-const { ah, isNonEmptyString, newId, newJoinCode } = require('../helpers');
+const { ah, isNonEmptyString, newId, newJoinCode, normalizeUkPhone, baseUrlFromReq, makeUploader } = require('../helpers');
+const { sendSms } = require('../sms');
 
 const router = express.Router();
+const publicRouter = express.Router();
+const upload = makeUploader();
 
 async function membersOf(table, memberTable, col, id) {
   return dbAll(
@@ -39,6 +42,8 @@ router.post('/families', ah(async (req, res) => {
     [id, b.name.trim(), req.user.id, joinCode, now]);
   await dbRun('INSERT INTO family_members ("familyId","userId",role,"joinedAt") VALUES ($1,$2,$3,$4)',
     [id, req.user.id, 'owner', now]);
+  await dbRun('INSERT INTO conversations (id, type, "familyId", "createdAt") VALUES ($1,$2,$3,$4)',
+    [newId('conv'), 'family', id, now]);
   const family = await dbGet('SELECT * FROM families WHERE id = $1', [id]);
   res.status(201).json({ family });
 }));
@@ -60,6 +65,36 @@ router.get('/families/:id', ah(async (req, res) => {
   res.json({ family, members });
 }));
 
+router.patch('/families/:id', ah(async (req, res) => {
+  if (!(await assertFamilyMember(req, res, req.params.id))) return;
+  const name = ((req.body || {}).name || '').trim();
+  if (!isNonEmptyString(name)) return res.status(400).json({ error: 'A family name is required' });
+  await dbRun('UPDATE families SET name = $1 WHERE id = $2', [name, req.params.id]);
+  const family = await dbGet('SELECT * FROM families WHERE id = $1', [req.params.id]);
+  res.json({ family });
+}));
+
+router.post('/families/:id/photo', upload.single('file'), ah(async (req, res) => {
+  if (!(await assertFamilyMember(req, res, req.params.id))) return;
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const photoUrl = '/uploads/' + req.file.filename;
+  await dbRun('UPDATE families SET "photoUrl" = $1 WHERE id = $2', [photoUrl, req.params.id]);
+  res.json({ photoUrl });
+}));
+
+// Text an invite link to someone — they don't need an account yet; the link
+// (handled client-side, see server.js's /join/family/:code route) shows a
+// preview of the family and prompts sign-up/login before joining.
+router.post('/families/:id/invite', ah(async (req, res) => {
+  if (!(await assertFamilyMember(req, res, req.params.id))) return;
+  const phone = normalizeUkPhone((req.body || {}).phone);
+  if (!phone) return res.status(400).json({ error: "That doesn't look like a valid UK mobile number." });
+  const family = await dbGet('SELECT * FROM families WHERE id = $1', [req.params.id]);
+  const url = `${baseUrlFromReq(req)}/join/family/${family.joinCode}`;
+  await sendSms(phone, `${req.user.name} invited you to join "${family.name}" on The Memory Maker: ${url}`);
+  res.json({ ok: true });
+}));
+
 router.post('/families/join', ah(async (req, res) => {
   const code = ((req.body || {}).joinCode || '').trim().toUpperCase();
   if (!isNonEmptyString(code)) return res.status(400).json({ error: 'A join code is required' });
@@ -76,6 +111,16 @@ router.post('/families/join', ah(async (req, res) => {
 router.delete('/families/:id/members/me', ah(async (req, res) => {
   await dbRun('DELETE FROM family_members WHERE "familyId" = $1 AND "userId" = $2', [req.params.id, req.user.id]);
   res.json({ ok: true });
+}));
+
+// Public preview shown before the invitee has logged in — just enough to
+// say "you've been invited to join The Tomlinsons" without exposing the
+// member list to someone who hasn't joined yet.
+publicRouter.get('/families/join-preview/:code', ah(async (req, res) => {
+  const family = await dbGet('SELECT id, name, "photoUrl" FROM families WHERE "joinCode" = $1', [req.params.code.toUpperCase()]);
+  if (!family) return res.status(404).json({ error: "That invite link isn't valid" });
+  const { count } = await dbGet('SELECT COUNT(*)::int as count FROM family_members WHERE "familyId" = $1', [family.id]);
+  res.json({ type: 'family', name: family.name, photoUrl: family.photoUrl, memberCount: count });
 }));
 
 // ---- Friend groups ----
@@ -104,6 +149,8 @@ router.post('/groups', ah(async (req, res) => {
     [id, b.name.trim(), req.user.id, joinCode, now]);
   await dbRun('INSERT INTO friend_group_members ("groupId","userId",role,"joinedAt") VALUES ($1,$2,$3,$4)',
     [id, req.user.id, 'owner', now]);
+  await dbRun('INSERT INTO conversations (id, type, "groupId", "createdAt") VALUES ($1,$2,$3,$4)',
+    [newId('conv'), 'group', id, now]);
   const group = await dbGet('SELECT * FROM friend_groups WHERE id = $1', [id]);
   res.status(201).json({ group });
 }));
@@ -125,6 +172,33 @@ router.get('/groups/:id', ah(async (req, res) => {
   res.json({ group, members });
 }));
 
+router.patch('/groups/:id', ah(async (req, res) => {
+  if (!(await assertGroupMember(req, res, req.params.id))) return;
+  const name = ((req.body || {}).name || '').trim();
+  if (!isNonEmptyString(name)) return res.status(400).json({ error: 'A group name is required' });
+  await dbRun('UPDATE friend_groups SET name = $1 WHERE id = $2', [name, req.params.id]);
+  const group = await dbGet('SELECT * FROM friend_groups WHERE id = $1', [req.params.id]);
+  res.json({ group });
+}));
+
+router.post('/groups/:id/photo', upload.single('file'), ah(async (req, res) => {
+  if (!(await assertGroupMember(req, res, req.params.id))) return;
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const photoUrl = '/uploads/' + req.file.filename;
+  await dbRun('UPDATE friend_groups SET "photoUrl" = $1 WHERE id = $2', [photoUrl, req.params.id]);
+  res.json({ photoUrl });
+}));
+
+router.post('/groups/:id/invite', ah(async (req, res) => {
+  if (!(await assertGroupMember(req, res, req.params.id))) return;
+  const phone = normalizeUkPhone((req.body || {}).phone);
+  if (!phone) return res.status(400).json({ error: "That doesn't look like a valid UK mobile number." });
+  const group = await dbGet('SELECT * FROM friend_groups WHERE id = $1', [req.params.id]);
+  const url = `${baseUrlFromReq(req)}/join/group/${group.joinCode}`;
+  await sendSms(phone, `${req.user.name} invited you to join "${group.name}" on The Memory Maker: ${url}`);
+  res.json({ ok: true });
+}));
+
 router.post('/groups/join', ah(async (req, res) => {
   const code = ((req.body || {}).joinCode || '').trim().toUpperCase();
   if (!isNonEmptyString(code)) return res.status(400).json({ error: 'A join code is required' });
@@ -143,4 +217,11 @@ router.delete('/groups/:id/members/me', ah(async (req, res) => {
   res.json({ ok: true });
 }));
 
-module.exports = { router, assertFamilyMember, assertGroupMember };
+publicRouter.get('/groups/join-preview/:code', ah(async (req, res) => {
+  const group = await dbGet('SELECT id, name, "photoUrl" FROM friend_groups WHERE "joinCode" = $1', [req.params.code.toUpperCase()]);
+  if (!group) return res.status(404).json({ error: "That invite link isn't valid" });
+  const { count } = await dbGet('SELECT COUNT(*)::int as count FROM friend_group_members WHERE "groupId" = $1', [group.id]);
+  res.json({ type: 'group', name: group.name, photoUrl: group.photoUrl, memberCount: count });
+}));
+
+module.exports = { router, publicRouter, assertFamilyMember, assertGroupMember };

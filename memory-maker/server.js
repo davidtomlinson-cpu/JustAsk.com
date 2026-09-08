@@ -11,13 +11,14 @@ const cors = require('cors');
 const { initDb } = require('./src/db');
 const { ah } = require('./src/helpers');
 const { router: authRouter, requireAuth } = require('./src/auth');
-const { router: familiesRouter } = require('./src/routes/families');
+const { router: familiesRouter, publicRouter: familiesPublicRouter } = require('./src/routes/families');
 const { router: calendarRouter } = require('./src/routes/calendar');
 const { router: memoriesRouter, UPLOAD_DIR } = require('./src/routes/memories');
 const { router: todosRouter } = require('./src/routes/todos');
 const { router: dinnerRouter, publicRouter: dinnerPublicRouter } = require('./src/routes/dinner');
 const { router: recipesRouter } = require('./src/routes/recipes');
 const { router: shoppingRouter, publicRouter: shoppingPublicRouter } = require('./src/routes/shopping');
+const { router: messagingRouter } = require('./src/routes/messaging');
 const { runSweep } = require('./src/reminders-cron');
 const { smsEnabled } = require('./src/sms');
 
@@ -33,6 +34,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use('/api/auth', authRouter); // signup/login are public; logout/me require a token internally
 app.use('/api', dinnerPublicRouter); // GET/POST /api/dinner-response/:token
 app.use('/api', shoppingPublicRouter); // GET/POST /api/meal-rating/:token
+app.use('/api', familiesPublicRouter); // GET /api/families|groups/join-preview/:code
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
@@ -61,6 +63,7 @@ app.use('/api', requireAuth(), todosRouter);
 app.use('/api', requireAuth(), dinnerRouter);
 app.use('/api', requireAuth(), recipesRouter);
 app.use('/api', requireAuth(), shoppingRouter);
+app.use('/api', requireAuth(), messagingRouter);
 
 // ---- Static files ----
 
@@ -70,7 +73,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Client-side routes for the SMS magic links (the frontend reads the token
 // out of the URL and calls the public API above) — these need to serve the
 // same single-page app rather than 404ing.
-app.get(['/dinner/:token', '/rate/:token'], (req, res) => {
+app.get(['/dinner/:token', '/rate/:token', '/join/family/:code', '/join/group/:code'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

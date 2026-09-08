@@ -53,6 +53,7 @@ const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS families (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    "photoUrl" TEXT,
     "ownerId" TEXT NOT NULL,
     "joinCode" TEXT NOT NULL UNIQUE,
     "createdAt" TEXT NOT NULL
@@ -70,6 +71,7 @@ const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS friend_groups (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    "photoUrl" TEXT,
     "ownerId" TEXT NOT NULL,
     "joinCode" TEXT NOT NULL UNIQUE,
     "createdAt" TEXT NOT NULL
@@ -264,10 +266,81 @@ const SCHEMA_SQL = `
     "createdAt" TEXT NOT NULL,
     UNIQUE ("weeklyMealDayId", "recipientId")
   );
+
+  -- Messaging: one implicit conversation per family and per friend group
+  -- (every member is a participant by virtue of membership, no separate
+  -- participant rows needed there), plus direct 1:1 conversations which do
+  -- use conversation_participants explicitly.
+  CREATE TABLE IF NOT EXISTS conversations (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    "familyId" TEXT,
+    "groupId" TEXT,
+    "createdAt" TEXT NOT NULL
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_family ON conversations("familyId") WHERE type = 'family';
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_group ON conversations("groupId") WHERE type = 'group';
+
+  CREATE TABLE IF NOT EXISTS conversation_participants (
+    "conversationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TEXT NOT NULL,
+    PRIMARY KEY ("conversationId", "userId")
+  );
+  CREATE INDEX IF NOT EXISTS idx_conv_participants_user ON conversation_participants("userId");
+
+  CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    "conversationId" TEXT NOT NULL,
+    "senderId" TEXT NOT NULL,
+    body TEXT,
+    "createdAt" TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages("conversationId", "createdAt");
+
+  CREATE TABLE IF NOT EXISTS message_media (
+    id TEXT PRIMARY KEY,
+    "messageId" TEXT NOT NULL,
+    type TEXT NOT NULL,
+    url TEXT NOT NULL,
+    "createdAt" TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_message_media_message ON message_media("messageId");
 `;
 
 async function initDb() {
   await pool.query(SCHEMA_SQL);
+  // Additive migrations for columns/rows introduced after a database may
+  // already have data — safe to re-run every boot.
+  await pool.query('ALTER TABLE families ADD COLUMN IF NOT EXISTS "photoUrl" TEXT');
+  await pool.query('ALTER TABLE friend_groups ADD COLUMN IF NOT EXISTS "photoUrl" TEXT');
+  await backfillConversations();
+}
+
+// Group chat is implicit (every family/group member is a participant) but
+// still needs one conversation row per family/group to hang messages off
+// of. New families/groups create theirs at creation time; this backfills
+// any that existed before messaging did.
+async function backfillConversations() {
+  const crypto = require('crypto');
+  const orphanFamilies = await dbAll(
+    `SELECT families.id, families."createdAt" FROM families
+     LEFT JOIN conversations ON conversations."familyId" = families.id AND conversations.type = 'family'
+     WHERE conversations.id IS NULL`
+  );
+  for (const f of orphanFamilies) {
+    await dbRun('INSERT INTO conversations (id, type, "familyId", "createdAt") VALUES ($1,$2,$3,$4)',
+      ['conv_' + crypto.randomBytes(8).toString('hex'), 'family', f.id, f.createdAt]);
+  }
+  const orphanGroups = await dbAll(
+    `SELECT friend_groups.id, friend_groups."createdAt" FROM friend_groups
+     LEFT JOIN conversations ON conversations."groupId" = friend_groups.id AND conversations.type = 'group'
+     WHERE conversations.id IS NULL`
+  );
+  for (const g of orphanGroups) {
+    await dbRun('INSERT INTO conversations (id, type, "groupId", "createdAt") VALUES ($1,$2,$3,$4)',
+      ['conv_' + crypto.randomBytes(8).toString('hex'), 'group', g.id, g.createdAt]);
+  }
 }
 
 module.exports = { pool, dbGet, dbAll, dbRun, initDb };

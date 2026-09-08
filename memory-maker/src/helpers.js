@@ -1,4 +1,6 @@
+const path = require('path');
 const crypto = require('crypto');
+const multer = require('multer');
 
 function ah(fn) {
   return function (req, res, next) {
@@ -60,7 +62,31 @@ function dateForDay(weekStart, day) {
   return d.toISOString().slice(0, 10);
 }
 
+// Shared upload storage — memories, family/group photos, and chat images
+// all land in the same directory and go through the same multer setup, so
+// there's one place that defines "what counts as an uploadable photo/video".
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50MB — generous for a phone photo/video clip
+
+function makeUploader() {
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || '').slice(0, 10);
+      cb(null, newId('media') + ext);
+    }
+  });
+  return multer({
+    storage,
+    limits: { fileSize: MAX_UPLOAD_BYTES },
+    fileFilter: (req, file, cb) => {
+      if (/^image\//.test(file.mimetype) || /^video\//.test(file.mimetype)) cb(null, true);
+      else cb(new Error('Only photo or video files can be uploaded'));
+    }
+  });
+}
+
 module.exports = {
   ah, isNonEmptyString, newId, newToken, newJoinCode, normalizeUkPhone, baseUrlFromReq,
-  DAYS, DAY_LABELS, mondayOf, dateForDay
+  DAYS, DAY_LABELS, mondayOf, dateForDay, UPLOAD_DIR, MAX_UPLOAD_BYTES, makeUploader
 };
