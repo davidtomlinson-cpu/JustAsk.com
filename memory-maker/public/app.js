@@ -243,10 +243,12 @@ async function boot() {
   const joinMatch = path.match(/^\/join\/(family|group)\/([A-Za-z0-9]+)$/);
   const calloutMatch = path.match(/^\/callout\/([a-f0-9]+)$/);
   const pollMatch = path.match(/^\/poll\/([a-f0-9]+)$/);
+  const eventInviteMatch = path.match(/^\/event-invite\/([a-f0-9]+)$/);
   if (dinnerMatch) return bootPublicDinner(dinnerMatch[1]);
   if (rateMatch) return bootPublicRating(rateMatch[1]);
   if (calloutMatch) return bootPublicCallout(calloutMatch[1]);
   if (pollMatch) return bootPublicPoll(pollMatch[1]);
+  if (eventInviteMatch) return bootPublicEventInvite(eventInviteMatch[1]);
   if (joinMatch) { state.pendingJoin = { kind: joinMatch[1], code: joinMatch[2] }; window.history.replaceState({}, '', '/'); }
 
   if (!state.token) {
@@ -1073,6 +1075,7 @@ async function renderDayDetail(events) {
             ${mine ? rsvpControlsHtml(ev.id, mine.status) : ''}
           </div>
           <div class="hstack">
+            ${ev.createdBy === state.user.id ? `<button class="btn btn-icon-sm event-invite-btn" data-id="${ev.id}" data-title="${esc(ev.title)}" aria-label="Invite someone to ${esc(ev.title)}">${icon('plus', 14)}</button>` : ''}
             ${canChat ? `<button class="btn btn-icon-sm event-chat-btn" data-id="${ev.id}" data-title="${esc(ev.title)}" aria-label="Chat about ${esc(ev.title)}">${icon('chat', 14)}</button>` : ''}
             <button class="btn btn-sm btn-bad" onclick="deleteEvent('${ev.id}')" aria-label="Delete ${esc(ev.title)}">${icon('trash', 14)}</button>
           </div>
@@ -1098,6 +1101,9 @@ async function renderDayDetail(events) {
   document.querySelectorAll('.event-chat-btn').forEach((btn) => {
     btn.onclick = () => openEventConversation(btn.dataset.id, btn.dataset.title);
   });
+  document.querySelectorAll('.event-invite-btn').forEach((btn) => {
+    btn.onclick = () => openEventInviteForm(btn.dataset.id, btn.dataset.title);
+  });
   document.querySelectorAll('.rsvp-accept, .rsvp-decline').forEach((btn) => {
     btn.onclick = () => rsvpToEvent(btn.dataset.id, btn.classList.contains('rsvp-accept') ? 'accepted' : 'declined');
   });
@@ -1119,6 +1125,35 @@ async function rsvpToEvent(eventId, status) {
     toast(status === 'accepted' ? "You're in!" : "Marked as can't go");
     refreshCurrentView();
   } catch (err) { toast(err.message); }
+}
+
+// Invite one more person to a single event by phone — works whether or not
+// they're already in the family/group this event belongs to, and whether
+// or not they're on the app at all yet.
+function openEventInviteForm(eventId, title) {
+  openModal(`
+    <div class="modal-head"><h3>Invite to ${esc(title)}</h3><button onclick="closeModal()">${icon('x')}</button></div>
+    <p class="muted">We'll text them a link to accept or decline — no account needed to reply, just to see it on their own calendar afterwards.</p>
+    <div class="field"><label for="evinv-name">Their name</label><input id="evinv-name" placeholder="Optional"></div>
+    <div class="field"><label for="evinv-phone">Their mobile number</label><input id="evinv-phone" type="tel" placeholder="07... or +447..."></div>
+    ${!state.config.smsEnabled ? '<p class="muted">SMS isn\'t configured on this server yet, so this won\'t actually send.</p>' : ''}
+    <button class="btn btn-primary btn-block" id="evinv-send-btn">Send invite</button>
+    <p class="error-text hidden" id="evinv-error"></p>
+  `);
+  document.getElementById('evinv-send-btn').onclick = async () => {
+    const phone = document.getElementById('evinv-phone').value.trim();
+    if (!phone) return;
+    const name = document.getElementById('evinv-name').value.trim();
+    try {
+      const result = await api(`/api/events/${eventId}/invite-by-phone`, { method: 'POST', body: { phone, name: name || undefined } });
+      closeModal();
+      toast(result.matchedExistingUser ? `${result.name} is already on the app — invited directly!` : 'Invite sent!');
+      refreshCurrentView();
+    } catch (err) {
+      document.getElementById('evinv-error').textContent = err.message;
+      document.getElementById('evinv-error').classList.remove('hidden');
+    }
+  };
 }
 
 async function openEventConversation(eventId, title) {
@@ -2245,6 +2280,61 @@ async function bootPublicPoll(token) {
   } catch (err) {
     screen.innerHTML = `<div class="card"><p>${esc(err.message)}</p></div>`;
   }
+}
+
+// A "bring a friend" invite to a single event, sent by phone number — no
+// account needed to accept or decline. If they say yes and later sign up
+// with the same number, claimEventInvites() on the backend puts this event
+// straight on their calendar (see src/routes/calendar.js).
+async function bootPublicEventInvite(token) {
+  const screen = document.getElementById('public-screen');
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('app-root').classList.add('hidden');
+  screen.classList.remove('hidden');
+  screen.innerHTML = `<div class="card">${loadingHtml()}</div>`;
+
+  function render(data) {
+    const when = data.allDay ? 'All day' : fmtDateTime(data.startsAt);
+    screen.innerHTML = `<div class="card">
+      <h2>${esc(data.inviterName)} invited you!</h2>
+      <p class="muted" style="font-size:16px;color:var(--ink);font-weight:600">${esc(data.title)}</p>
+      <p class="muted">${when}${data.location ? ' · ' + esc(data.location) : ''}</p>
+      ${data.status === 'invited' ? `
+        <div class="hstack" style="margin-top:14px;justify-content:center">
+          <button class="btn btn-primary" id="evinv-accept">${icon('check', 15)} Accept</button>
+          <button class="btn" id="evinv-decline">${icon('x', 15)} Decline</button>
+        </div>` : `<p class="muted" style="text-align:center;margin-top:14px">${data.status === 'accepted' ? "You're going! 🎉" : "You've declined this one."}</p>`}
+      ${data.status === 'accepted' ? `
+        <div class="divider"></div>
+        <p class="muted" style="text-align:center">Get The Memory Maker to see this on your calendar, chat with everyone going, and RSVP to invites in one tap next time.</p>
+        <button class="btn btn-primary btn-block" id="evinv-signup">Create your free account</button>` : ''}
+    </div>`;
+    const acceptBtn = document.getElementById('evinv-accept');
+    const declineBtn = document.getElementById('evinv-decline');
+    if (acceptBtn) acceptBtn.onclick = () => respond('accepted');
+    if (declineBtn) declineBtn.onclick = () => respond('declined');
+    const signupBtn = document.getElementById('evinv-signup');
+    if (signupBtn) signupBtn.onclick = () => { window.location.href = '/'; };
+  }
+
+  async function respond(status) {
+    try {
+      const res = await fetch(`/api/event-invite/${token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+      if (!res.ok) throw new Error((await res.json()).error || 'Something went wrong.');
+      await load();
+    } catch (err) { toast(err.message); }
+  }
+
+  async function load() {
+    try {
+      const res = await fetch(`/api/event-invite/${token}`);
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'This invite link is not valid.');
+      render(await res.json());
+    } catch (err) {
+      screen.innerHTML = `<div class="card"><p>${esc(err.message)}</p></div>`;
+    }
+  }
+  await load();
 }
 
 /* =========================================================================

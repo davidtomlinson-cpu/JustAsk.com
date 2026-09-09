@@ -406,6 +406,29 @@ const SCHEMA_SQL = `
     PRIMARY KEY ("pollId", "userId")
   );
 
+  -- Inviting someone to a single event by phone number, whether or not
+  -- they have an account yet — the "bring a friend who isn't on the app"
+  -- path. If the phone matches an existing user we skip this table
+  -- entirely and add them straight to event_attendees; this is only for
+  -- phones with no matching account. "claimedByUserId" is set once that
+  -- person signs up with the same phone (see claimEventInvites in
+  -- src/routes/calendar.js), which is what actually puts the event on
+  -- their calendar.
+  CREATE TABLE IF NOT EXISTS event_invites (
+    id TEXT PRIMARY KEY,
+    "eventId" TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    name TEXT,
+    token TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'invited',
+    "claimedByUserId" TEXT,
+    "invitedBy" TEXT NOT NULL,
+    "respondedAt" TEXT,
+    "createdAt" TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_event_invites_event ON event_invites("eventId");
+  CREATE INDEX IF NOT EXISTS idx_event_invites_phone ON event_invites(phone);
+
   -- In-app notifications — see src/notify.js. Each row is one channel-
   -- agnostic event; whether it also went out as SMS is decided (and
   -- attempted) at write time, not tracked here.

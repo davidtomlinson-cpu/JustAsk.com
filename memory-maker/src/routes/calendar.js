@@ -1,10 +1,12 @@
 const express = require('express');
 const { dbGet, dbAll, dbRun } = require('../db');
-const { ah, isNonEmptyString, newId } = require('../helpers');
+const { ah, isNonEmptyString, newId, newToken, normalizeUkPhone, baseUrlFromReq } = require('../helpers');
 const { notifyUser } = require('../notify');
+const { sendSms } = require('../sms');
 const { assertFamilyMember, assertGroupMember } = require('./families');
 
 const router = express.Router();
+const publicRouter = express.Router();
 
 async function attendeesOf(eventId) {
   return dbAll(
@@ -205,6 +207,47 @@ router.post('/events/:id/rsvp', ah(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// Invite one more person to this specific event by phone number — the
+// "bring a friend who isn't in this family/group, or isn't on the app at
+// all" path. If the number already belongs to an account, this is just a
+// normal invite (added to event_attendees, notified in-app/SMS same as
+// anyone invited at creation). If not, we text them a no-login accept/
+// decline link instead; claimEventInvites() below is what actually puts
+// the event on their calendar once they sign up.
+router.post('/events/:id/invite-by-phone', ah(async (req, res) => {
+  const event = await loadEventForUser(req, res);
+  if (!event) return;
+  if (event.createdBy !== req.user.id) return res.status(403).json({ error: 'Only the organizer can invite people to this event' });
+  const b = req.body || {};
+  const phone = normalizeUkPhone(b.phone);
+  if (!phone) return res.status(400).json({ error: "That doesn't look like a valid UK mobile number." });
+
+  const baseUrl = baseUrlFromReq(req);
+  const whenLabel = new Date(event.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const existingUser = await dbGet('SELECT id, name FROM users WHERE phone = $1', [phone]);
+
+  if (existingUser) {
+    const already = await dbGet('SELECT 1 FROM event_attendees WHERE "eventId" = $1 AND "userId" = $2', [event.id, existingUser.id]);
+    if (already) return res.status(409).json({ error: `${existingUser.name} is already invited to this event` });
+    await dbRun('INSERT INTO event_attendees ("eventId","userId",status,"respondedAt") VALUES ($1,$2,$3,$4)', [event.id, existingUser.id, 'invited', null]);
+    await notifyUser(existingUser.id, {
+      type: 'event_invite', title: `${req.user.name} invited you to ${event.title}`, body: whenLabel, link: 'calendar', sms: true
+    });
+    return res.status(201).json({ ok: true, matchedExistingUser: true, name: existingUser.name });
+  }
+
+  const existingInvite = await dbGet(`SELECT 1 FROM event_invites WHERE "eventId" = $1 AND phone = $2 AND status = 'invited'`, [event.id, phone]);
+  if (existingInvite) return res.status(409).json({ error: 'Already invited — waiting on their reply' });
+
+  const token = newToken();
+  await dbRun(
+    `INSERT INTO event_invites (id,"eventId",phone,name,token,status,"invitedBy","createdAt") VALUES ($1,$2,$3,$4,$5,'invited',$6,$7)`,
+    [newId('evinv'), event.id, phone, isNonEmptyString(b.name) ? b.name.trim() : null, token, req.user.id, new Date().toISOString()]
+  );
+  sendSms(phone, `${req.user.name} invited you to "${event.title}" (${whenLabel}) on The Memory Maker. Accept or decline: ${baseUrl}/event-invite/${token}`);
+  res.status(201).json({ ok: true, matchedExistingUser: false });
+}));
+
 // Opens (or returns the existing) chat scoped to this event's confirmed
 // attendees — "select a date with confirmed attendees" and message just
 // them, separate from the whole family/group thread. Membership is
@@ -273,4 +316,55 @@ router.get('/calendar.ics', ah(async (req, res) => {
   res.send(lines.join('\r\n'));
 }));
 
-module.exports = { router, findConflicts, attendeesOf };
+// ---- Public, no-login event-invite response (phone number, not an account) ----
+
+publicRouter.get('/event-invite/:token', ah(async (req, res) => {
+  const inv = await dbGet(
+    `SELECT event_invites.*, events.title, events."startsAt", events."endsAt", events.location, events."allDay"
+     FROM event_invites JOIN events ON events.id = event_invites."eventId"
+     WHERE event_invites.token = $1`,
+    [req.params.token]
+  );
+  if (!inv) return res.status(404).json({ error: 'This invite link is not valid' });
+  const inviter = await dbGet('SELECT name FROM users WHERE id = $1', [inv.invitedBy]);
+  res.json({
+    title: inv.title, startsAt: inv.startsAt, endsAt: inv.endsAt, location: inv.location, allDay: inv.allDay,
+    inviterName: inviter ? inviter.name : 'Someone', status: inv.status, name: inv.name
+  });
+}));
+
+publicRouter.post('/event-invite/:token', ah(async (req, res) => {
+  const status = (req.body || {}).status;
+  if (!['accepted', 'declined'].includes(status)) return res.status(400).json({ error: 'status must be accepted or declined' });
+  const inv = await dbGet('SELECT * FROM event_invites WHERE token = $1', [req.params.token]);
+  if (!inv) return res.status(404).json({ error: 'This invite link is not valid' });
+  await dbRun('UPDATE event_invites SET status = $1, "respondedAt" = $2 WHERE token = $3', [status, new Date().toISOString(), req.params.token]);
+  if (status === 'accepted') {
+    const event = await dbGet('SELECT title, "createdBy" FROM events WHERE id = $1', [inv.eventId]);
+    if (event) {
+      await notifyUser(event.createdBy, { type: 'event_rsvp', title: `${inv.name || 'Your invite'} is in for ${event.title}`, link: 'calendar' });
+    }
+  }
+  res.json({ ok: true });
+}));
+
+// Runs at signup and whenever a phone number is added/changed (see
+// src/auth.js) — any event invite sent to that number before they had an
+// account, that they already said yes to, becomes a real event_attendees
+// row so it's on their calendar the moment they join. Declined invites are
+// left alone; there's nothing to add.
+async function claimEventInvites(userId, phone) {
+  if (!phone) return 0;
+  const rows = await dbAll(`SELECT * FROM event_invites WHERE phone = $1 AND status = 'accepted' AND "claimedByUserId" IS NULL`, [phone]);
+  for (const inv of rows) {
+    const already = await dbGet('SELECT 1 FROM event_attendees WHERE "eventId" = $1 AND "userId" = $2', [inv.eventId, userId]);
+    if (!already) {
+      await dbRun('INSERT INTO event_attendees ("eventId","userId",status,"respondedAt") VALUES ($1,$2,$3,$4)',
+        [inv.eventId, userId, 'accepted', inv.respondedAt || new Date().toISOString()]);
+    }
+    await dbRun('UPDATE event_invites SET "claimedByUserId" = $1 WHERE id = $2', [userId, inv.id]);
+  }
+  return rows.length;
+}
+
+module.exports = { router, publicRouter, findConflicts, attendeesOf, claimEventInvites };

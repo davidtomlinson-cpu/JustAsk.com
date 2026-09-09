@@ -12,7 +12,7 @@ const { initDb } = require('./src/db');
 const { ah } = require('./src/helpers');
 const { router: authRouter, requireAuth } = require('./src/auth');
 const { router: familiesRouter, publicRouter: familiesPublicRouter } = require('./src/routes/families');
-const { router: calendarRouter } = require('./src/routes/calendar');
+const { router: calendarRouter, publicRouter: calendarPublicRouter } = require('./src/routes/calendar');
 const { router: memoriesRouter, UPLOAD_DIR } = require('./src/routes/memories');
 const { router: todosRouter } = require('./src/routes/todos');
 const { router: dinnerRouter, publicRouter: dinnerPublicRouter } = require('./src/routes/dinner');
@@ -44,6 +44,7 @@ app.use('/api', familiesPublicRouter); // GET /api/families|groups/join-preview/
 app.use('/api', integrationsPublicRouter); // GET /api/integrations/google/connect|callback
 app.use('/api', calloutsPublicRouter); // GET/POST /api/callout-response/:token
 app.use('/api', pollsPublicRouter); // GET/POST /api/poll-response/:token
+app.use('/api', calendarPublicRouter); // GET/POST /api/event-invite/:token
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
@@ -99,7 +100,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Client-side routes for the SMS magic links (the frontend reads the token
 // out of the URL and calls the public API above) — these need to serve the
 // same single-page app rather than 404ing.
-app.get(['/dinner/:token', '/rate/:token', '/join/family/:code', '/join/group/:code', '/callout/:token', '/poll/:token'], (req, res) => {
+app.get(['/dinner/:token', '/rate/:token', '/join/family/:code', '/join/group/:code', '/callout/:token', '/poll/:token', '/event-invite/:token'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { dbGet, dbRun } = require('./db');
 const { ah, isNonEmptyString, newId, normalizeUkPhone } = require('./helpers');
+const { claimEventInvites } = require('./routes/calendar');
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -88,6 +89,7 @@ router.post('/signup', ah(async (req, res) => {
     'INSERT INTO users (id, name, email, "passwordHash", phone, "smsOptIn", color, "createdAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
     [id, b.name.trim(), email, hashPassword(b.password), phone, !!phone, color, now]
   );
+  if (phone) await claimEventInvites(id, phone);
   const token = await createSession(id);
   res.status(201).json({ token, user: { id, name: b.name.trim(), email, phone, smsOptIn: !!phone, color } });
 }));
@@ -127,6 +129,7 @@ router.patch('/me', requireAuth(), ah(async (req, res) => {
   }
   const smsOptIn = b.smsOptIn !== undefined ? !!b.smsOptIn && !!phone : current.smsOptIn;
   await dbRun('UPDATE users SET phone = $1, "smsOptIn" = $2 WHERE id = $3', [phone, smsOptIn, req.user.id]);
+  if (phone && phone !== current.phone) await claimEventInvites(req.user.id, phone);
   const updated = await dbGet('SELECT id, name, email, phone, "smsOptIn", color FROM users WHERE id = $1', [req.user.id]);
   res.json({ user: updated });
 }));
