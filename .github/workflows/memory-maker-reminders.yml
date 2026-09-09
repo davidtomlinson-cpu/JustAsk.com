@@ -1,0 +1,31 @@
+name: Memory Maker reminders sweep
+
+# The Memory Maker has no built-in scheduler, so this workflow is what
+# actually triggers the "send due event/to-do reminders by SMS" sweep.
+# Requires two repository secrets once the app is deployed somewhere:
+#   MEMORY_MAKER_BASE_URL  — e.g. https://memory-maker.onrender.com
+#   MEMORY_MAKER_CRON_SECRET — must match CRON_SECRET on the deployed service
+on:
+  schedule:
+    - cron: '0 * * * *' # hourly, on the hour
+  workflow_dispatch: {}
+
+jobs:
+  trigger-reminder-sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the reminders sweep endpoint
+        run: |
+          if [ -z "${{ secrets.MEMORY_MAKER_BASE_URL }}" ]; then
+            echo "MEMORY_MAKER_BASE_URL secret is not set yet — skipping (set it once the app is deployed)."
+            exit 0
+          fi
+          status=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST "${{ secrets.MEMORY_MAKER_BASE_URL }}/api/cron/sweep" \
+            -H "X-Cron-Secret: ${{ secrets.MEMORY_MAKER_CRON_SECRET }}")
+          echo "HTTP status: $status"
+          cat response.json
+          if [ "$status" -ge 300 ]; then
+            echo "Reminder sweep failed"
+            exit 1
+          fi

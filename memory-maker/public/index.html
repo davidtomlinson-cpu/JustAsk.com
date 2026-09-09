@@ -1,0 +1,90 @@
+<title>The Memory Maker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#b25545" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1e1613" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Memory Maker">
+<link rel="stylesheet" href="/styles.css">
+
+<div id="app-root" class="hidden">
+  <header id="app-header">
+    <div class="brand">
+      <div class="mark"><svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.2A2.2 2.2 0 0 1 6.2 3H19v16.8H6.2A2.2 2.2 0 0 0 4 22V5.2Z"/><path d="M19 19.8H6.2A2.2 2.2 0 0 0 4 22"/></svg></div>
+      <div>
+        <h1>The Memory Maker</h1>
+        <select id="family-switcher" aria-label="Switch family"></select>
+      </div>
+    </div>
+    <div class="hstack" style="gap:10px">
+      <button id="notif-bell-btn" class="btn-icon-sm" title="Notifications" aria-label="Notifications" style="position:relative;background:var(--card);border:1px solid var(--line)">
+        <svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span id="notif-badge" class="hidden"></span>
+      </button>
+      <button id="profile-btn" title="Profile" aria-label="Open your profile"></button>
+    </div>
+  </header>
+
+  <main id="view-root"></main>
+
+  <nav id="tabbar">
+    <button data-tab="today"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9"/></svg>Today</button>
+    <button data-tab="calendar"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg>Calendar</button>
+    <button data-tab="memories"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3.5 17.5 9 12l3.5 3.5L17 11l3.5 4"/></svg>Memories</button>
+    <button data-tab="todos"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12.3l2.4 2.4 4.6-5.2"/></svg>To-dos</button>
+    <button data-tab="chat"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat</button>
+    <button data-tab="requests"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="3"/></svg>Requests</button>
+    <button data-tab="food"><svg class="i" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v6.5a1.8 1.8 0 0 0 1.8 1.8H8a1.8 1.8 0 0 0 1.8-1.8V3"/><path d="M8.4 11.3V21"/><path d="M15.5 3c-1.4 0-2.5 1.7-2.5 3.8 0 1.7.8 3.2 2 3.7V21"/></svg>Food</button>
+  </nav>
+</div>
+
+<div id="auth-screen" class="hidden">
+  <div class="mark"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.2A2.2 2.2 0 0 1 6.2 3H19v16.8H6.2A2.2 2.2 0 0 0 4 22V5.2Z"/><path d="M19 19.8H6.2A2.2 2.2 0 0 0 4 22"/></svg></div>
+  <h1>The Memory Maker</h1>
+  <p>Your family's calendar, memories, meals and to-dos, all in one place.</p>
+  <div class="card">
+    <div class="tabs">
+      <button id="auth-tab-login" class="active">Log in</button>
+      <button id="auth-tab-signup">Sign up</button>
+    </div>
+    <form id="auth-form" class="stack">
+      <div class="field hidden" id="auth-name-field">
+        <label for="auth-name">Your name</label>
+        <input type="text" id="auth-name" autocomplete="name">
+      </div>
+      <div class="field">
+        <label for="auth-email">Email</label>
+        <input type="email" id="auth-email" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="auth-password">Password</label>
+        <input type="password" id="auth-password" autocomplete="current-password" required>
+      </div>
+      <div class="field hidden" id="auth-phone-field">
+        <label for="auth-phone">Mobile number (optional, for SMS reminders)</label>
+        <input type="tel" id="auth-phone" placeholder="07... or +447...">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="auth-submit">Log in</button>
+      <p class="error-text hidden" id="auth-error"></p>
+    </form>
+  </div>
+</div>
+
+<div id="public-screen" class="hidden"></div>
+
+<div id="modal-root"></div>
+<div id="toast"></div>
+
+<input type="file" id="camera-input" accept="image/*,video/*" capture="environment" class="hidden">
+<input type="file" id="file-input" accept="image/*,video/*" class="hidden">
+<input type="file" id="entity-photo-input" accept="image/*" class="hidden">
+<input type="file" id="chat-file-input" accept="image/*,video/*" class="hidden">
+
+<script src="/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
+  }
+</script>
