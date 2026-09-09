@@ -842,7 +842,11 @@ function switchTab(tab) {
 function refreshCurrentView() {
   const root = document.getElementById('view-root');
   if (state.tab !== 'chat') stopChatPolling();
-  if (!currentFamily() && state.tab !== 'today' && state.tab !== 'chat') {
+  // The calendar mixes in every friend group's events too, so someone with
+  // only a friend group (no family yet) still needs to reach it — everything
+  // else here (memories, to-dos, meals) is family-only for now.
+  const calendarOk = state.tab === 'calendar' && (currentFamily() || state.groups.length > 0);
+  if (!currentFamily() && !calendarOk && state.tab !== 'today' && state.tab !== 'chat') {
     root.innerHTML = noFamilyState();
     return;
   }
@@ -953,6 +957,9 @@ async function renderToday() {
       try { await api(`/api/todos/${el.dataset.id}`, { method: 'PATCH', body: { status: 'failed' } }); renderToday(); } catch (err) { toast(err.message); }
     };
   });
+  document.querySelectorAll('.rsvp-accept, .rsvp-decline').forEach((btn) => {
+    btn.onclick = () => rsvpToEvent(btn.dataset.id, btn.classList.contains('rsvp-accept') ? 'accepted' : 'declined');
+  });
 }
 
 function mediaTileHtml(m) {
@@ -962,8 +969,12 @@ function mediaTileHtml(m) {
 function eventRowHtml(ev) {
   const time = ev.allDay ? 'All day' : `${fmtTime(ev.startsAt)}–${fmtTime(ev.endsAt)}`;
   const occ = ev.occasionType && ev.occasionType !== 'event' ? occasionEmoji(ev.occasionType) + ' ' : '';
-  return `<div class="row">
-    <div><strong>${occ}${esc(ev.title)}</strong><p class="muted">${time}${ev.location ? ' · ' + esc(ev.location) : ''}</p></div>
+  const mine = (ev.attendees || []).find((a) => a.id === state.user.id);
+  return `<div class="row" style="align-items:flex-start">
+    <div style="flex:1">
+      <strong>${occ}${esc(ev.title)}</strong><p class="muted">${time}${ev.location ? ' · ' + esc(ev.location) : ''}</p>
+      ${mine ? rsvpControlsHtml(ev.id, mine.status) : ''}
+    </div>
     <div class="avatar-stack">${(ev.attendees || []).slice(0, 4).map((a) => avatarHtml(a)).join('')}</div>
   </div>`;
 }
@@ -1039,21 +1050,27 @@ async function renderCalendarMonth() {
 async function renderDayDetail(events) {
   const el = document.getElementById('day-detail');
   const date = state.selectedDate;
-  const { memories } = await api(`/api/memories?familyId=${state.currentFamilyId}&date=${date}`);
+  const memories = state.currentFamilyId ? (await api(`/api/memories?familyId=${state.currentFamilyId}&date=${date}`)).memories : [];
   const allMedia = memories.flatMap((m) => m.media);
 
   el.innerHTML = `
     <div class="section-title">${fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}</div>
     <div class="card stack">
       ${events.length ? events.map((ev) => {
-        const mine = (ev.attendees || []).find((a) => a.id === state.user.id);
+        const attendees = ev.attendees || [];
+        const mine = attendees.find((a) => a.id === state.user.id);
         const canChat = mine && mine.status === 'accepted';
+        const going = attendees.filter((a) => a.status === 'accepted').length;
+        const declined = attendees.filter((a) => a.status === 'declined').length;
+        const pending = attendees.length - going - declined;
         return `
         <div class="row" style="align-items:flex-start">
-          <div>
+          <div style="flex:1">
             <strong>${occasionEmoji(ev.occasionType)} ${esc(ev.title)}</strong>
             <p class="muted">${ev.allDay ? 'All day' : fmtTime(ev.startsAt) + '–' + fmtTime(ev.endsAt)}${ev.location ? ' · ' + esc(ev.location) : ''}</p>
-            <div class="avatar-stack">${(ev.attendees || []).map((a) => avatarHtml(a)).join('')}</div>
+            <div class="avatar-stack">${attendees.map((a) => avatarHtml(a)).join('')}</div>
+            ${attendees.length > 1 ? `<p class="muted" style="margin-top:4px">${going} going${declined ? ` · ${declined} can't make it` : ''}${pending ? ` · ${pending} haven't replied` : ''}</p>` : ''}
+            ${mine ? rsvpControlsHtml(ev.id, mine.status) : ''}
           </div>
           <div class="hstack">
             ${canChat ? `<button class="btn btn-icon-sm event-chat-btn" data-id="${ev.id}" data-title="${esc(ev.title)}" aria-label="Chat about ${esc(ev.title)}">${icon('chat', 14)}</button>` : ''}
@@ -1064,6 +1081,7 @@ async function renderDayDetail(events) {
         : `<p class="muted">Nothing booked yet.</p>`}
     </div>
 
+    ${state.currentFamilyId ? `
     <div class="section-title">Memories from this day</div>
     <div class="card">
       <div class="hstack" style="margin-bottom:${allMedia.length ? '10px' : '0'}">
@@ -1071,13 +1089,36 @@ async function renderDayDetail(events) {
         <button class="btn btn-sm" id="day-gallery">${icon('images', 14)} Choose from gallery</button>
       </div>
       ${allMedia.length ? `<div class="media-grid">${allMedia.map(mediaTileHtml).join('')}</div>` : `<p class="muted">No memories saved for this day yet.</p>`}
-    </div>
+    </div>` : ''}
   `;
-  document.getElementById('day-camera').onclick = () => openCameraFor(date);
-  document.getElementById('day-gallery').onclick = () => openGalleryFor(date);
+  if (state.currentFamilyId) {
+    document.getElementById('day-camera').onclick = () => openCameraFor(date);
+    document.getElementById('day-gallery').onclick = () => openGalleryFor(date);
+  }
   document.querySelectorAll('.event-chat-btn').forEach((btn) => {
     btn.onclick = () => openEventConversation(btn.dataset.id, btn.dataset.title);
   });
+  document.querySelectorAll('.rsvp-accept, .rsvp-decline').forEach((btn) => {
+    btn.onclick = () => rsvpToEvent(btn.dataset.id, btn.classList.contains('rsvp-accept') ? 'accepted' : 'declined');
+  });
+}
+
+function rsvpControlsHtml(eventId, status) {
+  if (status === 'accepted') {
+    return `<p class="hstack" style="margin-top:6px"><span class="badge badge-good">✓ You're going</span><button class="btn btn-sm rsvp-decline" data-id="${eventId}">Can't go after all</button></p>`;
+  }
+  if (status === 'declined') {
+    return `<p class="hstack" style="margin-top:6px"><span class="badge badge-bad">✕ You declined</span><button class="btn btn-sm rsvp-accept" data-id="${eventId}">I can go after all</button></p>`;
+  }
+  return `<p class="hstack" style="margin-top:6px"><button class="btn btn-sm btn-primary rsvp-accept" data-id="${eventId}">${icon('check', 13)} Accept</button><button class="btn btn-sm rsvp-decline" data-id="${eventId}">${icon('x', 13)} Decline</button></p>`;
+}
+
+async function rsvpToEvent(eventId, status) {
+  try {
+    await api(`/api/events/${eventId}/rsvp`, { method: 'POST', body: { status } });
+    toast(status === 'accepted' ? "You're in!" : "Marked as can't go");
+    refreshCurrentView();
+  } catch (err) { toast(err.message); }
 }
 
 async function openEventConversation(eventId, title) {
@@ -1107,14 +1148,36 @@ async function deleteEvent(id) {
 }
 
 async function openEventForm(opts) {
-  const familyId = state.currentFamilyId;
-  const { members } = await api(`/api/families/${familyId}`);
+  const scopeOptions = [
+    ...state.families.map((f) => ({ kind: 'family', id: f.id, name: f.name })),
+    ...state.groups.map((g) => ({ kind: 'group', id: g.id, name: g.name }))
+  ];
+  if (!scopeOptions.length) return toast('Join or create a family or friend group first');
+  let currentScope = scopeOptions.find((s) => s.kind === 'family' && s.id === state.currentFamilyId) || scopeOptions[0];
   const date = (opts && opts.date) || todayStr();
+
+  async function membersFor(scope) {
+    if (!scope) return [];
+    const { members } = await api(`${scope.kind === 'family' ? '/api/families' : '/api/groups'}/${scope.id}`);
+    return members;
+  }
+  let members = await membersFor(currentScope);
+
+  function attendeeChipsHtml() {
+    return members.map((m) => `<label class="chip"><input type="checkbox" class="ev-attendee" value="${m.id}" checked style="width:auto"> ${esc(m.name)}</label>`).join('');
+  }
 
   openModal(`
     <div class="modal-head"><h3>Add event</h3><button onclick="closeModal()">${icon('x')}</button></div>
     <form id="event-form" class="stack">
-      <div class="field"><label for="ev-title">Title</label><input id="ev-title" required placeholder="e.g. Dentist appointment"></div>
+      <div class="field"><label for="ev-title">Title</label><input id="ev-title" required placeholder="e.g. Dentist appointment, night out"></div>
+      ${scopeOptions.length > 1 ? `
+      <div class="field"><label for="ev-scope">For</label>
+        <select id="ev-scope">
+          ${state.families.length ? `<optgroup label="Family">${state.families.map((f) => `<option value="family:${f.id}" ${currentScope.kind === 'family' && currentScope.id === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</optgroup>` : ''}
+          ${state.groups.length ? `<optgroup label="Friend group">${state.groups.map((g) => `<option value="group:${g.id}" ${currentScope.kind === 'group' && currentScope.id === g.id ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</optgroup>` : ''}
+        </select>
+      </div>` : ''}
       <div class="hstack">
         <div class="field" style="flex:1"><label for="ev-date">Date</label><input id="ev-date" type="date" value="${date}" required></div>
         <label class="hstack" style="margin-top:20px"><input type="checkbox" id="ev-allday" style="width:auto"> All day</label>
@@ -1137,7 +1200,8 @@ async function openEventForm(opts) {
 
       <div class="field">
         <label>Who's invited</label>
-        <div class="hstack">${members.map((m) => `<label class="chip"><input type="checkbox" class="ev-attendee" value="${m.id}" checked style="width:auto"> ${esc(m.name)}</label>`).join('')}</div>
+        <div class="hstack" id="ev-attendees">${attendeeChipsHtml()}</div>
+        <p class="muted" id="ev-rsvp-hint">Everyone invited can accept or decline from their calendar.</p>
       </div>
 
       <div class="field">
@@ -1152,15 +1216,28 @@ async function openEventForm(opts) {
     </form>
   `);
 
-  document.querySelectorAll('.chip').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      const cb = chip.querySelector('input');
-      setTimeout(() => chip.classList.toggle('off', !cb.checked), 0);
+  function bindChips() {
+    document.querySelectorAll('.chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const cb = chip.querySelector('input');
+        setTimeout(() => { chip.classList.toggle('off', !cb.checked); checkConflictsLive(); }, 0);
+      });
     });
-  });
+  }
+  bindChips();
   document.getElementById('ev-allday').onchange = (e) => {
     document.getElementById('ev-time-row').style.display = e.target.checked ? 'none' : 'flex';
   };
+  if (scopeOptions.length > 1) {
+    document.getElementById('ev-scope').onchange = async (e) => {
+      const [kind, id] = e.target.value.split(':');
+      currentScope = { kind, id };
+      members = await membersFor(currentScope);
+      document.getElementById('ev-attendees').innerHTML = attendeeChipsHtml();
+      bindChips();
+      checkConflictsLive();
+    };
+  }
 
   document.getElementById('event-form').onsubmit = async (e) => {
     e.preventDefault();
@@ -1173,7 +1250,8 @@ async function openEventForm(opts) {
     const attendeeUserIds = Array.from(document.querySelectorAll('.ev-attendee:checked')).map((el) => el.value);
     const reminderOffsetsHours = Array.from(document.querySelectorAll('.ev-reminder:checked')).map((el) => Number(el.value));
     const body = {
-      familyId, title: document.getElementById('ev-title').value.trim(), startsAt, endsAt, allDay,
+      [currentScope.kind === 'family' ? 'familyId' : 'groupId']: currentScope.id,
+      title: document.getElementById('ev-title').value.trim(), startsAt, endsAt, allDay,
       location: document.getElementById('ev-location').value.trim() || undefined,
       occasionType: document.getElementById('ev-occasion').value,
       recurrence: document.getElementById('ev-yearly').checked ? 'yearly' : 'none',
@@ -1183,6 +1261,7 @@ async function openEventForm(opts) {
       const result = await api('/api/events', { method: 'POST', body });
       closeModal();
       state.selectedDate = d;
+      if (currentScope.kind === 'family') state.currentFamilyId = currentScope.id;
       renderCalendarMonth();
       const conflictCount = Object.keys(result.conflicts || {}).length;
       toast(conflictCount ? `Saved — but heads up, ${conflictCount} attendee(s) have a clash at that time.` : 'Event saved');
@@ -1209,7 +1288,6 @@ async function openEventForm(opts) {
     } catch (e) { /* non-critical */ }
   }
   ['ev-date', 'ev-start', 'ev-end', 'ev-allday'].forEach((id) => document.getElementById(id).addEventListener('change', checkConflictsLive));
-  document.querySelectorAll('.ev-attendee').forEach((cb) => cb.addEventListener('change', checkConflictsLive));
 }
 
 /* =========================================================================

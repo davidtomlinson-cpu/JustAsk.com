@@ -192,6 +192,16 @@ router.post('/events/:id/rsvp', ah(async (req, res) => {
   if (!row) return res.status(404).json({ error: 'You are not invited to this event' });
   await dbRun('UPDATE event_attendees SET status = $1, "respondedAt" = $2 WHERE "eventId" = $3 AND "userId" = $4',
     [status, new Date().toISOString(), req.params.id, req.user.id]);
+  if (status === 'accepted' || status === 'declined') {
+    const event = await dbGet('SELECT title, "createdBy" FROM events WHERE id = $1', [req.params.id]);
+    if (event && event.createdBy !== req.user.id) {
+      await notifyUser(event.createdBy, {
+        type: 'event_rsvp',
+        title: `${req.user.name} ${status === 'accepted' ? "is in for" : "can't make"} ${event.title}`,
+        link: 'calendar'
+      });
+    }
+  }
   res.json({ ok: true });
 }));
 
