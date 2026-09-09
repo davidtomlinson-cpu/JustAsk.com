@@ -634,8 +634,8 @@ function openCreateEntityChoice() {
   openModal(`
     <div class="modal-head"><h3>What would you like to create?</h3><button onclick="closeModal()">${icon('x')}</button></div>
     <div class="choice-row">
-      <div class="choice-card" id="choice-family">${icon('users', 26)}<div><strong>Family</strong></div><p class="muted" style="font-size:12px;margin:2px 0 0">Your household's shared calendar, memories, meals &amp; to-dos</p></div>
-      <div class="choice-card" id="choice-group">${icon('user', 26)}<div><strong>Friend group</strong></div><p class="muted" style="font-size:12px;margin:2px 0 0">A separate calendar &amp; chat for a friendship circle</p></div>
+      <div class="choice-card" id="choice-family">${icon('users', 26)}<div><strong>Family</strong></div><p class="muted" style="font-size:14px;margin:2px 0 0">Your household's shared calendar, memories, meals &amp; to-dos</p></div>
+      <div class="choice-card" id="choice-group">${icon('user', 26)}<div><strong>Friend group</strong></div><p class="muted" style="font-size:14px;margin:2px 0 0">A separate calendar &amp; chat for a friendship circle</p></div>
     </div>
   `);
   document.getElementById('choice-family').onclick = () => openCreateEntityForm('family');
@@ -1681,7 +1681,7 @@ async function renderDinnerPlan() {
       <div class="col">
         <div class="day-label">${DAY_LABELS[p.day]}</div>
         <div>${p.inFor.map((u) => avatarHtml(u)).join('') || '<span class="muted">—</span>'}</div>
-        <div class="muted" style="font-size:11px;margin-top:4px">${mealByDay[p.day] ? esc(mealByDay[p.day].recipeTitle || '') : ''}</div>
+        <div class="muted" style="font-size:13px;margin-top:4px">${mealByDay[p.day] ? esc(mealByDay[p.day].recipeTitle || '') : ''}</div>
         <button class="btn btn-icon-sm" style="margin-top:4px" data-assign-day="${p.day}" aria-label="Assign a recipe to ${DAY_LABELS_FULL[p.day]}">${icon('pot', 15)}</button>
       </div>`).join('')}</div>`;
 
@@ -1815,7 +1815,7 @@ function openGenerateRecipeModal() {
           <strong>${esc(recipe.title)}</strong>
           <p class="muted">${recipe.servings ? recipe.servings + ' servings' : ''}${recipe.minutes ? ' · ' + recipe.minutes + ' min' : ''}</p>
           <p class="muted">${(recipe.ingredients || []).map((i) => esc([i.quantity, i.unit, i.item].filter(Boolean).join(' '))).join(', ')}</p>
-          <pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;color:var(--ink-soft)">${esc(recipe.instructions)}</pre>
+          <pre style="white-space:pre-wrap;font-family:inherit;font-size:15px;color:var(--ink-soft)">${esc(recipe.instructions)}</pre>
           <button class="btn btn-primary btn-block" id="save-gen-btn">Save this recipe</button>
         </div>`;
       document.getElementById('save-gen-btn').onclick = async () => {
@@ -1906,7 +1906,7 @@ async function renderShoppingList() {
 }
 function shoppingItemHtml(i) {
   return `<label class="row" style="opacity:${i.checked ? '.5' : '1'}">
-    <span style="${i.checked ? 'text-decoration:line-through' : ''}"><strong>${esc(i.ingredient)}</strong>${i.quantity ? ' — ' + esc(i.quantity) : ''}<br><span class="muted" style="font-size:11px">Needed ${i.dayLabels.join(', ')}</span></span>
+    <span style="${i.checked ? 'text-decoration:line-through' : ''}"><strong>${esc(i.ingredient)}</strong>${i.quantity ? ' — ' + esc(i.quantity) : ''}<br><span class="muted" style="font-size:13px">Needed ${i.dayLabels.join(', ')}</span></span>
     <input type="checkbox" class="shop-check" data-id="${i.id}" ${i.checked ? 'checked' : ''} style="width:20px;height:20px">
   </label>`;
 }
