@@ -7,6 +7,7 @@ const express = require('express');
 const { dbGet, dbAll, dbRun } = require('../db');
 const { ah, isNonEmptyString, newId, newToken, baseUrlFromReq } = require('../helpers');
 const { sendSms } = require('../sms');
+const { notifyUser } = require('../notify');
 const { assertFamilyMember, assertGroupMember } = require('./families');
 
 const router = express.Router();
@@ -72,11 +73,12 @@ router.post('/polls', ah(async (req, res) => {
     await dbRun('INSERT INTO poll_options (id, "pollId", label, position) VALUES ($1,$2,$3,$4)', [newId('opt'), id, options[i], i]);
   }
 
-  if (b.notify) {
-    const members = await membersFor(b.familyId, b.groupId);
-    const baseUrl = baseUrlFromReq(req);
-    for (const member of members) {
-      if (member.id === req.user.id) continue;
+  const members = await membersFor(b.familyId, b.groupId);
+  const baseUrl = baseUrlFromReq(req);
+  for (const member of members) {
+    if (member.id === req.user.id) continue;
+    await notifyUser(member.id, { type: 'poll_new', title: `${req.user.name} started a poll`, body: b.question.trim(), link: 'requests' });
+    if (b.notify) {
       const token = newToken();
       await dbRun('INSERT INTO poll_recipients (id, "pollId", "userId", token, "createdAt") VALUES ($1,$2,$3,$4,$5)',
         [newId('plr'), id, member.id, token, now]);

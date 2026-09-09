@@ -1,6 +1,7 @@
 const express = require('express');
 const { dbGet, dbAll, dbRun } = require('../db');
 const { ah, isNonEmptyString, newId } = require('../helpers');
+const { notifyUser } = require('../notify');
 const { assertFamilyMember } = require('./families');
 
 const router = express.Router();
@@ -47,6 +48,11 @@ router.post('/todos', ah(async (req, res) => {
   );
   const todo = await dbGet('SELECT * FROM todos WHERE id = $1', [id]);
   todo.highFives = [];
+  if (b.assignedTo !== req.user.id) {
+    await notifyUser(b.assignedTo, {
+      type: 'todo_assigned', title: `${req.user.name} assigned you a task`, body: b.title.trim(), link: 'todos', sms: true
+    });
+  }
   res.status(201).json({ todo });
 }));
 
@@ -88,8 +94,13 @@ router.post('/todos/:id/high-five', ah(async (req, res) => {
   if (!todo) return;
   if (todo.status !== 'complete') return res.status(400).json({ error: 'Only completed tasks can get a high-five' });
   if (todo.assignedTo === req.user.id) return res.status(400).json({ error: "You can't high-five your own task" });
-  await dbRun('INSERT INTO high_fives (id,"todoId","fromUserId","toUserId","createdAt") VALUES ($1,$2,$3,$4,$5) ON CONFLICT ("todoId","fromUserId") DO NOTHING',
+  const inserted = await dbRun('INSERT INTO high_fives (id,"todoId","fromUserId","toUserId","createdAt") VALUES ($1,$2,$3,$4,$5) ON CONFLICT ("todoId","fromUserId") DO NOTHING',
     [newId('hf'), todo.id, req.user.id, todo.assignedTo, new Date().toISOString()]);
+  if (inserted.rowCount > 0) {
+    await notifyUser(todo.assignedTo, {
+      type: 'high_five', title: `${req.user.name} high-fived you! 🙌`, body: todo.title, link: 'todos', sms: true
+    });
+  }
   res.json({ highFives: await highFivesOf(todo.id) });
 }));
 

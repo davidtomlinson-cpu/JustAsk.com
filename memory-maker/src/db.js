@@ -405,6 +405,22 @@ const SCHEMA_SQL = `
     "votedAt" TEXT NOT NULL,
     PRIMARY KEY ("pollId", "userId")
   );
+
+  -- In-app notifications — see src/notify.js. Each row is one channel-
+  -- agnostic event; whether it also went out as SMS is decided (and
+  -- attempted) at write time, not tracked here.
+  CREATE TABLE IF NOT EXISTS notifications (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT,
+    link TEXT,
+    "readAt" TEXT,
+    "createdAt" TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications("userId", "createdAt" DESC);
+  CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications("userId") WHERE "readAt" IS NULL;
 `;
 
 async function initDb() {

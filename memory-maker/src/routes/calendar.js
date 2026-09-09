@@ -1,6 +1,7 @@
 const express = require('express');
 const { dbGet, dbAll, dbRun } = require('../db');
 const { ah, isNonEmptyString, newId } = require('../helpers');
+const { notifyUser } = require('../notify');
 const { assertFamilyMember, assertGroupMember } = require('./families');
 
 const router = express.Router();
@@ -86,6 +87,7 @@ router.post('/events', ah(async (req, res) => {
 
   const conflicts = await findConflicts(attendeeIds, b.startsAt, b.endsAt, id);
 
+  const whenLabel = new Date(b.startsAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   for (const userId of attendeeIds) {
     await dbRun('INSERT INTO event_attendees ("eventId","userId",status,"respondedAt") VALUES ($1,$2,$3,$4)',
       [id, userId, userId === req.user.id ? 'accepted' : 'invited', userId === req.user.id ? now : null]);
@@ -93,6 +95,11 @@ router.post('/events', ah(async (req, res) => {
       const dueAt = new Date(new Date(b.startsAt).getTime() - hours * 3600 * 1000).toISOString();
       await dbRun('INSERT INTO reminders (id,"eventId","userId","offsetHours","dueAt",channel,"createdAt") VALUES ($1,$2,$3,$4,$5,$6,$7)',
         [newId('rem'), id, userId, hours, dueAt, 'sms', now]);
+    }
+    if (userId !== req.user.id) {
+      await notifyUser(userId, {
+        type: 'event_invite', title: `${req.user.name} invited you to ${b.title.trim()}`, body: whenLabel, link: 'calendar', sms: true
+      });
     }
   }
 

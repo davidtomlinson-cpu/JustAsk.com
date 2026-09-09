@@ -9,6 +9,7 @@ const express = require('express');
 const { dbGet, dbAll, dbRun } = require('../db');
 const { ah, isNonEmptyString, newId, newToken, baseUrlFromReq } = require('../helpers');
 const { sendSms } = require('../sms');
+const { notifyUser } = require('../notify');
 const { assertFamilyMember, assertGroupMember } = require('./families');
 
 const router = express.Router();
@@ -75,11 +76,17 @@ router.post('/callouts', ah(async (req, res) => {
     [id, b.familyId || null, b.groupId || null, b.title.trim(), b.notes || null, req.user.id, now]
   );
 
-  if (b.notify) {
-    const members = await membersFor(b.familyId, b.groupId);
-    const baseUrl = baseUrlFromReq(req);
-    for (const member of members) {
-      if (member.id === req.user.id) continue;
+  // In-app notification for every other member always (it's free); the
+  // magic-link SMS (with its own accept token) only when notify was asked
+  // for, same as before.
+  const members = await membersFor(b.familyId, b.groupId);
+  const baseUrl = baseUrlFromReq(req);
+  for (const member of members) {
+    if (member.id === req.user.id) continue;
+    await notifyUser(member.id, {
+      type: 'callout_new', title: `${req.user.name} is asking for help`, body: b.title.trim(), link: 'requests'
+    });
+    if (b.notify) {
       const token = newToken();
       await dbRun('INSERT INTO callout_recipients (id, "calloutId", "userId", token, "createdAt") VALUES ($1,$2,$3,$4,$5)',
         [newId('cor'), id, member.id, token, now]);
@@ -105,6 +112,15 @@ async function claimCallout(calloutId, userId) {
     `UPDATE callouts SET status = 'accepted', "acceptedBy" = $1, "acceptedAt" = $2 WHERE id = $3 AND status = 'open'`,
     [userId, now, calloutId]
   );
+  if (result.rowCount > 0) {
+    const callout = await dbGet('SELECT title, "createdBy" FROM callouts WHERE id = $1', [calloutId]);
+    const accepter = await dbGet('SELECT name FROM users WHERE id = $1', [userId]);
+    if (callout.createdBy !== userId) {
+      await notifyUser(callout.createdBy, {
+        type: 'callout_accepted', title: `${accepter.name} accepted your request`, body: callout.title, link: 'requests', sms: true
+      });
+    }
+  }
   return result.rowCount > 0;
 }
 
