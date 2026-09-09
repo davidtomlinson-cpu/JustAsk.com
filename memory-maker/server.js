@@ -20,6 +20,8 @@ const { router: recipesRouter } = require('./src/routes/recipes');
 const { router: shoppingRouter, publicRouter: shoppingPublicRouter } = require('./src/routes/shopping');
 const { router: messagingRouter } = require('./src/routes/messaging');
 const { router: integrationsRouter, publicRouter: integrationsPublicRouter } = require('./src/routes/integrations');
+const { router: calloutsRouter, publicRouter: calloutsPublicRouter } = require('./src/routes/callouts');
+const { router: pollsRouter, publicRouter: pollsPublicRouter } = require('./src/routes/polls');
 const { runSweep, sweepDailySummaries } = require('./src/reminders-cron');
 const { smsEnabled } = require('./src/sms');
 const { googleCalendarEnabled } = require('./src/google');
@@ -38,6 +40,8 @@ app.use('/api', dinnerPublicRouter); // GET/POST /api/dinner-response/:token
 app.use('/api', shoppingPublicRouter); // GET/POST /api/meal-rating/:token
 app.use('/api', familiesPublicRouter); // GET /api/families|groups/join-preview/:code
 app.use('/api', integrationsPublicRouter); // GET /api/integrations/google/connect|callback
+app.use('/api', calloutsPublicRouter); // GET/POST /api/callout-response/:token
+app.use('/api', pollsPublicRouter); // GET/POST /api/poll-response/:token
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
@@ -80,6 +84,8 @@ app.use('/api', requireAuth(), recipesRouter);
 app.use('/api', requireAuth(), shoppingRouter);
 app.use('/api', requireAuth(), messagingRouter);
 app.use('/api', requireAuth(), integrationsRouter);
+app.use('/api', requireAuth(), calloutsRouter);
+app.use('/api', requireAuth(), pollsRouter);
 
 // ---- Static files ----
 
@@ -89,7 +95,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Client-side routes for the SMS magic links (the frontend reads the token
 // out of the URL and calls the public API above) — these need to serve the
 // same single-page app rather than 404ing.
-app.get(['/dinner/:token', '/rate/:token', '/join/family/:code', '/join/group/:code'], (req, res) => {
+app.get(['/dinner/:token', '/rate/:token', '/join/family/:code', '/join/group/:code', '/callout/:token', '/poll/:token'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

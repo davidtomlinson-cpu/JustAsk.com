@@ -336,6 +336,75 @@ const SCHEMA_SQL = `
     "sentAt" TEXT NOT NULL,
     PRIMARY KEY ("userId", date)
   );
+
+  -- "Call to action" — an open request anyone in the family/group can
+  -- claim (first to accept gets it; status enforces that atomically, see
+  -- src/routes/callouts.js). "callout_recipients" mirrors dinner_poll's
+  -- recipient/token shape so a callout can optionally be texted out with a
+  -- magic link that accepts it without needing to open the app.
+  CREATE TABLE IF NOT EXISTS callouts (
+    id TEXT PRIMARY KEY,
+    "familyId" TEXT,
+    "groupId" TEXT,
+    title TEXT NOT NULL,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    "createdBy" TEXT NOT NULL,
+    "acceptedBy" TEXT,
+    "acceptedAt" TEXT,
+    "completedAt" TEXT,
+    "createdAt" TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_callouts_family ON callouts("familyId");
+  CREATE INDEX IF NOT EXISTS idx_callouts_group ON callouts("groupId");
+
+  CREATE TABLE IF NOT EXISTS callout_recipients (
+    id TEXT PRIMARY KEY,
+    "calloutId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    "createdAt" TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_callout_recipients_callout ON callout_recipients("calloutId");
+
+  -- General-purpose polls (distinct from the Mon-Sun dinner_polls above) —
+  -- an arbitrary question with arbitrary options ("Spain or Portugal?",
+  -- "cinema Wednesday? yes/no"), one vote per person, changeable.
+  CREATE TABLE IF NOT EXISTS polls (
+    id TEXT PRIMARY KEY,
+    "familyId" TEXT,
+    "groupId" TEXT,
+    question TEXT NOT NULL,
+    "createdBy" TEXT NOT NULL,
+    "createdAt" TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_polls2_family ON polls("familyId");
+  CREATE INDEX IF NOT EXISTS idx_polls2_group ON polls("groupId");
+
+  CREATE TABLE IF NOT EXISTS poll_options (
+    id TEXT PRIMARY KEY,
+    "pollId" TEXT NOT NULL,
+    label TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_poll_options_poll ON poll_options("pollId");
+
+  CREATE TABLE IF NOT EXISTS poll_recipients (
+    id TEXT PRIMARY KEY,
+    "pollId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    "createdAt" TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_poll_recipients2_poll ON poll_recipients("pollId");
+
+  CREATE TABLE IF NOT EXISTS poll_votes (
+    "pollId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "optionId" TEXT NOT NULL,
+    "votedAt" TEXT NOT NULL,
+    PRIMARY KEY ("pollId", "userId")
+  );
 `;
 
 async function initDb() {
