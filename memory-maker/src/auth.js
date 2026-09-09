@@ -58,10 +58,11 @@ function requireAuth() {
 
 const router = express.Router();
 
-// Warm palette to match the app's dusty-terracotta/ivory design system
-// (see public/styles.css's --brand/--good/--warn/--bad tokens) rather than
-// the cooler indigo/purple set this started with.
-const AVATAR_COLORS = ['#B25545', '#C17767', '#5E7C4F', '#8F5A1E', '#8C5B7C', '#B8894F', '#A23B2E', '#6B7A5E'];
+// Warm palette to match the app's pink-into-purple/blush design system
+// (see public/styles.css's --brand/--brand-2/--good/--warn/--bad tokens) —
+// a mix of pinks and purples plus a few warm complementary tones so
+// members' avatars stay distinguishable from each other.
+const AVATAR_COLORS = ['#C2477C', '#9A5FB5', '#D97A9C', '#7C5A9E', '#C17767', '#A66A1F', '#6B8A5A', '#B8437E'];
 
 router.post('/signup', ah(async (req, res) => {
   const b = req.body || {};

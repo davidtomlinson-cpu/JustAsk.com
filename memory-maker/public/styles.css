@@ -1,58 +1,62 @@
 :root {
-  /* Warm, human palette: a lively terracotta-coral on cream — built for a
-     busy-mum household app, not a SaaS dashboard. --brand/--good/--warn/
-     --bad stay identical across themes (they're solid fills paired with
-     white text/icons); --accent and the *-soft tint backgrounds are the
-     pieces that actually shift between light and dark. */
-  --ink: #332621;
-  --ink-soft: #6e5e54;
-  --paper: #fdf6ec;
-  --paper-alt: #f6e8d6;
-  --card: #fffcf6;
-  --line: #ecdcc9;
-  --brand: #c1573a;
-  --brand-hover: #a84a30;
-  --accent: #a84a30;
-  --brand-soft: #f8e8de;
-  --good: #6b8a4f;
-  --good-soft: #edf1e6;
-  --warn: #a3651f;
-  --warn-soft: #f8efdf;
-  --bad: #b0402f;
-  --bad-soft: #f8ebe7;
-  --tile-bg: #f0e3d3;
-  --overlay: rgba(37, 24, 16, .45);
+  /* Warm, human palette: raspberry-pink into a warm orchid-purple, on a
+     soft blush cream — built for a busy-mum household app, not a SaaS
+     dashboard. --brand/--good/--warn/--bad stay identical across themes
+     (they're solid fills paired with white text/icons); --accent and the
+     *-soft tint backgrounds are the pieces that actually shift between
+     light and dark. --brand-2 is the warm purple half of the header/
+     camera-button gradient — pink and purple together, not just pink. */
+  --ink: #362530;
+  --ink-soft: #7a5d6c;
+  --paper: #fdf3f1;
+  --paper-alt: #f6e3e4;
+  --card: #fffbfa;
+  --line: #ecd7db;
+  --brand: #c2477c;
+  --brand-hover: #a83a67;
+  --brand-2: #9a5fb5;
+  --accent: #a83a67;
+  --brand-soft: #f8e3ee;
+  --good: #6b8a5a;
+  --good-soft: #eaf0e6;
+  --warn: #a66a1f;
+  --warn-soft: #f7edd9;
+  --bad: #c1392b;
+  --bad-soft: #f8e6e3;
+  --tile-bg: #f2dfe1;
+  --overlay: rgba(45, 20, 35, .45);
   --radius: 14px;
   --radius-lg: 20px;
-  --shadow: 0 1px 2px rgba(51, 38, 33, .07), 0 8px 24px -12px rgba(51, 38, 33, .2);
-  --shadow-sm: 0 1px 2px rgba(51, 38, 33, .09);
-  --focus-ring: 0 0 0 3px rgba(193, 87, 58, .32);
+  --shadow: 0 1px 2px rgba(54, 37, 48, .07), 0 8px 24px -12px rgba(54, 37, 48, .2);
+  --shadow-sm: 0 1px 2px rgba(54, 37, 48, .09);
+  --focus-ring: 0 0 0 3px rgba(194, 71, 124, .32);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Warm dark: espresso/charcoal-brown, not blue-grey. */
-    --ink: #f3e6dc;
-    --ink-soft: #c2a99a;
-    --paper: #1e1613;
-    --paper-alt: #251b16;
-    --card: #2a1f1a;
-    --line: #3d2e27;
-    --brand: #c1573a;
-    --brand-hover: #a84a30;
-    --accent: #e8ac93;
-    --brand-soft: rgba(193, 87, 58, .24);
-    --good: #79986a;
-    --good-soft: rgba(121, 152, 106, .2);
-    --warn: #c17f3c;
-    --warn-soft: rgba(193, 127, 60, .2);
+    /* Warm dark: deep plum-black, not blue-grey or brown. */
+    --ink: #f5e4ea;
+    --ink-soft: #c9a3b5;
+    --paper: #201319;
+    --paper-alt: #2a1820;
+    --card: #2f1b24;
+    --line: #4a2a37;
+    --brand: #c2477c;
+    --brand-hover: #a83a67;
+    --brand-2: #9a5fb5;
+    --accent: #eaa9c6;
+    --brand-soft: rgba(194, 71, 124, .24);
+    --good: #85a56f;
+    --good-soft: rgba(133, 165, 111, .2);
+    --warn: #c98a3e;
+    --warn-soft: rgba(201, 138, 62, .2);
     --bad: #d66a56;
     --bad-soft: rgba(214, 106, 86, .2);
-    --tile-bg: #362a22;
-    --overlay: rgba(10, 6, 4, .6);
+    --tile-bg: #3a2530;
+    --overlay: rgba(10, 5, 8, .6);
     --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 8px 28px -12px rgba(0, 0, 0, .65);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, .5);
-    --focus-ring: 0 0 0 3px rgba(232, 172, 147, .4);
+    --focus-ring: 0 0 0 3px rgba(234, 169, 198, .4);
   }
 }
 
@@ -102,7 +106,7 @@ img, video { color-scheme: light; }
 }
 #app-header .brand { display: flex; align-items: center; gap: 10px; }
 #app-header .brand .mark {
-  width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #c1573a, #eaad86);
+  width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--brand), var(--brand-2));
   display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0;
 }
 #app-header .brand h1 { font-size: 19px; }
@@ -215,7 +219,7 @@ main { max-width: 720px; margin: 0 auto; padding: 16px; }
 .btn-block { width: 100%; }
 .btn[disabled] { opacity: .5; cursor: default; pointer-events: none; }
 .btn-camera {
-  background: linear-gradient(135deg, #c1573a, #eaad86); color: #fff; border: none;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff; border: none;
   width: 68px; height: 68px; border-radius: 50%; box-shadow: var(--shadow);
 }
 .btn-camera:hover { filter: brightness(1.06); }
@@ -324,7 +328,7 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--brand); 
   padding: 24px; text-align: center;
 }
 #auth-screen .mark {
-  width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(135deg, #c1573a, #eaad86);
+  width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(135deg, var(--brand), var(--brand-2));
   display: flex; align-items: center; justify-content: center; color: #fff; margin: 0 auto 14px;
 }
 #auth-screen .card { width: 100%; max-width: 380px; text-align: left; }

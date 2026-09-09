@@ -4,8 +4,8 @@
   "description": "Your family's calendar, memories, meals and to-dos, all in one place.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fbf3ea",
-  "theme_color": "#b25545",
+  "background_color": "#fdf3f1",
+  "theme_color": "#c2477c",
   "icons": [
     { "src": "/icons/icon-16.png", "sizes": "16x16", "type": "image/png" },
     { "src": "/icons/icon-32.png", "sizes": "32x32", "type": "image/png" },

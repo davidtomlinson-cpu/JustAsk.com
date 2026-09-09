@@ -34,12 +34,12 @@ function chunk(type, data) {
   return Buffer.concat([len, typeData, crc]);
 }
 
-// Simple two-tone icon: brand-gradient-ish flat purple square with a
-// lighter rounded "page" motif — good enough as an installable-app
-// placeholder, not meant as final artwork.
+// Simple two-tone icon: flat brand-pink square with a lighter rounded
+// "page" motif — good enough as an installable-app placeholder, not meant
+// as final artwork.
 function makePng(size) {
-  const bg = [79, 70, 229]; // #4F46E5
-  const fg = [238, 240, 253]; // light page shape
+  const bg = [194, 71, 124]; // #c2477c --brand
+  const fg = [248, 227, 238]; // #f8e3ee --brand-soft, light page shape
   const raw = Buffer.alloc(size * (1 + size * 4));
   const margin = Math.round(size * 0.22);
   for (let y = 0; y < size; y++) {
