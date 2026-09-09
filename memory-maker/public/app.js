@@ -85,13 +85,53 @@ const ICON_PATHS = {
   pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="3"/>',
   poll: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
-  bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'
+  bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  mic: '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'
 };
 function icon(name, size, cls) {
   size = size || 18;
   return `<svg class="i ${cls || ''}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ''}</svg>`;
 }
 function loadingHtml(msg) { return `<div class="loading-row"><div class="spinner"></div><span>${esc(msg || 'Loading…')}</span></div>`; }
+
+// ---- voice dictation ----
+// Browser-native speech-to-text (Web Speech API) — no server round trip, so
+// it only works where the browser ships it (Chrome/Edge/Safari/Android;
+// not Firefox). Feature-detected: micButtonHtml() renders nothing where
+// unsupported, so there's no dead button on browsers that can't use it.
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+function micButtonHtml(id, label) {
+  if (!SpeechRecognitionCtor) return '';
+  return `<button type="button" class="btn btn-icon-sm btn-mic" id="${id}" aria-label="${esc(label || 'Dictate by voice')}">${icon('mic', 15)}</button>`;
+}
+// Wires a mic button (from micButtonHtml) to start/stop dictation into
+// inputEl, appending onto whatever's already typed rather than overwriting it.
+function attachDictation(buttonId, inputEl) {
+  if (!SpeechRecognitionCtor) return;
+  const btn = document.getElementById(buttonId);
+  if (!btn || !inputEl) return;
+  let recognition = null;
+  let listening = false;
+  btn.onclick = () => {
+    if (listening) { recognition && recognition.stop(); return; }
+    recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'en-GB';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => { listening = true; btn.classList.add('listening'); };
+    recognition.onerror = () => { listening = false; btn.classList.remove('listening'); };
+    recognition.onend = () => { listening = false; btn.classList.remove('listening'); };
+    recognition.onresult = (e) => {
+      const transcript = Array.from(e.results).map((r) => r[0].transcript).join(' ').trim();
+      if (!transcript) return;
+      const existing = inputEl.value.trim();
+      inputEl.value = existing ? existing + ' ' + transcript : transcript;
+      inputEl.focus();
+    };
+    try { recognition.start(); } catch (err) { listening = false; btn.classList.remove('listening'); }
+  };
+}
 
 // ---- API ----
 async function api(path, opts) {
@@ -108,6 +148,61 @@ async function api(path, opts) {
   try { data = await res.json(); } catch (e) { /* no body */ }
   if (!res.ok) throw new Error((data && data.error) || ('Request failed (' + res.status + ')'));
   return data;
+}
+
+// Downloads a PDF from /api/summary/export — a plain <a href> can't carry
+// the bearer token, so this fetches it as a blob and triggers the save via
+// a throwaway object URL instead.
+async function downloadSummary(params) {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch('/api/summary/export?' + qs, { headers: { Authorization: 'Bearer ' + state.token } });
+  if (!res.ok) {
+    let msg = 'Could not generate the summary';
+    try { msg = (await res.json()).error || msg; } catch (e) { /* no JSON body */ }
+    throw new Error(msg);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const match = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = match ? match[1] : 'memory-maker-summary.pdf';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+function openSummaryPicker(scope, label, params) {
+  openModal(`
+    <div class="modal-head"><h3>Download summary</h3><button onclick="closeModal()">${icon('x')}</button></div>
+    <p class="muted">${esc(label)}</p>
+    <div class="field">
+      <label for="summary-period">Period</label>
+      <select id="summary-period">
+        <option value="week">This week</option>
+        <option value="month">This month</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-block" id="summary-download-btn">${icon('download', 15)} Download PDF</button>
+    <p class="error-text hidden" id="summary-error"></p>
+  `);
+  document.getElementById('summary-download-btn').onclick = async () => {
+    const btn = document.getElementById('summary-download-btn');
+    const period = document.getElementById('summary-period').value;
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+    try {
+      await downloadSummary(Object.assign({ scope, period }, params));
+      closeModal();
+      toast('Summary downloaded');
+    } catch (err) {
+      document.getElementById('summary-error').textContent = err.message;
+      document.getElementById('summary-error').classList.remove('hidden');
+      btn.disabled = false;
+      btn.innerHTML = `${icon('download', 15)} Download PDF`;
+    }
+  };
 }
 
 // ---- toast ----
@@ -431,10 +526,16 @@ function openProfileModal() {
       <div id="google-calendar-status">${loadingHtml('Checking…')}</div>
       <div class="divider"></div>
       <button class="btn btn-block" onclick="openFamilyManager()">Manage families &amp; friend groups</button>
+      ${state.currentFamilyId ? `<button class="btn btn-block" id="profile-download-summary">${icon('download', 15)} Download my summary</button>` : ''}
       <button class="btn btn-bad btn-block" id="profile-logout">Log out</button>
     </div>
   `);
   loadGoogleCalendarStatus();
+  if (state.currentFamilyId) {
+    document.getElementById('profile-download-summary').onclick = () => {
+      openSummaryPicker('user', 'Your personal summary', { familyId: state.currentFamilyId, userId: u.id });
+    };
+  }
   document.getElementById('profile-save').onclick = async () => {
     try {
       const phone = document.getElementById('profile-phone').value.trim();
@@ -544,6 +645,13 @@ function openFamilyManager(introMessage) {
   document.querySelectorAll('.entity-members-toggle').forEach((btn) => {
     btn.onclick = () => toggleEntityMembers(btn.dataset.kind, btn.dataset.id);
   });
+  document.querySelectorAll('.entity-summary').forEach((btn) => {
+    btn.onclick = () => {
+      const { kind, id, name } = btn.dataset;
+      const params = kind === 'family' ? { familyId: id } : { groupId: id };
+      openSummaryPicker(kind, name, params);
+    };
+  });
 }
 
 function entityRow(kind, entity) {
@@ -564,6 +672,7 @@ function entityRow(kind, entity) {
     <div class="hstack" style="margin-top:8px">
       <button class="btn btn-sm entity-invite" data-kind="${kind}" data-id="${entity.id}" data-name="${esc(entity.name)}">${icon('link', 13)} Invite by text</button>
       <button class="btn btn-sm entity-members-toggle" data-kind="${kind}" data-id="${entity.id}">${icon('users', 13)} Members</button>
+      <button class="btn btn-sm entity-summary" data-kind="${kind}" data-id="${entity.id}" data-name="${esc(entity.name)}">${icon('download', 13)} Summary</button>
     </div>
     <div id="members-${entity.id}" class="hidden" style="margin-top:8px"></div>
   </div>`;
@@ -593,6 +702,7 @@ async function toggleEntityMembers(kind, id) {
         ${avatarHtml(m)}
         <span class="name">${esc(m.name)}${m.id === state.user.id ? ' (you)' : ''}</span>
         ${m.role === 'owner' ? '<span class="role-tag">Owner</span>' : ''}
+        ${kind === 'family' ? `<button class="btn btn-icon-sm member-summary" data-user="${m.id}" data-name="${esc(m.name)}" aria-label="Download ${esc(m.name)}'s summary">${icon('download', 14)}</button>` : ''}
         ${m.id !== state.user.id ? `<button class="btn btn-icon-sm dm-start" data-user="${m.id}" aria-label="Message ${esc(m.name)}">${icon('chat', 15)}</button>` : ''}
       </div>`).join('');
     el.querySelectorAll('.dm-start').forEach((btn) => {
@@ -603,6 +713,9 @@ async function toggleEntityMembers(kind, id) {
           goToChatDetail(conversation);
         } catch (err) { toast(err.message); }
       };
+    });
+    el.querySelectorAll('.member-summary').forEach((btn) => {
+      btn.onclick = () => openSummaryPicker('user', btn.dataset.name, { familyId: id, userId: btn.dataset.user });
     });
   } catch (err) { el.innerHTML = `<p class="error-text">${esc(err.message)}</p>`; }
 }
@@ -1190,7 +1303,12 @@ function openTodoForm(members) {
   openModal(`
     <div class="modal-head"><h3>New to-do</h3><button onclick="closeModal()">${icon('x')}</button></div>
     <form id="todo-form" class="stack">
-      <div class="field"><label for="todo-title">Task</label><input id="todo-title" required placeholder="e.g. Pack swimming kit"></div>
+      <div class="field"><label for="todo-title">Task</label>
+        <div class="input-with-mic">
+          <input id="todo-title" required placeholder="e.g. Pack swimming kit">
+          ${micButtonHtml('todo-title-mic', 'Dictate task')}
+        </div>
+      </div>
       <div class="field"><label for="todo-notes">Notes</label><textarea id="todo-notes" placeholder="Optional"></textarea></div>
       <div class="field"><label for="todo-assignee">Assign to</label>
         <select id="todo-assignee">${members.map((m) => `<option value="${m.id}" ${m.id === state.user.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select>
@@ -1212,6 +1330,7 @@ function openTodoForm(members) {
       <p class="error-text hidden" id="todo-error"></p>
     </form>
   `);
+  attachDictation('todo-title-mic', document.getElementById('todo-title'));
   document.getElementById('todo-form').onsubmit = async (e) => {
     e.preventDefault();
     const due = document.getElementById('todo-due').value;
@@ -1328,6 +1447,7 @@ async function openChatDetail(conv) {
       <div id="chat-input-bar">
         <button class="btn btn-icon-sm" id="chat-attach" aria-label="Attach a photo or video">${icon('camera', 16)}</button>
         <input type="text" id="chat-text" placeholder="Message…" aria-label="Message">
+        ${micButtonHtml('chat-mic', 'Dictate reply')}
         <button class="btn btn-icon-sm btn-primary" id="chat-send" aria-label="Send">${icon('send', 15)}</button>
       </div>
     </div>
@@ -1338,6 +1458,7 @@ async function openChatDetail(conv) {
   document.getElementById('chat-text').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(conv.id); }
   });
+  attachDictation('chat-mic', document.getElementById('chat-text'));
 
   await loadChatMessages(conv.id, true);
   chatPollTimer = setInterval(() => loadChatMessages(conv.id, false), 4000);

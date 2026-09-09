@@ -23,6 +23,7 @@ const { router: integrationsRouter, publicRouter: integrationsPublicRouter } = r
 const { router: calloutsRouter, publicRouter: calloutsPublicRouter } = require('./src/routes/callouts');
 const { router: pollsRouter, publicRouter: pollsPublicRouter } = require('./src/routes/polls');
 const { router: notificationsRouter } = require('./src/routes/notifications');
+const { router: summaryRouter } = require('./src/routes/summary');
 const { runSweep, sweepDailySummaries } = require('./src/reminders-cron');
 const { smsEnabled } = require('./src/sms');
 const { googleCalendarEnabled } = require('./src/google');
@@ -88,6 +89,7 @@ app.use('/api', requireAuth(), integrationsRouter);
 app.use('/api', requireAuth(), calloutsRouter);
 app.use('/api', requireAuth(), pollsRouter);
 app.use('/api', requireAuth(), notificationsRouter);
+app.use('/api', requireAuth(), summaryRouter);
 
 // ---- Static files ----
 
