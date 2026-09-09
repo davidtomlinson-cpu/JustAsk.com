@@ -84,7 +84,8 @@ const ICON_PATHS = {
   user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="3"/>',
-  poll: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'
+  poll: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'
 };
 function icon(name, size, cls) {
   size = size || 18;
@@ -242,6 +243,7 @@ async function showApp() {
   renderHeader();
   bindTabbar();
   switchTab(state.tab);
+  startNotificationPolling();
 }
 
 async function loadFamiliesAndGroups() {
@@ -278,6 +280,76 @@ function renderHeader() {
   profileBtn.style.background = state.user.color || AVATAR_FALLBACK;
   profileBtn.textContent = (state.user.name || '?').trim()[0].toUpperCase();
   profileBtn.onclick = openProfileModal;
+  document.getElementById('notif-bell-btn').onclick = openNotificationsPanel;
+}
+
+/* =========================================================================
+   Notifications — a bell with an unread badge, polled independently of
+   whatever tab is open (unlike chat polling, which only runs while that
+   tab is visible — you should still hear about a new notification from
+   the Today tab).
+   ========================================================================= */
+
+let notifPollTimer = null;
+
+function startNotificationPolling() {
+  refreshUnreadCount();
+  if (notifPollTimer) clearInterval(notifPollTimer);
+  notifPollTimer = setInterval(refreshUnreadCount, 20000);
+}
+
+async function refreshUnreadCount() {
+  try {
+    const { count } = await api('/api/notifications/unread-count');
+    const badge = document.getElementById('notif-badge');
+    if (!badge) return;
+    if (count > 0) { badge.textContent = count > 99 ? '99+' : String(count); badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+  } catch (e) { /* non-critical */ }
+}
+
+async function openNotificationsPanel() {
+  openModal(`
+    <div class="modal-head"><h3>Notifications</h3><button onclick="closeModal()">${icon('x')}</button></div>
+    <div id="notif-list">${loadingHtml()}</div>
+  `);
+  const { notifications } = await api('/api/notifications');
+  const list = document.getElementById('notif-list');
+  if (!notifications.length) {
+    list.innerHTML = `<div class="empty-state"><div class="big">${icon('bell', 22)}</div><h3>All quiet</h3><p>Nothing yet — you'll see it here when someone needs you.</p></div>`;
+    return;
+  }
+  const hasUnread = notifications.some((n) => !n.readAt);
+  list.innerHTML =
+    (hasUnread ? `<button class="btn btn-sm" id="notif-mark-all" style="margin-bottom:10px">Mark all as read</button>` : '') +
+    `<div class="stack" style="gap:0">${notifications.map(notifItemHtml).join('')}</div>`;
+  if (hasUnread) {
+    document.getElementById('notif-mark-all').onclick = async () => {
+      await api('/api/notifications/read-all', { method: 'POST' });
+      refreshUnreadCount();
+      openNotificationsPanel();
+    };
+  }
+  document.querySelectorAll('.notif-item').forEach((el) => {
+    el.onclick = async () => {
+      if (!el.classList.contains('read')) {
+        await api(`/api/notifications/${el.dataset.id}/read`, { method: 'POST' });
+        refreshUnreadCount();
+      }
+      closeModal();
+      if (el.dataset.link && ['today', 'calendar', 'memories', 'todos', 'chat', 'requests', 'food'].includes(el.dataset.link)) {
+        switchTab(el.dataset.link);
+      }
+    };
+  });
+}
+
+function notifItemHtml(n) {
+  return `<div class="notif-item ${n.readAt ? 'read' : ''}" data-id="${n.id}" data-link="${esc(n.link || '')}">
+    <span class="dot"></span>
+    <div class="body"><strong>${esc(n.title)}</strong>${n.body ? `<p class="muted">${esc(n.body)}</p>` : ''}</div>
+    <time>${relativeTime(n.createdAt)}</time>
+  </div>`;
 }
 
 function bindAuthScreen() {

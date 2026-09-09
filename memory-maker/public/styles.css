@@ -120,6 +120,21 @@ img, video { color-scheme: light; }
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   box-shadow: var(--shadow-sm);
 }
+#notif-bell-btn { color: var(--ink-soft); }
+#notif-bell-btn:hover { color: var(--ink); }
+#notif-badge {
+  position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 999px;
+  background: var(--bad); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+  border: 2px solid var(--paper);
+}
+.notif-item { display: flex; gap: 10px; padding: 12px 8px; border-radius: 10px; cursor: pointer; align-items: flex-start; }
+.notif-item:hover { background: var(--paper-alt); }
+.notif-item .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); flex-shrink: 0; margin-top: 6px; }
+.notif-item.read .dot { background: transparent; }
+.notif-item .body { flex: 1; min-width: 0; }
+.notif-item .body strong { font-size: 13.5px; }
+.notif-item .body p { margin: 1px 0 0; font-size: 12.5px; }
+.notif-item time { font-size: 11px; color: var(--ink-soft); flex-shrink: 0; }
 
 main { max-width: 720px; margin: 0 auto; padding: 16px; }
 
