@@ -28,6 +28,7 @@ const state = {
   config: { smsEnabled: false, recipeGenerationEnabled: false },
   tab: 'today',
   foodTab: 'dinner',
+  requestsTab: 'callouts',
   selectedDate: todayStr(),
   weekStart: mondayOf(new Date()),
   cache: {}
@@ -81,7 +82,9 @@ const ICON_PATHS = {
   link: '<path d="M18.5 13.5 21 11a5 5 0 0 0-7-7l-2.5 2.5"/><path d="M5.5 10.5 3 13a5 5 0 0 0 7 7l2.5-2.5"/><line x1="8.5" y1="15.5" x2="15.5" y2="8.5"/>',
   users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-  pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'
+  pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="3"/>',
+  poll: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'
 };
 function icon(name, size, cls) {
   size = size || 18;
@@ -142,8 +145,12 @@ async function boot() {
   const dinnerMatch = path.match(/^\/dinner\/([a-f0-9]+)$/);
   const rateMatch = path.match(/^\/rate\/([a-f0-9]+)$/);
   const joinMatch = path.match(/^\/join\/(family|group)\/([A-Za-z0-9]+)$/);
+  const calloutMatch = path.match(/^\/callout\/([a-f0-9]+)$/);
+  const pollMatch = path.match(/^\/poll\/([a-f0-9]+)$/);
   if (dinnerMatch) return bootPublicDinner(dinnerMatch[1]);
   if (rateMatch) return bootPublicRating(rateMatch[1]);
+  if (calloutMatch) return bootPublicCallout(calloutMatch[1]);
+  if (pollMatch) return bootPublicPoll(pollMatch[1]);
   if (joinMatch) { state.pendingJoin = { kind: joinMatch[1], code: joinMatch[2] }; window.history.replaceState({}, '', '/'); }
 
   if (!state.token) {
@@ -660,6 +667,7 @@ function refreshCurrentView() {
     case 'memories': return renderMemoriesTab();
     case 'todos': return renderTodosTab();
     case 'chat': return renderChatTab();
+    case 'requests': return renderRequestsTab();
     case 'food': return renderFoodTab();
   }
 }
@@ -1327,6 +1335,226 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* =========================================================================
+   Requests — "call to action" (claimable asks) and general-purpose polls
+   ========================================================================= */
+
+function renderRequestsTab() {
+  const root = document.getElementById('view-root');
+  root.innerHTML = `
+    <div class="hstack" style="margin-bottom:14px">
+      <button class="chip ${state.requestsTab === 'callouts' ? '' : 'off'}" id="req-tab-callouts">${icon('flag')} Call to action</button>
+      <button class="chip ${state.requestsTab === 'polls' ? '' : 'off'}" id="req-tab-polls">${icon('poll')} Polls</button>
+    </div>
+    <div id="requests-content"></div>
+  `;
+  document.getElementById('req-tab-callouts').onclick = () => { state.requestsTab = 'callouts'; renderRequestsTab(); };
+  document.getElementById('req-tab-polls').onclick = () => { state.requestsTab = 'polls'; renderRequestsTab(); };
+  if (state.requestsTab === 'callouts') renderCallouts();
+  else renderPolls();
+}
+
+const CALLOUT_STATUS_LABEL = { open: 'Open', accepted: 'Accepted', done: 'Done', cancelled: 'Cancelled' };
+
+async function renderCallouts() {
+  const el = document.getElementById('requests-content');
+  el.innerHTML = loadingHtml();
+  const familyId = state.currentFamilyId;
+  const { callouts } = await api(`/api/callouts?familyId=${familyId}`);
+  el.innerHTML = `
+    <button class="btn btn-primary btn-block" id="new-callout-btn" style="margin-bottom:14px">${icon('plus', 16)} Post a call to action</button>
+    ${callouts.length ? callouts.map(calloutCardHtml).join('') : `<div class="empty-state card"><div class="big">${icon('flag', 22)}</div><h3>No requests yet</h3><p>Need someone to grab something, or help with a job? Post it here — whoever's free can accept.</p></div>`}
+  `;
+  document.getElementById('new-callout-btn').onclick = () => openCalloutForm();
+  document.querySelectorAll('.callout-accept').forEach((btn) => {
+    btn.onclick = async () => {
+      try { await api(`/api/callouts/${btn.dataset.id}/accept`, { method: 'POST' }); toast('Accepted!'); renderCallouts(); }
+      catch (err) { toast(err.message); renderCallouts(); }
+    };
+  });
+  document.querySelectorAll('.callout-done').forEach((btn) => {
+    btn.onclick = async () => {
+      try { await api(`/api/callouts/${btn.dataset.id}`, { method: 'PATCH', body: { status: 'done' } }); toast('Nice one!'); renderCallouts(); }
+      catch (err) { toast(err.message); }
+    };
+  });
+  document.querySelectorAll('.callout-release').forEach((btn) => {
+    btn.onclick = async () => {
+      try { await api(`/api/callouts/${btn.dataset.id}`, { method: 'PATCH', body: { status: 'open' } }); toast('Released back to the group'); renderCallouts(); }
+      catch (err) { toast(err.message); }
+    };
+  });
+  document.querySelectorAll('.callout-cancel').forEach((btn) => {
+    btn.onclick = async () => {
+      try { await api(`/api/callouts/${btn.dataset.id}`, { method: 'PATCH', body: { status: 'cancelled' } }); renderCallouts(); }
+      catch (err) { toast(err.message); }
+    };
+  });
+  document.querySelectorAll('.callout-delete').forEach((btn) => {
+    btn.onclick = async () => {
+      if (!confirm('Delete this?')) return;
+      try { await api(`/api/callouts/${btn.dataset.id}`, { method: 'DELETE' }); renderCallouts(); }
+      catch (err) { toast(err.message); }
+    };
+  });
+}
+
+function calloutCardHtml(c) {
+  const mine = c.createdBy === state.user.id;
+  const acceptedByMe = c.acceptedBy === state.user.id;
+  const badgeClass = c.status === 'open' ? 'badge-warn' : c.status === 'done' ? 'badge-good' : c.status === 'cancelled' ? '' : 'badge-good';
+  let actions = '';
+  if (c.status === 'open') {
+    actions = `<button class="btn btn-primary btn-sm callout-accept" data-id="${c.id}">${icon('check', 13)} I'll do it</button>` +
+      (mine ? `<button class="btn btn-sm btn-bad callout-cancel" data-id="${c.id}">Cancel</button>` : '');
+  } else if (c.status === 'accepted' && acceptedByMe) {
+    actions = `<button class="btn btn-good btn-sm callout-done" data-id="${c.id}">${icon('check', 13)} Mark done</button>` +
+      `<button class="btn btn-sm callout-release" data-id="${c.id}">Can't do it</button>`;
+  }
+  if (mine && c.status !== 'accepted') {
+    actions += `<button class="btn btn-icon-sm callout-delete" data-id="${c.id}" aria-label="Delete">${icon('trash', 13)}</button>`;
+  }
+  return `<div class="card">
+    <div class="row" style="align-items:flex-start">
+      <div>
+        <strong>${esc(c.title)}</strong>
+        <p class="muted">Asked by ${esc(c.createdByName)}${c.notes ? ' · ' + esc(c.notes) : ''}</p>
+        ${c.acceptedByName ? `<p class="muted"><span class="badge ${badgeClass}">${CALLOUT_STATUS_LABEL[c.status]}</span> — ${esc(c.acceptedByName)}${acceptedByMe ? ' (you)' : ''}</p>` : `<span class="badge ${badgeClass}">${CALLOUT_STATUS_LABEL[c.status]}</span>`}
+      </div>
+    </div>
+    <div class="hstack" style="margin-top:10px">${actions}</div>
+  </div>`;
+}
+
+function openCalloutForm() {
+  openModal(`
+    <div class="modal-head"><h3>Post a call to action</h3><button onclick="closeModal()">${icon('x')}</button></div>
+    <form id="callout-form" class="stack">
+      <div class="field"><label for="co-title">What do you need?</label><input id="co-title" required placeholder="e.g. Grab bread on the way home"></div>
+      <div class="field"><label for="co-notes">Notes</label><input id="co-notes" placeholder="Optional"></div>
+      <label class="hstack"><input type="checkbox" id="co-notify" checked style="width:auto"> Text the family so they see it right away</label>
+      ${!state.config.smsEnabled ? '<p class="muted">SMS isn\'t configured on this server yet — it\'ll still show up in the app.</p>' : ''}
+      <button type="submit" class="btn btn-primary btn-block">Post it</button>
+      <p class="error-text hidden" id="callout-error"></p>
+    </form>
+  `);
+  document.getElementById('callout-form').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api('/api/callouts', {
+        method: 'POST',
+        body: {
+          familyId: state.currentFamilyId,
+          title: document.getElementById('co-title').value.trim(),
+          notes: document.getElementById('co-notes').value.trim() || undefined,
+          notify: document.getElementById('co-notify').checked
+        }
+      });
+      closeModal();
+      renderCallouts();
+      toast('Posted!');
+    } catch (err) {
+      document.getElementById('callout-error').textContent = err.message;
+      document.getElementById('callout-error').classList.remove('hidden');
+    }
+  };
+}
+
+async function renderPolls() {
+  const el = document.getElementById('requests-content');
+  el.innerHTML = loadingHtml();
+  const familyId = state.currentFamilyId;
+  const { polls } = await api(`/api/polls?familyId=${familyId}`);
+  el.innerHTML = `
+    <button class="btn btn-primary btn-block" id="new-poll-btn" style="margin-bottom:14px">${icon('plus', 16)} Create a poll</button>
+    ${polls.length ? polls.map(pollCardHtml).join('') : `<div class="empty-state card"><div class="big">${icon('poll', 22)}</div><h3>No polls yet</h3><p>Ask the group to vote on something — a night out, a destination, anything with a few options.</p></div>`}
+  `;
+  document.getElementById('new-poll-btn').onclick = () => openPollForm();
+  document.querySelectorAll('.poll-option-row').forEach((row) => {
+    row.onclick = async () => {
+      try { await api(`/api/polls/${row.dataset.poll}/vote`, { method: 'POST', body: { optionId: row.dataset.option } }); renderPolls(); }
+      catch (err) { toast(err.message); }
+    };
+  });
+  document.querySelectorAll('.poll-delete').forEach((btn) => {
+    btn.onclick = async () => {
+      if (!confirm('Delete this poll?')) return;
+      try { await api(`/api/polls/${btn.dataset.id}`, { method: 'DELETE' }); renderPolls(); }
+      catch (err) { toast(err.message); }
+    };
+  });
+}
+
+function pollCardHtml(p) {
+  const mine = p.createdBy === state.user.id;
+  const maxVotes = Math.max(1, ...p.options.map((o) => o.voters.length));
+  return `<div class="card">
+    <div class="row" style="align-items:flex-start;margin-bottom:8px">
+      <div><strong>${esc(p.question)}</strong><p class="muted">Asked by ${esc(p.createdByName)} · ${p.totalVotes} vote${p.totalVotes === 1 ? '' : 's'}</p></div>
+      ${mine ? `<button class="btn btn-icon-sm poll-delete" data-id="${p.id}" aria-label="Delete poll">${icon('trash', 13)}</button>` : ''}
+    </div>
+    <div class="stack" style="gap:6px">
+      ${p.options.map((o) => {
+        const pct = Math.round((o.voters.length / maxVotes) * 100);
+        const mine2 = p.myVote === o.id;
+        return `<div class="poll-option-row ${mine2 ? 'on' : ''}" data-poll="${p.id}" data-option="${o.id}" style="position:relative;overflow:hidden">
+          <div style="position:absolute;inset:0;background:var(--brand-soft);width:${pct}%;z-index:0"></div>
+          <span style="position:relative;z-index:1">${esc(o.label)}</span>
+          <span style="position:relative;z-index:1" class="hstack">
+            <span class="avatar-stack">${o.voters.slice(0, 4).map((v) => avatarHtml(v)).join('')}</span>
+            <strong>${o.voters.length}</strong>
+          </span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function openPollForm() {
+  let optionCount = 2;
+  openModal(`
+    <div class="modal-head"><h3>Create a poll</h3><button onclick="closeModal()">${icon('x')}</button></div>
+    <form id="poll-form" class="stack">
+      <div class="field"><label for="poll-question">Question</label><input id="poll-question" required placeholder="e.g. Spain or Portugal for the summer trip?"></div>
+      <div class="field"><label>Options</label>
+        <div class="stack" id="poll-options" style="gap:6px">
+          <input class="poll-option-input" placeholder="Option 1" required>
+          <input class="poll-option-input" placeholder="Option 2" required>
+        </div>
+        <button type="button" class="btn btn-sm" id="poll-add-option" style="margin-top:8px">${icon('plus', 13)} Add option</button>
+      </div>
+      <label class="hstack"><input type="checkbox" id="poll-notify" checked style="width:auto"> Text the family so they see it right away</label>
+      ${!state.config.smsEnabled ? '<p class="muted">SMS isn\'t configured on this server yet — it\'ll still show up in the app.</p>' : ''}
+      <button type="submit" class="btn btn-primary btn-block">Create poll</button>
+      <p class="error-text hidden" id="poll-error"></p>
+    </form>
+  `);
+  document.getElementById('poll-add-option').onclick = () => {
+    if (optionCount >= 6) return;
+    optionCount++;
+    const input = document.createElement('input');
+    input.className = 'poll-option-input';
+    input.placeholder = `Option ${optionCount}`;
+    document.getElementById('poll-options').appendChild(input);
+  };
+  document.getElementById('poll-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const options = Array.from(document.querySelectorAll('.poll-option-input')).map((i) => i.value.trim()).filter(Boolean);
+    try {
+      await api('/api/polls', {
+        method: 'POST',
+        body: { familyId: state.currentFamilyId, question: document.getElementById('poll-question').value.trim(), options, notify: document.getElementById('poll-notify').checked }
+      });
+      closeModal();
+      renderPolls();
+      toast('Poll created');
+    } catch (err) {
+      document.getElementById('poll-error').textContent = err.message;
+      document.getElementById('poll-error').classList.remove('hidden');
+    }
+  };
+}
+
+/* =========================================================================
    Food: Dinner plan / Recipes / Shopping list
    ========================================================================= */
 
@@ -1677,6 +1905,72 @@ async function bootPublicRating(token) {
         document.getElementById('rate-msg').textContent = 'Thanks for voting! 🎉';
       };
     });
+  } catch (err) {
+    screen.innerHTML = `<div class="card"><p>${esc(err.message)}</p></div>`;
+  }
+}
+
+async function bootPublicCallout(token) {
+  const screen = document.getElementById('public-screen');
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('app-root').classList.add('hidden');
+  screen.classList.remove('hidden');
+  screen.innerHTML = `<div class="card">${loadingHtml()}</div>`;
+  function render(data) {
+    const c = data.callout;
+    screen.innerHTML = `<div class="card">
+      <h2>${esc(c.createdByName)} is asking…</h2>
+      <p class="muted" style="font-size:16px;color:var(--ink);font-weight:600">${esc(c.title)}</p>
+      ${c.notes ? `<p class="muted">${esc(c.notes)}</p>` : ''}
+      ${c.status === 'open'
+        ? `<button class="btn btn-primary btn-block" id="callout-accept-btn" style="margin-top:14px">${icon('check', 15)} I'll do it</button>`
+        : `<p class="muted" style="text-align:center;margin-top:14px">${c.acceptedByName ? esc(c.acceptedByName) + ' has this one — thanks!' : 'This is no longer open.'}</p>`}
+    </div>`;
+    const btn = document.getElementById('callout-accept-btn');
+    if (btn) btn.onclick = async () => {
+      const res = await fetch(`/api/callout-response/${token}`, { method: 'POST' });
+      const result = await res.json();
+      render(result);
+      if (res.ok) toast("You're on it!");
+    };
+  }
+  try {
+    const res = await fetch(`/api/callout-response/${token}`);
+    if (!res.ok) throw new Error('This link is not valid or has expired.');
+    render(await res.json());
+  } catch (err) {
+    screen.innerHTML = `<div class="card"><p>${esc(err.message)}</p></div>`;
+  }
+}
+
+async function bootPublicPoll(token) {
+  const screen = document.getElementById('public-screen');
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('app-root').classList.add('hidden');
+  screen.classList.remove('hidden');
+  screen.innerHTML = `<div class="card">${loadingHtml()}</div>`;
+  function render(data) {
+    const p = data.poll;
+    screen.innerHTML = `<div class="card">
+      <h2>Hi ${esc(data.user.name)} 👋</h2>
+      <p class="muted" style="font-size:16px;color:var(--ink);font-weight:600">${esc(p.question)}</p>
+      <div class="rating-options" style="margin-top:10px">
+        ${p.options.map((o) => `<div class="rating-option poll-public-option ${p.myVote === o.id ? 'selected' : ''}" data-option="${o.id}">${esc(o.label)} <span class="muted">(${o.voters.length})</span></div>`).join('')}
+      </div>
+      <p class="muted" style="text-align:center;margin-top:8px" id="poll-public-msg">${p.myVote ? 'Thanks for voting — tap to change.' : ''}</p>
+    </div>`;
+    screen.querySelectorAll('.poll-public-option').forEach((opt) => {
+      opt.onclick = async () => {
+        const res = await fetch(`/api/poll-response/${token}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ optionId: opt.dataset.option }) });
+        const result = await res.json();
+        if (res.ok) render({ poll: result.poll, user: data.user });
+      };
+    });
+  }
+  try {
+    const res = await fetch(`/api/poll-response/${token}`);
+    if (!res.ok) throw new Error('This link is not valid or has expired.');
+    render(await res.json());
   } catch (err) {
     screen.innerHTML = `<div class="card"><p>${esc(err.message)}</p></div>`;
   }

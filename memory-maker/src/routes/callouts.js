@@ -29,7 +29,20 @@ async function membersFor(familyId, groupId) {
     JOIN users ON users.id = friend_group_members."userId" WHERE friend_group_members."groupId" = $1`, [groupId]);
 }
 
-function present(row) { return row; }
+// Every route that returns a callout goes through this instead of each
+// hand-rolling its own JOIN — an earlier version of the accept/patch/public
+// endpoints returned a bare `SELECT *` and silently dropped
+// createdByName/acceptedByName, which only broke once accepted client-side.
+async function calloutWithNames(id) {
+  return dbGet(
+    `SELECT callouts.*, creator.name as "createdByName", accepter.name as "acceptedByName", accepter.color as "acceptedByColor"
+     FROM callouts
+     JOIN users creator ON creator.id = callouts."createdBy"
+     LEFT JOIN users accepter ON accepter.id = callouts."acceptedBy"
+     WHERE callouts.id = $1`,
+    [id]
+  );
+}
 
 router.get('/callouts', ah(async (req, res) => {
   const { familyId, groupId, status } = req.query;
@@ -46,7 +59,7 @@ router.get('/callouts', ah(async (req, res) => {
      WHERE ${where} ORDER BY (status = 'open') DESC, callouts."createdAt" DESC`,
     params
   );
-  res.json({ callouts: rows.map(present) });
+  res.json({ callouts: rows });
 }));
 
 router.post('/callouts', ah(async (req, res) => {
@@ -76,8 +89,7 @@ router.post('/callouts', ah(async (req, res) => {
     }
   }
 
-  const callout = await dbGet('SELECT * FROM callouts WHERE id = $1', [id]);
-  res.status(201).json({ callout: present(callout) });
+  res.status(201).json({ callout: await calloutWithNames(id) });
 }));
 
 async function loadCalloutForUser(req, res) {
@@ -100,9 +112,9 @@ router.post('/callouts/:id/accept', ah(async (req, res) => {
   const callout = await loadCalloutForUser(req, res);
   if (!callout) return;
   const claimed = await claimCallout(callout.id, req.user.id);
-  const updated = await dbGet('SELECT * FROM callouts WHERE id = $1', [callout.id]);
-  if (!claimed) return res.status(409).json({ error: 'Someone already got this one', callout: present(updated) });
-  res.json({ callout: present(updated) });
+  const updated = await calloutWithNames(callout.id);
+  if (!claimed) return res.status(409).json({ error: 'Someone already got this one', callout: updated });
+  res.json({ callout: updated });
 }));
 
 router.patch('/callouts/:id', ah(async (req, res) => {
@@ -123,8 +135,7 @@ router.patch('/callouts/:id', ah(async (req, res) => {
   } else {
     return res.status(400).json({ error: 'status must be done, cancelled or open' });
   }
-  const updated = await dbGet('SELECT * FROM callouts WHERE id = $1', [callout.id]);
-  res.json({ callout: present(updated) });
+  res.json({ callout: await calloutWithNames(callout.id) });
 }));
 
 router.delete('/callouts/:id', ah(async (req, res) => {
@@ -141,27 +152,16 @@ router.delete('/callouts/:id', ah(async (req, res) => {
 publicRouter.get('/callout-response/:token', ah(async (req, res) => {
   const recipient = await dbGet('SELECT * FROM callout_recipients WHERE token = $1', [req.params.token]);
   if (!recipient) return res.status(404).json({ error: 'This link is not valid' });
-  const callout = await dbGet(
-    `SELECT callouts.*, creator.name as "createdByName", accepter.name as "acceptedByName" FROM callouts
-     JOIN users creator ON creator.id = callouts."createdBy"
-     LEFT JOIN users accepter ON accepter.id = callouts."acceptedBy"
-     WHERE callouts.id = $1`,
-    [recipient.calloutId]
-  );
-  res.json({ callout: present(callout) });
+  res.json({ callout: await calloutWithNames(recipient.calloutId) });
 }));
 
 publicRouter.post('/callout-response/:token', ah(async (req, res) => {
   const recipient = await dbGet('SELECT * FROM callout_recipients WHERE token = $1', [req.params.token]);
   if (!recipient) return res.status(404).json({ error: 'This link is not valid' });
   const claimed = await claimCallout(recipient.calloutId, recipient.userId);
-  const updated = await dbGet(
-    `SELECT callouts.*, accepter.name as "acceptedByName" FROM callouts
-     LEFT JOIN users accepter ON accepter.id = callouts."acceptedBy" WHERE callouts.id = $1`,
-    [recipient.calloutId]
-  );
-  if (!claimed) return res.status(409).json({ error: 'Someone already got this one', callout: present(updated) });
-  res.json({ callout: present(updated) });
+  const updated = await calloutWithNames(recipient.calloutId);
+  if (!claimed) return res.status(409).json({ error: 'Someone already got this one', callout: updated });
+  res.json({ callout: updated });
 }));
 
 module.exports = { router, publicRouter };

@@ -371,6 +371,15 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--brand); 
 .rating-option:hover { border-color: var(--accent); }
 .rating-option.selected { border-color: var(--brand); background: var(--brand-soft); color: var(--accent); }
 
+.poll-option-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 12px; cursor: pointer; color: var(--ink); font-weight: 600; font-size: 13.5px;
+  transition: border-color .12s ease;
+}
+.poll-option-row:hover { border-color: var(--accent); }
+.poll-option-row.on { border-color: var(--brand); }
+.poll-option-row .avatar-stack .avatar { width: 20px; height: 20px; font-size: 9px; }
+
 /* ---- Chat (family/group/event/direct) ---- */
 .chat-list-item {
   display: flex; align-items: center; gap: 11px; padding: 11px 8px; border-radius: 12px; cursor: pointer;
